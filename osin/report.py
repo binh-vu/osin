@@ -19,6 +19,11 @@ class ReportDataQuery:
 
 @dataclass
 class Report:
+    """Blueprint to trigger a run. It includes parameters and their possible values.
+
+    A report can be created by trigger a data query. The data query must take parameters
+    specified in this class.
+    """
     name: str
     description: str
     # parameters of the report and their possible values

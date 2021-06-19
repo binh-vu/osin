@@ -12,6 +12,7 @@ rocksdb = "^0.7.0"
 pandas = "^1.2.4"
 streamlit = "^0.82.0"
 python-dotenv = "^0.17.1"
+peewee = "^3.14.4"
 
 [tool.poetry.dev-dependencies]
 
