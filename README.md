@@ -8,15 +8,16 @@ Note: this tool is expected to use locally or inside VPN network as it doesn't p
 
 ## Quick start
 
+Start the following services:
+```bash
+python -m osin.worker # start worker to run jobs
+python -m osin.server # start the server so clients can send job result
+streamlit run osin/dashboard.py # start a dashboard to view/create reports
+```
+
 You will start by designing the output that your experiments will produce. For example:
 
 ```yaml
-schema:
-  run_id:
-  method:
-  precision:
-  recall:
-  f1:
 ```
 
 

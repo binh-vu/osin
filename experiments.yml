@@ -1,0 +1,15 @@
+- name: My experiment
+  table: default
+  description:
+  parameters:
+    dataset: [mnist, breast_cancer]
+    method: [logistic_regression, random_forest]
+  run_trigger:
+    type: bash
+    args: >
+      --cwd /workspace/sm-dev/osin --
+      poetry run python -m osin.mockup --dataset %%dataset%% --method %%method%% --exectime 2
+  reports:
+    - type: matrix
+      name: performance
+      columns: [precision, recall, f1]

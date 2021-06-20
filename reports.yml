@@ -1,8 +1,0 @@
-- name: Overall Performance
-  description: ""
-  parameters:
-    dataset: [mnist, breast_cancer]
-    method: [logistic_regression, random_forest]
-  data_query:
-    executor_type: bash
-    arguments: [python, run_exp.py, --dataset, %%dataset%%, --method, %%method%%]
