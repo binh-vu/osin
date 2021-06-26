@@ -1,5 +1,6 @@
 import argparse
 import copy
+import functools
 import itertools
 import os
 import pandas as pd
@@ -107,7 +108,19 @@ class ExpConfig:
             if not hasattr(self, fname):
                 raise NotImplementedError(f"Not support {report['type']}")
             func = getattr(self, fname)
-            return lambda: func(df, **report.get('params', {}))
+
+            @functools.wraps(func)
+            def func_wrapper():
+                # handle no data
+                if len(df) == 0:
+                    return f"No data for report {report['type']}"
+
+                try:
+                    return func(df, **report.get('params', {}))
+                except Exception as e:
+                    # return an exception for streamlit to display
+                    return e
+            return func_wrapper
 
         report_grids = [[]]
         for name in names:

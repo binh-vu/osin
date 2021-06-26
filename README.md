@@ -8,8 +8,14 @@ Note: this tool is expected to use locally or inside VPN network as it doesn't p
 
 ## Quick start
 
-Start the following services:
+Start the application:
 ```bash
+DBFILE=%PATH_TO_DBFILE% python -m osin.main
+```
+
+Or start the services manually:
+```bash
+export DBFILE=%PATH_TO_DBFILE%
 python -m osin.worker # start worker to run jobs
 python -m osin.server # start the server so clients can send job result
 streamlit run osin/dashboard.py # start a dashboard to view/create reports

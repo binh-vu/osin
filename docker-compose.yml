@@ -1,0 +1,8 @@
+version: '2.0'
+services:
+  jupyterlab:
+    build: .
+    image: toan2/osin
+    ports:
+    - "8501:8501"
+    command: poetry run python -m osin.main
