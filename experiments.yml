@@ -11,5 +11,26 @@
       poetry run python -m osin.mockup --dataset %%dataset%% --method %%method%% --exectime 2
   reports:
     - type: matrix
-      name: performance
-      columns: [precision, recall, f1]
+      name: Performance
+      colspan: 24
+      params:
+        columns: [precision, recall, f1]
+        groupby: [dataset, method]
+    - type: barplot
+      name: F1
+      display_name: false
+      colspan: 8
+      params:
+        x: dataset
+        y: precision
+        group: method
+        title: precision
+    - type: barplot
+      name: F12
+      colspan: 8
+      display_name: false
+      params:
+        x: method
+        y: f1
+        group: dataset
+        title: f1

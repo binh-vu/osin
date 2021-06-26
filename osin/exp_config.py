@@ -2,19 +2,22 @@ import argparse
 import copy
 import itertools
 import os
+import pandas as pd
 import socket
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 from uuid import uuid4
-
+import matplotlib.pyplot as plt
+import seaborn as sns
 from ruamel.yaml import YAML
-
+import plotly.graph_objects as go
 from osin.config import ROOT_DIR
 from osin.db import Job, ExpResult
 
 
+# noinspection PyMethodMayBeStatic
 @dataclass
 class ExpConfig:
     """Description of an experiment. It includes parameters and their possible values.
@@ -90,27 +93,85 @@ class ExpConfig:
             raise NotImplementedError()
         return jobs
 
-    def report(self, names: List[str]=None):
+    def report(self, names: List[str] = None):
         if names is None:
             names = [report['name'] for report in self.reports]
 
+        assert len(names) == len(set(names)), "Duplicated report names"
         # get the data first
         df = ExpResult.as_dataframe(self.table_name)
 
-        report_results = []
+        def get_value_func(name: str):
+            report = [report for report in self.reports if report['name'] == name][0]
+            fname = f'report_{report["type"]}'
+            if not hasattr(self, fname):
+                raise NotImplementedError(f"Not support {report['type']}")
+            func = getattr(self, fname)
+            return lambda: func(df, **report.get('params', {}))
+
+        report_grids = [[]]
         for name in names:
             report = [report for report in self.reports if report['name'] == name][0]
-            if report['type'] == 'matrix':
-                groups = list(self.parameters.keys())
-                report_results.append({
-                    "name": name,
-                    "value": df.groupby(groups)[report['columns']].aggregate(['mean', 'min', 'max', 'std'])
-                })
-        return report_results
+            colspan = report.get('colspan', 24)
+            row_used_size = sum([r['colspan'] for r in report_grids[-1]])
+            if colspan == 24 or row_used_size + colspan > 24:
+                # use new row
+                report_grids.append([])
+            report_grids[-1].append({
+                "name": name,
+                "colspan": colspan,
+                "display_name": report.get('display_name', True),
+                "get_value": get_value_func(name)
+            })
 
+        if len(report_grids[0]) == 0:
+            report_grids.pop(0)
 
-if __name__ == '__main__':
-    reports = ExpConfig.from_file(os.path.join(ROOT_DIR, "experiments.yml"))
-    # reports[0].trigger_runs({k: v for k, v in reports[0].parameters.items()})
-    reports[0].report()
-    # print(list(Job.select().where(Job.hostname == 'sequoia', Job.pid == '12950')))
+        return report_grids
+
+    def report_matrix(self, df: pd.DataFrame, columns: List[str], agg_metrics: List[str] = None,
+                      groupby: List[str] = None):
+        agg_metrics = agg_metrics or ['mean', 'min', 'max', 'std']
+        if groupby is not None:
+            df = df.groupby(groupby)
+        return df[columns].aggregate(agg_metrics)
+
+    def report_barplot(self, df: pd.DataFrame, x: str, y: str, group: str = None, title: str = None):
+        if group is not None:
+            group_values = df[group].unique()
+            sdfs = [(group_value, df[df[group] == group_value]) for group_value in group_values]
+        else:
+            sdfs = [(None, df)]
+
+        data = []
+        for group_value, sdf in sdfs:
+            sdf = sdf.groupby(x).aggregate(['mean', 'min', 'max'])
+            args = dict(x=sdf.index,
+                        y=sdf[y, 'mean'],
+                        text=[f"{v:.3f}" for v in sdf[y, 'mean']],
+                        textposition='auto',
+                        error_y=dict(
+                            type='data',
+                            symmetric=False,
+                            array=sdf[y, 'max'] - sdf[y, 'mean'],
+                            arrayminus=sdf[y, 'mean'] - sdf[y, 'min'],
+                            visible=True
+                        ))
+            if group is not None:
+                args["name"] = group
+            data.append(args)
+
+        fig = go.Figure(data=[
+            go.Bar(**kwargs)
+            for kwargs in data
+        ])
+
+        if title is not None:
+            fig.update_layout(title_text=title)
+        return fig
+
+# if __name__ == '__main__':
+#     reports = ExpConfig.from_file(os.path.join(ROOT_DIR, "experiments.yml"))
+#     # reports[0].trigger_runs({k: v for k, v in reports[0].parameters.items()})
+#     reports[0].report()
+#     # print(list(Job.select().where(Job.hostname == 'sequoia', Job.pid == '12950')))
