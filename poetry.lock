@@ -1003,6 +1003,24 @@ validators = "*"
 watchdog = {version = "*", markers = "platform_system != \"Darwin\""}
 
 [[package]]
+name = "streamlit_callbacks"
+version = "0.0.4"
+description = ""
+category = "main"
+optional = false
+python-versions = ">=3.6"
+develop = false
+
+[package.dependencies]
+streamlit = ">=0.76.0"
+
+[package.source]
+type = "git"
+url = "https://github.com/binh-vu/streamlit_callbacks"
+reference = "main"
+resolved_reference = "3af42ecde9910da73c000ace1b5c3e986a3513bc"
+
+[[package]]
 name = "tenacity"
 version = "7.0.0"
 description = "Retry code until it succeeds"
@@ -1183,7 +1201,7 @@ dev = ["pytest (>=4.6.2)", "black (>=19.3b0)"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "b490b7695db9e944e352c822e57eef9e7a71dd187dd4b550cf6259a3eb19d9a8"
+content-hash = "4ca0b186beaf7728f5f850bfe717e9f7487930a951fa28b1e559248853d189a9"
 
 [metadata.files]
 altair = [
@@ -1863,6 +1881,7 @@ streamlit = [
     {file = "streamlit-0.82.0-py2.py3-none-any.whl", hash = "sha256:350b49b8a0677fb781ece048b225d39b298dd0375cd298d3520f48583178959a"},
     {file = "streamlit-0.82.0.tar.gz", hash = "sha256:362539ea398d9528742a47e92216e076cc594e012998504aaec2ee00249ac331"},
 ]
+streamlit_callbacks = []
 tenacity = [
     {file = "tenacity-7.0.0-py2.py3-none-any.whl", hash = "sha256:a0ce48587271515db7d3a5e700df9ae69cce98c4b57c23a4886da15243603dd8"},
     {file = "tenacity-7.0.0.tar.gz", hash = "sha256:5bd16ef5d3b985647fe28dfa6f695d343aa26479a04e8792b9d3c8f49e361ae1"},

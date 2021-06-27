@@ -18,7 +18,7 @@ def main(pid_file: str, grace_period: int):
 
     env = dict(os.environ)
     logger.info("Start streamlit...")
-    p1 = subprocess.Popen(["streamlit", "run", os.path.join(parent, "dashboard.py")], env=env)
+    p1 = subprocess.Popen(["streamlit", "run", os.path.join(parent, "ui/dashboard.py")], env=env)
     with open(pid_file, "a") as f:
         f.write(str(p1.pid))
         f.write("\n")

@@ -1,9 +1,10 @@
 from datetime import datetime
+from typing import List
 
 import pandas as pd
 from peewee import *
 from playhouse.sqlite_ext import JSONField
-
+from operator import attrgetter
 from osin.config import DBFILE
 
 db = SqliteDatabase(DBFILE)
@@ -53,11 +54,27 @@ class Job(Model):
     logfile = TextField(null=True)
     status = TextField(choices=["queueing", "started", "success", "failure"], index=True)
 
+    @staticmethod
+    def last_finished_job() -> int:
+        jobs = Job.select(Job.id).where(Job.status.in_(['failure', 'success'])).order_by(Job.id.desc()).limit(1)
+        jobs = list(jobs)
+        if len(jobs) == 0:
+            return 0
+        else:
+            return jobs[0].id
+
+    @staticmethod
+    def recent_jobs(offset: int, limit: int) -> List['Job']:
+        jobs = Job.select().order_by(Job.id.desc()).limit(limit).offset(offset)
+        jobs = sorted(list(jobs), key=attrgetter('id'))
+        return jobs
+
 
 db.create_tables([ExpResult, Job])
 
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
+    Job.recent_jobs(0, 10)
 #     RunTable.create(data={"method": "random_forest", "precision": 1, "recall": 0.5})
 #     RunTable.create(data={"method": "random_forest", "precision": 3, "recall": 0.5, "f1": 0.2})
 #     RunTable.create(data={"method": "random_forest", "precision": 2, "recall": 0.5, "f1_1": 0.6})

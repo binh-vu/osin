@@ -11,7 +11,7 @@
       poetry run python -m osin.mockup --dataset %%dataset%% --method %%method%% --exectime 2
   reports:
     - type: matrix
-      name: Performance
+      name: Matrix
       colspan: 24
       params:
         columns: [precision, recall, f1]

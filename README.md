@@ -18,7 +18,7 @@ Or start the services manually:
 export DBFILE=%PATH_TO_DBFILE%
 python -m osin.worker # start worker to run jobs
 python -m osin.server # start the server so clients can send job result
-streamlit run osin/dashboard.py # start a dashboard to view/create reports
+streamlit run osin/ui/dashboard.py # start a dashboard to view/create reports
 ```
 
 You will start by designing the output that your experiments will produce. For example:

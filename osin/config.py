@@ -18,3 +18,5 @@ if DBFILE.startswith("."):
     DBFILE = os.path.abspath(os.path.join(ROOT_DIR, DBFILE))
 else:
     DBFILE = os.path.abspath(DBFILE)
+
+CONFIG_FILE = os.environ.get('CONFIG', os.path.join(ROOT_DIR, "experiments.yml"))

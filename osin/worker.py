@@ -13,13 +13,7 @@ class JobExecutor:
         # find the last finished job
         self.check_interval = check_interval
 
-        jobs = Job.select(Job.id).where(Job.status.in_(['failure', 'success'])).order_by(Job.id.desc()).limit(1)
-        jobs = list(jobs)
-        if len(jobs) == 0:
-            self.last_job_id = 0
-        else:
-            self.last_job_id = jobs[0].id
-
+        self.last_job_id = Job.last_finished_job()
         self.bash_argparser = argparse.ArgumentParser(description="Run bash command")
         self.bash_argparser.add_argument("--cwd", help="Working directory")
 
