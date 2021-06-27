@@ -1,4 +1,4 @@
-import os
+import os, math
 
 import streamlit as st
 import seaborn as sns
@@ -66,11 +66,32 @@ for exp_config in exp_configs:
                 value = report['get_value']()
                 st.write(value)
 
-    if st.button("Run experiment"):
-        jobs = exp_configs[0].trigger_runs({k: [v[0]] for k, v in exp_configs[0].parameters.items()})
-        st.write(f"Start {len(jobs)}.\n" + "\n".join([
-            f"{job.hostname}:{job.pid}:{job.logfile}" for job in jobs
-        ]))
+    with st.form(key='run exp'):
+        # create a grid
+        n_cols = 3
+        n_rows = math.ceil(len(exp_config.parameters) / n_cols)
+        params = list(exp_config.parameters.items())
+        idx = 0
+        selected_params = {}
+        for i in range(n_rows):
+            cols = st.beta_columns(n_cols)
+            for col in cols:
+                with col:
+                    k, v = params[idx]
+                    selected_params[k] = st.multiselect(label=k, options=v)
+                    idx += 1
+
+                    if idx >= len(params):
+                        break
+        run_exp = st.form_submit_button(label='Run experiment')
+
+    if run_exp:
+        missing_params = [k for k, v in selected_params.items() if len(v) == 0]
+        if len(missing_params) > 0:
+            st.error(f"Missing values for parameter: {missing_params}")
+        else:
+            jobs = exp_configs[0].trigger_runs(selected_params)
+            st.write(f"Start {len(jobs)} jobs.\n")
 
     st.markdown(f"## Raw Data")
     exp_data_containers.append(st.beta_container())
