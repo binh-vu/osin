@@ -31,6 +31,19 @@ def run_error():
     return jsonify({"status": "success"}), 200
 
 
+@app.route("/api/v1/runs", methods=["GET"])
+def get_data():
+    if "table" not in request.args:
+        return jsonify({"status": "missing table name"}), 400
+
+    records = [
+        dict(r.data, created_time=r.created_time, id=r.id)
+        for r in ExpResult.select().where(ExpResult.table == request.args['table'])
+    ]
+    return jsonify({"records": records}), 200
+
+
+
 if __name__ == '__main__':
     import click
     from tornado.wsgi import WSGIContainer
