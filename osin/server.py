@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
-
 from osin.db import ExpResult, Job
+from loguru import logger
 
 app = Flask(__name__)
 
@@ -32,4 +32,21 @@ def run_error():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5524)
+    import click
+    from tornado.wsgi import WSGIContainer
+    from tornado.httpserver import HTTPServer
+    from tornado.ioloop import IOLoop
+
+    @click.command()
+    @click.option("--no_wsgi", type=bool, default=False, help="Whether to use non-wsgi server")
+    def main(no_wsgi: bool):
+        if no_wsgi:
+            logger.info("Start osin server in non-wsgi mode")
+            http_server = HTTPServer(WSGIContainer(app))
+            http_server.listen(5524)
+            IOLoop.instance().start()
+        else:
+            app.run(host='0.0.0.0', port=5524)
+
+    main()
+
