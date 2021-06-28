@@ -1,50 +1,81 @@
-import os, math
+import math
+from operator import attrgetter
 
-import streamlit as st
 import seaborn as sns
-from osin.config import ROOT_DIR, CONFIG_FILE
-from osin.db import ExpResult, Job
-from osin.exp_config import ExpConfig
-from osin.ui.toggle_list import toggle_list
+import streamlit as st
 from streamlit.callbacks.callbacks import periodic
 
-
-containers = {'jobs': None}
-exp_data_containers = []
-job_container = None
-
-
-@st.cache(suppress_st_warning=True)
-def get_session():
-    return {}
-
-
-def periodic_check():
-    """Run periodic check to see if we need to update the data"""
-    global exp_data_containers, job_container, containers
-    # TODO: check if we have new data, then update it
-    if containers['jobs'] is not None:
-        with containers['jobs']:
-            toggle_list(get_jobs())
-
-
-def get_jobs():
-    jobs = Job.recent_jobs(0, 5)
-    return [
-        dict(id=job.id,
-             name=' '.join(job.exec_run_args),
-             icon={"queueing": "hourglass", "success": "circle-check", "started": "spinner",
-                   "failure": "triangle-exclaimation"}[job.status],
-             value=job.hostname)
-        for job in jobs
-    ]
-
+from osin.config import CONFIG_FILE
+from osin.db import ExpResult, Job, db
+from osin.exp_config import ExpConfig
+from osin.ui.toggle_list import toggle_list
 
 # apply general settings
 st.set_page_config(layout="wide")
 sns.set_theme()
-periodic(1.0, periodic_check)
+containers = {'jobs': None, 'exps': []}
 
+
+@st.cache(suppress_st_warning=True, allow_output_mutation=True)
+def get_session():
+    return {}
+
+
+session = get_session()
+
+
+class Dashboard:
+
+    @staticmethod
+    def update():
+        Dashboard.render_running_jobs()
+
+    @staticmethod
+    def render_running_jobs(force: bool = False):
+        global containers, session
+        if containers['jobs'] is None:
+            return
+
+        with containers['jobs']:
+            should_rerun = True
+
+            with db.atomic():
+                last_finished_job_id = Job.last_finished_job()
+                # get the next job
+                next_jobs = list(Job.select(Job.id, Job.status).where(Job.id == last_finished_job_id + 1))
+                if len(next_jobs) == 0:
+                    # key will be the latest job
+                    key = f"{last_finished_job_id}:finished"
+                else:
+                    # key would be the next job & status
+                    # when the job is finish or has status updated, this key will change
+                    key = f"{next_jobs[0].id}:{next_jobs[0].status}"
+
+                if not force and session.get("render_running_jobs_key", None) == key:
+                    should_rerun = False
+
+                if should_rerun:
+                    # retrieve the jobs
+                    start = max(last_finished_job_id - 3, 0)
+                    end = last_finished_job_id + 5
+                    jobs = Job.select().where((Job.id >= start) & (Job.id < end))
+                    jobs = [
+                        dict(id=job.id,
+                             name=' '.join(job.exec_run_args),
+                             icon={"queueing": "hourglass", "success": "circle-check", "started": "spinner",
+                                   "failure": "triangle-exclaimation"}[job.status],
+                             value=job.hostname)
+                        for job in sorted(list(jobs), key=attrgetter('id'), reverse=True)
+                    ]
+
+            if should_rerun:
+                with containers['jobs']:
+                    session['render_running_jobs_key'] = key
+                    toggle_list(jobs)
+
+
+# periodically check if data has been updated
+periodic(1.0, Dashboard.update)
 
 # render experiments
 exp_configs = ExpConfig.from_file(CONFIG_FILE)
@@ -94,12 +125,10 @@ for exp_config in exp_configs:
             st.write(f"Start {len(jobs)} jobs.\n")
 
     st.markdown(f"## Raw Data")
-    exp_data_containers.append(st.beta_container())
-    with exp_data_containers[-1]:
+    containers['exps'].append(st.beta_container())
+    with containers['exps'][-1]:
         st.write(ExpResult.as_dataframe(exp_config.table_name))
-
 
 st.markdown(f"## Running Jobs")
 containers['jobs'] = st.empty()
-with containers['jobs']:
-    toggle_list(get_jobs())
+Dashboard.render_running_jobs(force=True)

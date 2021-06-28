@@ -183,6 +183,7 @@ class ExpConfig:
             fig.update_layout(title_text=title)
         return fig
 
+
 # if __name__ == '__main__':
 #     reports = ExpConfig.from_file(os.path.join(ROOT_DIR, "experiments.yml"))
 #     # reports[0].trigger_runs({k: v for k, v in reports[0].parameters.items()})

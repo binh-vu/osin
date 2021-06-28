@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 from peewee import *
@@ -64,10 +64,17 @@ class Job(Model):
             return jobs[0].id
 
     @staticmethod
-    def recent_jobs(offset: int, limit: int) -> List['Job']:
-        jobs = Job.select().order_by(Job.id.desc()).limit(limit).offset(offset)
-        jobs = sorted(list(jobs), key=attrgetter('id'))
-        return jobs
+    def get_running_jobs() -> List['Job']:
+        cursor = Job.select() \
+            .where(Job.status.in_(['queueing', 'started'])) \
+            .order_by(Job.id.desc())
+        return list(cursor)
+
+    def is_queueing(self):
+        return self.status == "queueing"
+
+    def is_started(self):
+        return self.status == "started"
 
 
 db.create_tables([ExpResult, Job])
