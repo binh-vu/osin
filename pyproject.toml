@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "osin"
-version = "0.1.2"
+version = "0.1.3"
 description = "Rethink Experimenting"
 authors = ["Binh Vu <binh@toan2.com>"]
 homepage = "https://github.com/binh-vu/osin"
