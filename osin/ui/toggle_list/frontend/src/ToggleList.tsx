@@ -4,25 +4,8 @@ import {
   withStreamlitConnection,
 } from "streamlit-component-lib";
 import React, {ReactNode} from "react";
-import { SvgIcon } from "@material-ui/core";
-import clsx from 'clsx';
-import Card from '@material-ui/core/Card';
-import CardHeader from '@material-ui/core/CardHeader';
-import CardMedia from '@material-ui/core/CardMedia';
-import CardContent from '@material-ui/core/CardContent';
-import CardActions from '@material-ui/core/CardActions';
-import Collapse from '@material-ui/core/Collapse';
-import Avatar from '@material-ui/core/Avatar';
-import IconButton from '@material-ui/core/IconButton';
-import Typography from '@material-ui/core/Typography';
-import {red} from '@material-ui/core/colors';
-import FavoriteIcon from '@material-ui/icons/Favorite';
-import ShareIcon from '@material-ui/icons/Share';
-import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
-import MoreVertIcon from '@material-ui/icons/MoreVert';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faSpinner, faCheckCircle, faExclamationTriangle, faHourglassHalf } from '@fortawesome/free-solid-svg-icons'
-import PropTypes from 'prop-types';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome'
+import {faSpinner, faCheckCircle, faExclamationTriangle, faHourglassHalf} from '@fortawesome/free-solid-svg-icons'
 
 interface State {
   visibleItem?: string;
@@ -82,7 +65,7 @@ class ToggleList extends StreamlitComponentBase<State> {
   public clickCard = (id: string) => {
     return () => {
       if (this.state.visibleItem === id) {
-        this.setState({ visibleItem: undefined });
+        this.setState({visibleItem: undefined});
       } else {
         this.setState({visibleItem: id});
       }
@@ -92,13 +75,13 @@ class ToggleList extends StreamlitComponentBase<State> {
   public getIcon = (name: string) => {
     switch (name) {
       case "spinner":
-        return <FontAwesomeIcon icon={faSpinner} spin={true} color={"#2196f3"} style={styles.cardHeaderIcon} />
+        return <FontAwesomeIcon icon={faSpinner} spin={true} color={"#2196f3"} style={styles.cardHeaderIcon}/>
       case "circle-check":
-        return <FontAwesomeIcon icon={faCheckCircle} color={"#4caf50"} style={styles.cardHeaderIcon} />
+        return <FontAwesomeIcon icon={faCheckCircle} color={"#4caf50"} style={styles.cardHeaderIcon}/>
       case "triangle-exclaimation":
-        return <FontAwesomeIcon icon={faExclamationTriangle} color={"#ab003c"} style={styles.cardHeaderIcon} />
+        return <FontAwesomeIcon icon={faExclamationTriangle} color={"#ab003c"} style={styles.cardHeaderIcon}/>
       case "hourglass":
-        return <FontAwesomeIcon icon={faHourglassHalf} color={"#2196f3"} style={styles.cardHeaderIcon} />
+        return <FontAwesomeIcon icon={faHourglassHalf} color={"#2196f3"} style={styles.cardHeaderIcon}/>
       default:
         return undefined;
     }
