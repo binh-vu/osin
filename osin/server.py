@@ -5,6 +5,11 @@ from loguru import logger
 app = Flask(__name__)
 
 
+@app.route("/")
+def home():
+    return "The server is live"
+
+
 @app.route("/api/v1/runs", methods=['POST'])
 def save_run():
     ExpResult.create(table=request.json['table'], data=request.json['data'])
@@ -52,10 +57,21 @@ if __name__ == '__main__':
 
     @click.command()
     @click.option("--no_wsgi", type=bool, default=False, help="Whether to use non-wsgi server")
-    def main(no_wsgi: bool):
+    @click.option("--certfile", default=None, help="Path to the certificate signing request")
+    @click.option("--keyfile", default=None, help="Path to the key file")
+    def main(no_wsgi: bool, certfile: str, keyfile: str):
+        if certfile is None or keyfile is None:
+            ssl_options = None
+        else:
+            ssl_options = {
+                'certfile': certfile,
+                'keyfile': keyfile
+            }
+            assert no_wsgi
+
         if no_wsgi:
             logger.info("Start osin server in non-wsgi mode")
-            http_server = HTTPServer(WSGIContainer(app))
+            http_server = HTTPServer(WSGIContainer(app), ssl_options=ssl_options)
             http_server.listen(5524)
             IOLoop.instance().start()
         else:
