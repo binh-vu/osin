@@ -1,13 +1,23 @@
-from flask import Flask, request, jsonify
+import os
+
+from flask import Flask, request, jsonify, render_template
+
+from osin.config import ROOT_DIR
 from osin.db import ExpResult, Job
 from loguru import logger
 
-app = Flask(__name__)
+
+app = Flask(__name__, template_folder=os.path.join(ROOT_DIR, "osin/ui/www/build"), static_folder=os.path.join(ROOT_DIR, "osin/ui/www/build/static"), static_url_path='/static')
 
 
 @app.route("/")
 def home():
     return "The server is live"
+
+
+@app.route("/exps/<table>", methods=['GET'])
+def view_table(table: str):
+    return render_template('index.html')
 
 
 @app.route("/api/v1/runs", methods=['POST'])
@@ -40,13 +50,51 @@ def run_error():
 def get_data():
     if "table" not in request.args:
         return jsonify({"status": "missing table name"}), 400
+    try:
+        if 'limit' in request.args:
+            assert request.args['limit'].isdigit()
+        if 'offset' in request.args:
+            assert request.args['offset'].isdigit()
+    except AssertionError:
+        return jsonify({"status": "bad query"}), 400
 
-    records = [
-        dict(r.data, created_time=r.created_time, id=r.id)
-        for r in ExpResult.select().where(ExpResult.table == request.args['table'])
-    ]
-    return jsonify({"records": records}), 200
+    condition = ExpResult.table == request.args['table']
+    not_include_deleted = request.args.get('include_deleted', 'false').lower() != 'true'
+    if not_include_deleted:
+        condition = condition & (ExpResult.is_deleted == False)
 
+    query = ExpResult.select().where(condition)
+    if 'limit' in request.args:
+        query = query.limit(int(request.args['limit']))
+    if 'offset' in request.args:
+        query = query.offset(int(request.args['offset']))
+    if request.args.get('order', None) == 'desc':
+        query = query.order_by(ExpResult.id.desc())
+
+    records = []
+    for r in query:
+        record = dict(id=r.id, created_time=r.created_time, **r.data)
+        if not not_include_deleted:
+            record['deleted'] = 1 if r.is_deleted else None
+        records.append(record)
+    columns = []
+    if len(records) > 0:
+        columns = list(records[0].keys())
+    return jsonify({"records": records, "columns": columns}), 200
+
+
+@app.route("/api/v1/runs/<run_id>", methods=['DELETE'])
+def delete_run(run_id: str):
+    if not run_id.isdigit():
+        return jsonify({"msg": "invalid run id"}), 400
+
+    try:
+        exp = ExpResult.get_by_id(int(run_id))
+    except:
+        return jsonify({"msg": "run id doesn't exist"}), 400
+    exp.is_deleted = True
+    exp.save()
+    return jsonify({"status": "success"}), 200
 
 
 if __name__ == '__main__':

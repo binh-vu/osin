@@ -8,7 +8,7 @@
     type: bash
     args: >
       --cwd /workspace/sm-dev/osin --
-      poetry run python -m osin.mockup --dataset %%dataset%% --method %%method%% --exectime 2
+      poetry run python -m osin.mockup --dataset %%dataset%% --method %%method%% --exectime 0
   reports:
     - type: matrix
       name: Matrix
