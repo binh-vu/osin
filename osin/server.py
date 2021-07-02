@@ -75,8 +75,9 @@ def get_data():
         if not not_include_deleted:
             record['deleted'] = 1 if r.is_deleted else None
         records.append(record)
-    print(records[0])
-    return jsonify({"records": records}), 200
+
+    total = ExpResult.select().where(ExpResult.table == request.args['table']).count()
+    return jsonify({"records": records, "total": total}), 200
 
 
 @app.route("/api/v1/runs/<run_id>", methods=['DELETE'])
