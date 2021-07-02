@@ -1,6 +1,7 @@
 import os
 
 from flask import Flask, request, jsonify, render_template
+from peewee import DoesNotExist
 
 from osin.config import ROOT_DIR
 from osin.db import ExpResult, Job
@@ -10,14 +11,10 @@ from loguru import logger
 app = Flask(__name__, template_folder=os.path.join(ROOT_DIR, "osin/ui/www/build"), static_folder=os.path.join(ROOT_DIR, "osin/ui/www/build/static"), static_url_path='/static')
 
 
-@app.route("/")
-def home():
-    return "The server is live"
-
-
-@app.route("/exps/<table>", methods=['GET'])
-def view_table(table: str):
-    return render_template('index.html')
+@app.route("/", defaults={'path': ''})
+@app.route('/<path:path>')
+def home(_path):
+    return render_template("index.html")
 
 
 @app.route("/api/v1/runs", methods=['POST'])
@@ -77,10 +74,7 @@ def get_data():
         if not not_include_deleted:
             record['deleted'] = 1 if r.is_deleted else None
         records.append(record)
-    columns = []
-    if len(records) > 0:
-        columns = list(records[0].keys())
-    return jsonify({"records": records, "columns": columns}), 200
+    return jsonify({"records": records}), 200
 
 
 @app.route("/api/v1/runs/<run_id>", methods=['DELETE'])
@@ -90,7 +84,7 @@ def delete_run(run_id: str):
 
     try:
         exp = ExpResult.get_by_id(int(run_id))
-    except:
+    except DoesNotExist:
         return jsonify({"msg": "run id doesn't exist"}), 400
     exp.is_deleted = True
     exp.save()

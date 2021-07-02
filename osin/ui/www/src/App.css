@@ -1,6 +1,6 @@
 @import '~antd/dist/antd.css';
 
-body {
+div#root {
     margin-left: 12px;
     margin-right: 12px;
 }
