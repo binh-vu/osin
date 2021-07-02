@@ -9,6 +9,7 @@ from loguru import logger
 
 
 app = Flask(__name__, template_folder=os.path.join(ROOT_DIR, "osin/ui/www/build"), static_folder=os.path.join(ROOT_DIR, "osin/ui/www/build/static"), static_url_path='/static')
+app.config['JSON_SORT_KEYS'] = False
 
 
 @app.route("/", defaults={'path': ''})
@@ -74,6 +75,7 @@ def get_data():
         if not not_include_deleted:
             record['deleted'] = 1 if r.is_deleted else None
         records.append(record)
+    print(records[0])
     return jsonify({"records": records}), 200
 
 

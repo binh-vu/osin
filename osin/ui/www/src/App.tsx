@@ -1,18 +1,12 @@
-import React from 'react';
 import './App.css';
 import {
   BrowserRouter as Router,
   Switch,
   Route,
-  Link,
-  useParams
 } from "react-router-dom";
 import ExpTable from "./ExpTable";
-interface Props {
 
-}
-
-export default function App(props: Props) {
+export default function App() {
   return <div>
     <Router>
       <div>
