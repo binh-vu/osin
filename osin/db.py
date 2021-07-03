@@ -1,6 +1,8 @@
+from dataclasses import dataclass, field, asdict
 from datetime import datetime
-from typing import List
+from typing import List, Dict
 
+import orjson
 import pandas as pd
 from peewee import *
 from playhouse.sqlite_ext import JSONField
@@ -41,6 +43,68 @@ class ExpResult(Model):
                 if column_2 in r.data:
                     del r.data[column_2]
                 r.save()
+
+
+@dataclass
+class ColumnSchema:
+    count: int = 0
+    visibility: bool = True
+    type: str = "auto"
+    format: List[str] = field(default_factory=list)
+
+    @staticmethod
+    def deserialize(bin):
+        odicts = orjson.loads(bin)
+        return {key: ColumnSchema(**value) for key, value in odicts.items()}
+
+    @staticmethod
+    def serialize(cols):
+        return orjson.dumps({key: asdict(value) for key, value in cols.items()})
+
+
+class ExpTableSchema(Model):
+    class Meta:
+        database = db
+
+    table = TextField(unique=True)
+    version = IntegerField(default=0)
+    columns: Dict[str, ColumnSchema] = JSONField(default={}, json_loads=ColumnSchema.deserialize,
+                                                 json_dumps=ColumnSchema.serialize)
+
+    @staticmethod
+    def get_table(table: str) -> 'ExpTableSchema':
+        return ExpTableSchema.get(ExpTableSchema.table == table)
+
+    def add_exp_result(self, exp_result: dict):
+        """Recording that a new exp result has been added"""
+        new_version = False
+        for key in exp_result:
+            if key not in self.columns:
+                new_version = True
+                self.columns[key] = ColumnSchema()
+            self.columns[key].count += 1
+        if new_version:
+            self.version += 1
+
+    def remove_exp_result(self, exp_result: dict):
+        new_version = False
+        for key in exp_result:
+            self.columns[key].count -= 1
+            if self.columns[key].count == 0:
+                new_version = True
+                del self.columns[key]
+        if new_version:
+            self.version += 1
+
+    def to_dict(self):
+        columns = {}
+        if self.columns is not None:
+            columns = {k: asdict(v) for k, v in self.columns.items()}
+        return {
+            "version": self.version,
+            "table": self.table,
+            "columns": columns
+        }
 
 
 class Job(Model):

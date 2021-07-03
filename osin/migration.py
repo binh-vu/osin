@@ -1,5 +1,7 @@
+from typing import Dict, List
+
 from playhouse.migrate import *
-from osin.db import db, ExpResult
+from osin.db import db, ExpResult, ExpTableSchema
 
 
 def migrate_to_v2():
@@ -17,5 +19,16 @@ def migrate_to_v2():
         )
 
 
+def migrate_to_v3():
+    with db.atomic():
+        db.create_tables([ExpTableSchema])
+        exps: List[ExpResult] = list(ExpResult.select())
+        tables: Dict[str, ExpTableSchema] = {r.table: ExpTableSchema(table=r.table) for r in exps}
+        for exp in exps:
+            tables[exp.table].add_exp_result(exp.data)
+        for tbl in tables.values():
+            tbl.save()
+
+
 if __name__ == '__main__':
-    migrate_to_v2()
+    migrate_to_v3()
