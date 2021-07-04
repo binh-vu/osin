@@ -102,7 +102,7 @@ def delete_runs():
             exp_results: List[ExpResult] = list(ExpResult.select().where(ExpResult.id.in_(run_ids)))
             tables: Dict[str, ExpTableSchema] = {r.table: None for r in exp_results}
             for table in tables:
-                tables[table] = ExpTableSchema.get_by_id(table)
+                tables[table] = ExpTableSchema.get_table(table)
             for r in exp_results:
                 tables[r.table].remove_exp_result(r.data)
             for table in tables.values():

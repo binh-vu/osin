@@ -75,7 +75,8 @@ class Dashboard:
 
 
 # periodically check if data has been updated
-periodic(1.0, Dashboard.update)
+# TODO: uncomment to re-run job monitoring
+# periodic(1.0, Dashboard.update)
 
 # render experiments
 exp_configs = ExpConfig.from_file(CONFIG_FILE)

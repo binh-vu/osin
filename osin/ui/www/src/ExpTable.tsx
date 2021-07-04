@@ -54,16 +54,20 @@ class ExpTable extends React.Component<Props, State> {
     this.updateData(this.tableName, this.state.showDeleted, this.state.descending, this.state.pageSize, this.state.pageNo);
   }
 
-  componentDidUpdate = (props: Props) => {
+  componentDidUpdate = () => {
     this.updateData(this.tableName, this.state.showDeleted, this.state.descending, this.state.pageSize, this.state.pageNo);
   }
 
-  deleteRecord = (recordId: string) => {
+  reload = () => {
+    this.updateData(
+      this.tableName, this.state.showDeleted, this.state.descending,
+      this.state.pageSize, this.state.pageNo, Date.now());
+  }
+
+  deleteRecords = (recordIds: string[], is_permanent?: boolean) => {
     this.setState({ loading: true });
-    axios.delete(`/api/v1/runs/${recordId}`)
-      .then(() => {
-        this.updateData(this.tableName, this.state.showDeleted, this.state.descending, this.state.pageSize, this.state.pageNo, recordId);
-      });
+    axios.post(`/api/v1/runs/delete`, { run_ids: recordIds, is_permanent })
+      .then(this.reload);
   }
 
   onSelectRows = (selectedRowKeys: any[]) => {
@@ -71,17 +75,9 @@ class ExpTable extends React.Component<Props, State> {
   }
 
   restoreSelectedRows = () => {
+    this.setState({ loading: true });
     axios.post(`/api/v1/runs/restore`, { run_ids: this.state.selectedRows })
-      .then(() => {
-        this.updateData(this.tableName, this.state.showDeleted, this.state.descending, this.state.pageSize, this.state.pageNo, JSON.stringify(this.state.selectedRows));
-      });
-  }
-
-  deleteSelectedRows = () => {
-    axios.post(`/api/v1/runs/delete`, { run_ids: this.state.selectedRows })
-      .then(() => {
-        this.updateData(this.tableName, this.state.showDeleted, this.state.descending, this.state.pageSize, this.state.pageNo, JSON.stringify(this.state.selectedRows));
-      });
+      .then(this.reload);
   }
 
   updatePagination = (pagination: TablePaginationConfig) => {
@@ -124,13 +120,22 @@ class ExpTable extends React.Component<Props, State> {
           onClick={() => this.setState({ showSchema: !this.state.showSchema })}>
           {this.state.showSchema ? "Hide settings" : "Show settings"}
         </Button>
+        <Button className="ml-4" size="small"
+          onClick={this.reload}>
+          Reload
+        </Button>
         <Button className="ml-4" type="primary" size="small"
           onClick={() => this.restoreSelectedRows()}
           disabled={this.state.selectedRows.length == 0}>
           Restore
         </Button>
         <Button className="ml-4" type="primary" danger={true} size="small"
-          onClick={() => this.deleteSelectedRows()}
+          onClick={() => this.deleteRecords(this.state.selectedRows, true)}
+          disabled={this.state.selectedRows.length == 0}>
+          Delete Permanently
+        </Button>
+        <Button className="ml-4" danger={true} size="small"
+          onClick={() => this.deleteRecords(this.state.selectedRows)}
           disabled={this.state.selectedRows.length == 0}>
           Delete
         </Button>
@@ -168,7 +173,7 @@ class ExpTable extends React.Component<Props, State> {
     </React.Fragment>;
   }
 
-  updateData = memoizeOne(async (tableName: string, showDeleted: boolean, descending: boolean, pageSize: number, pageNo: number, key?: string) => {
+  updateData = memoizeOne(async (tableName: string, showDeleted: boolean, descending: boolean, pageSize: number, pageNo: number, key?: string | number) => {
     this.setState({ loading: true });
     // query data from the server
     let schemaResp = await axios.get("/api/v1/tables", {
@@ -195,7 +200,13 @@ class ExpTable extends React.Component<Props, State> {
           columns[cname] = {
             title: cname.toUpperCase(),
             dataIndex: cname,
-            key: cname
+            key: cname,
+            render: (value: any, record: any) => {
+              if (typeof value === "number") {
+                return parseFloat(value.toFixed(4));
+              }
+              return value;
+            }
           };
         }
       }
@@ -207,7 +218,7 @@ class ExpTable extends React.Component<Props, State> {
         key: '__action_58172__',
         render: (text: string, record: any) => {
           return <React.Fragment>
-            <Button type="primary" danger={true} onClick={() => this.deleteRecord(record.id)}>Delete</Button>
+            <Button type="primary" danger={true} onClick={() => this.deleteRecords([record.id])}>Delete</Button>
             {this.state.showDeleted && record.deleted ? <Button type="primary" className="ml-4">Restore</Button> : null}
           </React.Fragment>
         }
