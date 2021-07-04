@@ -1,6 +1,50 @@
 @import '~antd/dist/antd.css';
 
-body {
+.mr-8 {
+    margin-right: 8px;
+}
+
+.ml-8 {
+    margin-left: 8px;
+}
+
+.ml-12 {
+    margin-left: 12px;
+}
+
+.ml-16 {
+    margin-left: 16px;
+}
+
+.mt-8 {
+    margin-top: 8px;
+}
+
+.mb-8 {
+    margin-bottom: 8px;
+}
+
+.mr-4 {
+    margin-right: 4px;
+}
+
+.ml-4 {
+    margin-left: 4px;
+}
+
+.mt-4 {
+    margin-top: 4px;
+}
+
+.mb-4 {
+    margin-bottom: 4px;
+}
+
+div#root {
     margin-left: 12px;
     margin-right: 12px;
+}
+
+.hide {
+    display: none;
 }

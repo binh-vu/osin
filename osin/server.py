@@ -1,35 +1,46 @@
 import os
+from typing import Dict, List
 
 from flask import Flask, request, jsonify, render_template
+from peewee import DoesNotExist
 
 from osin.config import ROOT_DIR
-from osin.db import ExpResult, Job
+from osin.db import ExpResult, Job, db, ExpTableSchema
 from loguru import logger
 
 
 app = Flask(__name__, template_folder=os.path.join(ROOT_DIR, "osin/ui/www/build"), static_folder=os.path.join(ROOT_DIR, "osin/ui/www/build/static"), static_url_path='/static')
+app.config['JSON_SORT_KEYS'] = False
 
 
-@app.route("/")
-def home():
-    return "The server is live"
-
-
-@app.route("/exps/<table>", methods=['GET'])
-def view_table(table: str):
-    return render_template('index.html')
+@app.route("/", defaults={'_path': ''})
+@app.route('/<path:_path>')
+def home(_path):
+    return render_template("index.html")
 
 
 @app.route("/api/v1/runs", methods=['POST'])
 def save_run():
-    ExpResult.create(table=request.json['table'], data=request.json['data'])
-    jobs = Job.select().where(Job.hostname == request.json['hostname'], Job.pid == str(request.json['pid']))
-    jobs = list(jobs)
-    if len(jobs) > 0:
-        # ignore when users submit an orphan job, mark the job that we finished
-        assert len(jobs) == 1, "We have multiple jobs of samse hostname and process id. This shouldn't happen"
-        jobs[0].status = "success"
-        jobs[0].save()
+    table = request.json['table']
+    data = request.json['data']
+
+    with db:
+        ExpResult.create(table=table, data=data)
+        try:
+            schema = ExpTableSchema.get_table(table)
+        except DoesNotExist:
+            schema = ExpTableSchema(table=table)
+        schema.add_exp_result(data)
+        schema.save()
+
+        jobs = Job.select().where(Job.hostname == request.json['hostname'], Job.pid == str(request.json['pid']))
+        jobs = list(jobs)
+        if len(jobs) > 0:
+            # ignore when users submit an orphan job, mark the job that we finished
+            assert len(jobs) == 1, "We have multiple jobs of samse hostname and process id. This shouldn't happen"
+            jobs[0].status = "success"
+            jobs[0].save()
+
     return jsonify({"status": "success"}), 200
 
 
@@ -77,24 +88,63 @@ def get_data():
         if not not_include_deleted:
             record['deleted'] = 1 if r.is_deleted else None
         records.append(record)
-    columns = []
-    if len(records) > 0:
-        columns = list(records[0].keys())
-    return jsonify({"records": records, "columns": columns}), 200
+
+    total = ExpResult.select().where(ExpResult.table == request.args['table']).count()
+    return jsonify({"records": records, "total": total}), 200
 
 
-@app.route("/api/v1/runs/<run_id>", methods=['DELETE'])
-def delete_run(run_id: str):
-    if not run_id.isdigit():
-        return jsonify({"msg": "invalid run id"}), 400
-
-    try:
-        exp = ExpResult.get_by_id(int(run_id))
-    except:
-        return jsonify({"msg": "run id doesn't exist"}), 400
-    exp.is_deleted = True
-    exp.save()
+@app.route("/api/v1/runs/delete", methods=['POST'])
+def delete_runs():
+    run_ids = request.json['run_ids']
+    if request.json.get('is_permanent', False):
+        with db:
+            # load previous exps to update the schema
+            exp_results: List[ExpResult] = list(ExpResult.select().where(ExpResult.id.in_(run_ids)))
+            tables: Dict[str, ExpTableSchema] = {r.table: None for r in exp_results}
+            for table in tables:
+                tables[table] = ExpTableSchema.get_by_id(table)
+            for r in exp_results:
+                tables[r.table].remove_exp_result(r.data)
+            for table in tables.values():
+                table.save()
+            ExpResult.delete().where(ExpResult.id.in_(run_ids)).execute()
+    else:
+        ExpResult.update(is_deleted=True).where(ExpResult.id.in_(run_ids)).execute()
     return jsonify({"status": "success"}), 200
+
+
+@app.route("/api/v1/runs/restore", methods=['POST'])
+def restore_runs():
+    run_ids = request.json['run_ids']
+    ExpResult.update(is_deleted=False).where(ExpResult.id.in_(run_ids)).execute()
+    return jsonify({"status": "success"}), 200
+
+
+@app.route("/api/v1/tables/<table>", methods=["GET"])
+def get_table(table):
+    try:
+        schema = ExpTableSchema.get_table(table)
+    except DoesNotExist:
+        return jsonify({"status": "error", "message": "table doesn't exist"}), 400
+    return jsonify(schema.to_dict())
+
+
+@app.route("/api/v1/tables/<table>", methods=["POST"])
+def update_table(table):
+    try:
+        schema = ExpTableSchema.get_table(table)
+    except DoesNotExist:
+        return jsonify({"status": "error", "message": "table doesn't exist"}), 400
+
+    for name, raw_col in request.json['columns'].items():
+        if name in schema.columns:
+            col = schema.columns[name]
+            for k in ['visibility', 'type', 'format']:
+                if k in raw_col:
+                    setattr(col, k, raw_col[k])
+
+    schema.save()
+    return jsonify({"status": "success"})
 
 
 if __name__ == '__main__':
