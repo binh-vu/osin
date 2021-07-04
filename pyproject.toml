@@ -1,10 +1,11 @@
 [tool.poetry]
 name = "osin"
-version = "0.2.2"
+version = "0.2.5"
 description = "Rethink Experimenting"
 authors = ["Binh Vu <binh@toan2.com>"]
 homepage = "https://github.com/binh-vu/osin"
 license = "MIT"
+include = ["osin/ui/www/build/**/*", "osin/ui/toggle_list/build/**/*"]
 
 [tool.poetry.dependencies]
 python = "^3.8"

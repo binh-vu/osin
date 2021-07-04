@@ -4,6 +4,8 @@ import time
 
 import click
 from loguru import logger
+from osin.config import DBFILE
+from osin.db import init_db
 
 parent = os.path.dirname(os.path.abspath(__file__))
 
@@ -18,6 +20,10 @@ def main(pid_file: str, grace_period: int, no_wsgi: str, certfile: str, keyfile:
     if os.path.exists(pid_file):
         logger.error("Previous processes are still running. Stop them first!")
         return
+
+    if not os.path.exists(DBFILE):
+        logger.info("Database doesn't exist. Create database...")
+        init_db()
 
     env = dict(os.environ)
     logger.info("Start streamlit...")

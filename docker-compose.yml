@@ -1,8 +1,11 @@
 version: '2.0'
 services:
-  jupyterlab:
+  osin:
     build: .
     image: toan2/osin
     ports:
     - "8501:8501"
-    command: poetry run python -m osin.main
+    - "5524:5524"
+    environment:
+    - DBFILE=/tmp/osin.db
+    command: python -m osin.main

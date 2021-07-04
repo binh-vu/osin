@@ -144,5 +144,9 @@ class Job(Model):
         return self.status == "started"
 
 
+def init_db():
+    db.create_tables([ExpResult, ExpTableSchema, Job])
+
+
 if __name__ == '__main__':
-    db.create_tables([ExpResult, Job])
+    init_db()
