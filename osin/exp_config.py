@@ -1,6 +1,7 @@
 import argparse
 import copy
 import functools
+import importlib
 import itertools
 import os
 import pandas as pd
@@ -104,10 +105,16 @@ class ExpConfig:
 
         def get_value_func(name: str):
             report = [report for report in self.reports if report['name'] == name][0]
-            fname = f'report_{report["type"]}'
-            if not hasattr(self, fname):
-                raise NotImplementedError(f"Not support {report['type']}")
-            func = getattr(self, fname)
+
+            if not hasattr(self, f'report_{report["type"]}'):
+                if report['type'].find(".") != -1:
+                    module, fname = report['type'].rsplit(".", 1)
+                    module = importlib.import_module(module)
+                    func = getattr(module, fname)
+                else:
+                    raise NotImplementedError(f"Not support {report['type']}")
+            else:
+                func = getattr(self, f'report_{report["type"]}')
 
             @functools.wraps(func)
             def func_wrapper():

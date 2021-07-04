@@ -124,10 +124,10 @@ for exp_config in exp_configs:
             jobs = exp_configs[0].trigger_runs(selected_params)
             st.write(f"Start {len(jobs)} jobs.\n")
 
-    st.markdown(f"## Raw Data")
-    containers['exps'].append(st.beta_container())
-    with containers['exps'][-1]:
-        st.write(ExpResult.as_dataframe(exp_config.table_name))
+    # st.markdown(f"## Raw Data")
+    # containers['exps'].append(st.beta_container())
+    # with containers['exps'][-1]:
+    #     st.write(ExpResult.as_dataframe(exp_config.table_name))
 
 st.markdown(f"## Running Jobs")
 containers['jobs'] = st.empty()
