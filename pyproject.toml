@@ -10,7 +10,7 @@ include = ["osin/ui/www/build/**/*", "osin/ui/toggle_list/build/**/*"]
 [tool.poetry.dependencies]
 python = "^3.8"
 Flask = "^2.0.2"
-pandas = "^1.2.4"
+pandas = "^1.4.1"
 streamlit = "^0.82.0"
 python-dotenv = ">=0.19.0"
 peewee = "^3.14.4"
