@@ -9,15 +9,11 @@ from peewee import (
     DateTimeField,
 )
 from osin.models.base import BaseModel
+from osin.models.exp import Exp
 
 
-class Exp(BaseModel):
+class Report(BaseModel):
+    exp = ForeignKeyField(Exp, backref="reports", on_delete="CASCADE")
     name = CharField()
     description = TextField()
-
-
-class ExpRun(BaseModel):
-    exp = ForeignKeyField(Exp, backref="runs", on_delete="CASCADE")
-    is_deleted = BooleanField(default=False, index=True)
-    created_time = DateTimeField(default=datetime.now)
-    rundir = TextField()
+    type = TextField(choices=["table"])
