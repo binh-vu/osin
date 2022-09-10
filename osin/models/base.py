@@ -10,12 +10,17 @@ from osin.config import CACHE_SIZE
 
 # TODO: consider moving to APSWDatabase
 db = SqliteDatabase(None)
+is_inited = False
 
 
 def init_db(dbfile: Union[str, Path]):
     """Initialize database"""
-    global db
+    global db, is_inited
+    if is_inited:
+        return
+
     db.init(str(dbfile), pragmas={"foreign_keys": 1})
+    is_inited = True
 
 
 class BaseModel(Model):

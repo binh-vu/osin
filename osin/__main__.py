@@ -8,18 +8,19 @@ from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 from tornado.wsgi import WSGIContainer
 from osin.models import db as dbconn, init_db, Exp, ExpRun, Report, Dashboard
+from osin.data_keeper import OsinDataKeeper
 
 
 @click.command()
-@click.option("-d", "--db", required=True, help="smc database file")
-def init(db):
+@click.option("-d", "--data", required=True, help="data directory of osin")
+def init(data):
     """Init database"""
-    init_db(db)
+    init_db(OsinDataKeeper(data).get_db_file())
     dbconn.create_tables([Exp, ExpRun, Report, Dashboard], safe=True)
 
 
 @click.command()
-@click.option("-d", "--db", required=True, help="smc database file")
+@click.option("-d", "--data", required=True, help="data directory of osin")
 @click.option("--wsgi", is_flag=True, help="Whether to use wsgi server")
 @click.option("-p", "--port", default=5524, help="Listening port")
 @click.option(
@@ -27,15 +28,13 @@ def init(db):
 )
 @click.option("--keyfile", default=None, help="Path to the key file")
 def start(
-    db: str,
-    externaldb: str,
-    externaldb_proxy: bool,
+    data: str,
     wsgi: bool,
     port: int,
     certfile: str,
     keyfile: str,
 ):
-    init_db(db)
+    init_db(OsinDataKeeper(data).get_db_file())
 
     if certfile is None or keyfile is None:
         ssl_options = None
@@ -52,3 +51,16 @@ def start(
         http_server = HTTPServer(WSGIContainer(app), ssl_options=ssl_options)
         http_server.listen(port)
         IOLoop.instance().start()
+
+
+@click.group()
+def cli():
+    pass
+
+
+cli.add_command(init)
+cli.add_command(start)
+
+
+if __name__ == "__main__":
+    cli()

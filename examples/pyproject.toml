@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "osin-examples"
+version = "1.0.0"
+description = "Examples on how to use osin"
+authors = ["Binh Vu <binh@toan2.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "osin_examples"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+scikit-learn = "^1.1.2"
+matplotlib = "^3.5.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
