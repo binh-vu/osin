@@ -14,6 +14,7 @@ class RemoteExp:
     name: str
     version: int
     params: Dict[str, PyObjectType]
+    aggregated_outputs: Dict[str, PyObjectType]
     osin: Osin
 
     def new_exp_run(self) -> RemoteExpRun:

@@ -4,18 +4,21 @@ import {
   NoQueryArgsPathDef,
   applyLayout,
 } from "gena-app";
-import { HomePage, ProjectPage, TablePage, SettingPage } from "./pages";
+import { HomePage, SettingPage } from "./pages";
 
 import React from "react";
-import { LeftNavBar } from "./components/Navbar";
-import { Space } from "antd";
-import logo from "./logo.png";
+import { SideNavBar } from "./components/Navbar";
+import { Space, Layout as AntdLayou, Row, Col } from "antd";
+import logo from "./logo.svg";
 
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  CloudUploadOutlined,
-  ProjectOutlined,
-  SettingOutlined,
-} from "@ant-design/icons";
+  faTableList,
+  faChartLine,
+  faFlask,
+} from "@fortawesome/free-solid-svg-icons";
+import { IconProp } from "@fortawesome/fontawesome-svg-core";
+import { ExperimentRunPage } from "./pages/experiment_run/ExperimentRunPage";
 
 /*************************************************************************************
  * Layouts of the application
@@ -26,19 +29,48 @@ export const Layout = (
   return (props: any) => {
     const element = React.createElement(component, props);
     return (
-      <Space direction="vertical" style={{ width: "100%" }}>
-        <LeftNavBar
-          menus={{
-            home: <img src={logo} alt="logo" />,
-            projects: { icon: <ProjectOutlined />, children: "Projects" },
-            upload: { icon: <CloudUploadOutlined />, children: "Upload" },
-            settings: { icon: <SettingOutlined />, children: "Settings" },
-          }}
-          routes={routes}
-          isFirstItemLogo={true}
-        />
-        <div className="wide-container">{element}</div>
-      </Space>
+      <Row style={{ minHeight: "100vh" }}>
+        <Col flex="75px">
+          <SideNavBar
+            menus={{
+              home: {
+                icon: <img src={logo} className="logo" alt="logo" />,
+                label: "",
+                title: "Home",
+              },
+              expSetup: {
+                icon: <FontAwesomeIcon icon={faFlask} />,
+                label: "Experiment",
+                title: "Experiment Setup",
+              },
+              reports: {
+                icon: <FontAwesomeIcon icon={faChartLine} />,
+                label: "Reports",
+                title: "Show Experiment Reports",
+              },
+              runs: {
+                icon: <FontAwesomeIcon icon={faTableList} />,
+                label: "Runs",
+                title: "Show Experiment Runs",
+              },
+            }}
+            routes={routes}
+            route2schemaId={{
+              home: 0,
+              expSetup: 1,
+              reports: 1,
+              runs: 1,
+            }}
+            isFirstItemLogo={true}
+          />
+        </Col>
+        <Col
+          flex="auto"
+          style={{ marginLeft: 8, marginRight: 8, marginTop: 16 }}
+        >
+          {element}
+        </Col>
+      </Row>
     );
   };
 };
@@ -49,42 +81,22 @@ const None = () => <h1>Not supposed to see this page</h1>;
  * Definitions for routes in this application
  */
 export const routes = {
-  project: new NoQueryArgsPathDef({
-    component: ProjectPage,
-    urlSchema: { projectId: "number" },
-    pathDef: "/projects/:projectId",
-  }),
-  table: new PathDef({
-    component: TablePage,
-    urlSchema: { tableId: "number" },
-    querySchema: { query: "string" },
-    pathDef: "/tables/:tableId",
-  }),
-  tableExportModel: new PathDef({
+  expSetup: new NoQueryArgsPathDef({
     component: None,
-    urlSchema: { tableId: "number" },
-    querySchema: { attachment: "optionalboolean" },
-    pathDef: "/api/table/:tableId/export-models",
-  }),
-  tableExportData: new PathDef({
-    component: None,
-    urlSchema: { tableId: "number" },
-    querySchema: { attachment: "optionalboolean" },
-    pathDef: "/api/table/:tableId/export",
-  }),
-  settings: new NoArgsPathDef({
-    component: SettingPage,
-    pathDef: "/settings",
+    urlSchema: { expId: "number" },
+    pathDef: "/exps/:expId/config",
     exact: true,
   }),
-  upload: new NoArgsPathDef({
-    component: HomePage,
-    pathDef: "/upload",
+  reports: new NoQueryArgsPathDef({
+    component: None,
+    urlSchema: { expId: "number" },
+    pathDef: "/exps/:expId/report",
     exact: true,
   }),
-  projects: new NoArgsPathDef({
-    component: HomePage,
-    pathDef: "/projects",
+  runs: new NoQueryArgsPathDef({
+    component: ExperimentRunPage,
+    urlSchema: { expId: "number" },
+    pathDef: "/exps/:expId/runs",
     exact: true,
   }),
   home: new NoArgsPathDef({ component: HomePage, pathDef: "/", exact: true }),
@@ -92,4 +104,4 @@ export const routes = {
 (window as any)._routes = routes;
 
 // apply this layout to all routes except table
-applyLayout(routes, Layout, ["table"]);
+applyLayout(routes, Layout, []);

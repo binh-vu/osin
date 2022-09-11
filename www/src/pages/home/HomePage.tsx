@@ -19,7 +19,7 @@ import {
   purple,
   magenta,
 } from "@ant-design/colors";
-import { openNewProjectForm } from "../project/forms/NewProjectForm";
+import { ExperimentExplorer } from "../experiments/ExperimentExplorer";
 
 // const colorWheels = ["#f56a00", "#7265e6", "#1890ff", "#00a2ae"];
 const colorWheels = [
@@ -38,69 +38,5 @@ const colorWheels = [
 ];
 
 export const HomePage = observer(() => {
-  const { projectStore } = useStores();
-
-  useEffect(() => {
-    projectStore.fetch({ limit: 100, offset: 0 });
-  }, [projectStore]);
-
-  return (
-    <React.Fragment>
-      <Row gutter={16}>
-        <Col className="gutter-row" span={16}>
-          <Typography.Title level={3}>Projects</Typography.Title>
-        </Col>
-        <Col className="gutter-row" span={8}>
-          <Button
-            style={{ float: "right" }}
-            type="primary"
-            onClick={() => openNewProjectForm()}
-          >
-            New Project
-          </Button>
-        </Col>
-      </Row>
-      <Row gutter={16}>
-        <Col className="gutter-row" span={24}>
-          <List
-            size="small"
-            bordered={true}
-            itemLayout="horizontal"
-            dataSource={projectStore.list}
-            renderItem={(project, i) => (
-              <List.Item>
-                <List.Item.Meta
-                  avatar={
-                    <Avatar
-                      shape="square"
-                      size="large"
-                      style={{
-                        marginTop: 4,
-                        backgroundColor:
-                          colorWheels[
-                            project.name.charCodeAt(0) % colorWheels.length
-                          ],
-                      }}
-                    >
-                      {project.name[0].toUpperCase()}
-                    </Avatar>
-                  }
-                  title={
-                    <InternalLink
-                      path={routes.project}
-                      urlArgs={{ projectId: project.id }}
-                      queryArgs={{}}
-                    >
-                      {project.name}
-                    </InternalLink>
-                  }
-                  description={project.description}
-                />
-              </List.Item>
-            )}
-          />
-        </Col>
-      </Row>
-    </React.Fragment>
-  );
+  return <ExperimentExplorer />;
 });

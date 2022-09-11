@@ -1,9 +1,11 @@
+from datetime import datetime
 from pathlib import Path
 import shutil
 from typing import Dict, List, Optional, Union
 
 import numpy as np
 import orjson
+from osin.misc import get_caller_python_script
 from osin.models.parameters import Parameters, PyObject, PyObjectType
 from osin.apis.osin import Osin
 from osin.apis.remote_exp import RemoteExp, RemoteExpRun
@@ -23,7 +25,9 @@ class LocalOsin(Osin):
         name: str,
         version: int,
         description: Optional[str] = None,
+        program: Optional[str] = None,
         params: Optional[Union[Parameters, List[Parameters]]] = None,
+        aggregated_outputs: Optional[Dict[str, PyObjectType]] = None,
     ) -> RemoteExp:
         exps = (
             Exp.select().where(Exp.name == name).order_by(Exp.version.desc()).limit(1)  # type: ignore
@@ -37,7 +41,9 @@ class LocalOsin(Osin):
                 name=name,
                 description=description,
                 version=version,
+                program=program or get_caller_python_script(),
                 params=Parameters.get_param_types(params),
+                aggregated_outputs=aggregated_outputs or {},
             )
         else:
             if exps[0].version > version:
@@ -53,7 +59,9 @@ class LocalOsin(Osin):
                     name=name,
                     description=description,
                     version=version,
+                    program=program or get_caller_python_script(),
                     params=Parameters.get_param_types(params),
+                    aggregated_outputs=aggregated_outputs or {},
                 )
 
         return RemoteExp(
@@ -61,6 +69,7 @@ class LocalOsin(Osin):
             name=exp.name,
             version=exp.version,
             params=exp.params,
+            aggregated_outputs=exp.aggregated_lit_outputs,
             osin=self,
         )
 
@@ -79,14 +88,18 @@ class LocalOsin(Osin):
         return RemoteExpRun(id=exp_run.id, exp=exp, rundir=rundir, osin=self)
 
     def finish_exp_run(self, exp_run: RemoteExpRun):
+        finished_time = datetime.utcnow()
+
         with h5py.File(
             self.osin_keeper.get_exp_run_data_file(exp_run.exp, exp_run), "a"
         ) as f:
             agg_group = f.create_group("aggregated")
+            agg_lit_outputs = {}
             for key, value in exp_run.pending_literal_output.get(
                 "aggregated", {}
             ).items():
                 agg_group[key] = value
+                agg_lit_outputs[key] = value
             for key, value in exp_run.pending_complex_output.get(
                 "aggregated", {}
             ).items():
@@ -102,8 +115,11 @@ class LocalOsin(Osin):
             ).items():
                 ind_group[example_id] = value
 
+        # determine if the experiment run is finished
+        # save other metadata
+        # check if agg_lit_outputs matches with the schema.
         self.osin_keeper.get_exp_run_success_file(exp_run.exp, exp_run).touch()
-        ExpRun.update(is_finished=True).where(ExpRun.id == exp_run.id).execute()  # type: ignore
+        ExpRun.update(is_finished=True, agg_lit_outputs=agg_lit_outputs).where(ExpRun.id == exp_run.id).execute()  # type: ignore
 
     def update_exp_run_params(
         self, exp_run: RemoteExpRun, params: Union[Parameters, List[Parameters]]

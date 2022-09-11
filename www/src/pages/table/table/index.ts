@@ -1,1 +1,0 @@
-export { TableComponent } from "./TableComponent";

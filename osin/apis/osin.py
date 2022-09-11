@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Union
 from abc import ABC, abstractmethod
 
 import numpy as np
-from osin.models.parameters import Parameters, PyObject
+from osin.models.parameters import Parameters, PyObject, PyObjectType
 from osin.apis.remote_exp import RemoteExp, RemoteExpRun
 
 
@@ -22,12 +22,23 @@ class Osin(ABC):
         name: str,
         version: int,
         description: Optional[str] = None,
+        program: Optional[str] = None,
         params: Optional[Union[Parameters, List[Parameters]]] = None,
+        aggregated_outputs: Optional[Dict[str, PyObjectType]] = None,
     ) -> RemoteExp:
         """Init an experiment in Osin.
 
         If the experiment already exists, the input version must be the latest one, and the parameters must match.
         If the experiment does not exist, it will be created with the given parameters.
+
+        Args:
+            name: Name of the experiment
+            version: Version of the experiment
+            description: Description of the experiment
+            program: The python program to invoke the experiment
+            params: The parameters of the experiment.
+            aggregated_outputs: The aggregated outputs of the experiment.
+                If not provided, it will be inferred automatically when the experiment is run.
         """
         pass
 
