@@ -9,3 +9,15 @@ body {
   margin-left: 44px;
   margin-right: 44px;
 }
+
+.ml-8 {
+  margin-left: 8px;
+}
+
+.ml-16 {
+  margin-left: 16px;
+}
+
+.pl-8 {
+  padding-left: 8px;
+}

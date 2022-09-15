@@ -25,8 +25,10 @@
     "@types/react-router-dom": "^5.1.9",
     "antd": "^4.23.1",
     "axios": "^0.27.2",
+    "filesize": "^9.0.11",
     "fuse.js": "^6.4.6",
     "gena-app": "^4.0.0",
+    "humanize-duration": "^3.27.3",
     "hyphenation.en-us": "^0.2.1",
     "lodash": "^4.17.21",
     "memoize-one": "^5.2.1",
@@ -46,6 +48,7 @@
   },
   "devDependencies": {
     "//": "See https://github.com/facebook/create-react-app/issues/11773",
+    "@types/humanize-duration": "^3.27.1",
     "react-error-overlay": "6.0.9"
   },
   "scripts": {

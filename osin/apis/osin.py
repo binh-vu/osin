@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Union
 from abc import ABC, abstractmethod
 
 import numpy as np
+from osin.models.exp import NestedPrimitiveOutput
 from osin.models.parameters import Parameters, PyObject, PyObjectType
 from osin.apis.remote_exp import RemoteExp, RemoteExpRun
 
@@ -60,8 +61,8 @@ class Osin(ABC):
         pass
 
     @abstractmethod
-    def update_exp_run_agg_literal_output(
-        self, exp_run: RemoteExpRun, output: Dict[str, Union[int, str, float, bool]]
+    def update_exp_run_agg_primitive_output(
+        self, exp_run: RemoteExpRun, output: NestedPrimitiveOutput
     ):
         pass
 
@@ -72,12 +73,12 @@ class Osin(ABC):
         pass
 
     @abstractmethod
-    def update_example_literal_output(
+    def update_example_primitive_output(
         self,
         exp_run: RemoteExpRun,
         example_id: str,
-        example_name: Optional[str] = None,
-        output: Optional[Dict[str, Union[int, str, float, bool]]] = None,
+        example_name: str = "",
+        output: Optional[NestedPrimitiveOutput] = None,
     ):
         pass
 
@@ -86,7 +87,7 @@ class Osin(ABC):
         self,
         exp_run: RemoteExpRun,
         example_id: str,
-        example_name: Optional[str] = None,
+        example_name: str = "",
         output: Optional[Dict[str, PyObject]] = None,
     ):
         pass

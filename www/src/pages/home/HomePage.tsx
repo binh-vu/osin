@@ -19,7 +19,7 @@ import {
   purple,
   magenta,
 } from "@ant-design/colors";
-import { ExperimentExplorer } from "../experiments/ExperimentExplorer";
+import { ExperimentExplorer } from "../exp/ExperimentExplorer";
 
 // const colorWheels = ["#f56a00", "#7265e6", "#1890ff", "#00a2ae"];
 const colorWheels = [

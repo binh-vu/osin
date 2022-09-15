@@ -11,6 +11,6 @@ exp_run_bp = generate_api(
         "params": orjson.loads,
         "finished_time": parse,
         "created_time": parse,
-        "aggregated_outputs": orjson.loads,
+        "aggregated_primitive_outputs": orjson.loads,
     },
 )

@@ -7,11 +7,21 @@ import { ExperimentRun } from "./ExperimentRun";
 
 export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
   public noRunsOfExperiment: { [expId: number]: number } = {};
+  public timezoneOffset: number = new Date().getTimezoneOffset() * 60000;
 
   constructor() {
-    super(`${SERVER}/api/exprun`, undefined, false, [
-      new SingleKeyIndex("exp"),
-    ]);
+    super(
+      `${SERVER}/api/exprun`,
+      {
+        isDeleted: "is_deleted",
+        isFinished: "is_finished",
+        createdTime: "created_time",
+        finishedTime: "finished_time",
+        aggregatedPrimitiveOutputs: "aggregated_primitive_outputs",
+      },
+      false,
+      [new SingleKeyIndex("exp")]
+    );
 
     makeObservable(this, {
       noRunsOfExperiment: observable,
@@ -65,4 +75,19 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
       total: this.noRunsOfExperiment[exp.id],
     };
   });
+
+  public deserialize(record: any): ExperimentRun {
+    return new ExperimentRun(
+      record.id,
+      record.exp,
+      record.is_deleted,
+      record.is_finished,
+      record.is_successful,
+      new Date(record.created_time - this.timezoneOffset),
+      new Date(record.finished_time - this.timezoneOffset),
+      record.params,
+      record.metadata,
+      record.aggregated_primitive_outputs
+    );
+  }
 }

@@ -13,6 +13,15 @@ import React, {
 
 export const useStyles = makeStyles({
   table: {},
+  fullWidthTable: {
+    "& .ant-pro-card-body": {
+      paddingLeft: 0,
+      paddingRight: 0,
+    },
+    "& table": {
+      borderRadius: 0,
+    },
+  },
 });
 
 export interface TableComponentFunc {
@@ -28,6 +37,9 @@ interface TableComponentProps {
   toolBarRender?: false;
   showRowIndex?: boolean;
   columns: ProColumns[];
+  selectRows?: boolean;
+  fullWidth?: boolean;
+  scroll?: { x?: number | string | true; y?: number | string };
 }
 
 export const TableComponent = observer(
@@ -38,11 +50,15 @@ export const TableComponent = observer(
         query,
         toolBarRender,
         showRowIndex = false,
+        selectRows = false,
         columns,
+        fullWidth = true,
+        scroll,
       }: TableComponentProps,
       ref
     ) => {
       const classes = useStyles();
+      const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
       const actionRef = useRef<ActionType>();
 
       useImperativeHandle(
@@ -67,8 +83,17 @@ export const TableComponent = observer(
 
       return (
         <ProTable
+          rowSelection={
+            selectRows
+              ? { selectedRowKeys, onChange: setSelectedRowKeys }
+              : undefined
+          }
+          tableAlertRender={false} // hide the alert when select rows for now.
+          scroll={scroll}
           actionRef={actionRef}
-          className={classes.table}
+          className={
+            classes.table + " " + (fullWidth ? classes.fullWidthTable : "")
+          }
           defaultSize="small"
           bordered={true}
           request={async (params, sort, filter) => {

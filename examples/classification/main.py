@@ -38,7 +38,7 @@ osin = Osin.local(
 exp = osin.init_exp(
     name="sklearn.classification",
     version=1,
-    description="sklearn classification",
+    description="Testing sklearn classifiers on some sklearn datasets",
     params=args,
 )
 exp_run = osin.new_exp_run(exp).update_params(args)
@@ -81,23 +81,25 @@ ytestpred = clf.predict(X_test)
 
 res = classification_report(y_train, ytrainpred, output_dict=True)
 print(res)
-osin.update_exp_run_agg_literal_output(
+osin.update_exp_run_agg_primitive_output(
     exp_run=exp_run,
-    output={
-        f"train.{k}.{k2}": v
-        for k, vs in res.items()
-        for k2, v in (vs.items() if isinstance(vs, dict) else [("", vs)])
-    },
+    output=res,
+    # output={
+    #     f"train.{k}.{k2}": v
+    #     for k, vs in res.items()
+    #     for k2, v in (vs.items() if isinstance(vs, dict) else [("", vs)])
+    # },
 )
 res = classification_report(y_test, ytestpred, output_dict=True)
 print(res)
-osin.update_exp_run_agg_literal_output(
+osin.update_exp_run_agg_primitive_output(
     exp_run=exp_run,
-    output={
-        f"train.{k}.{k2}": v
-        for k, vs in res.items()
-        for k2, v in (vs.items() if isinstance(vs, dict) else [("", vs)])
-    },
+    output=res,
+    # output={
+    #     f"train.{k}.{k2}": v
+    #     for k, vs in res.items()
+    #     for k2, v in (vs.items() if isinstance(vs, dict) else [("", vs)])
+    # },
 )
 
 osin.finish_exp_run(exp_run)

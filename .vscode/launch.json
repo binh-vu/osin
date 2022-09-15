@@ -10,6 +10,29 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "PyTest",
+            "type": "python",
+            "request": "launch",
+            "module": "pytest",
+            "justMyCode": true,
+            "args": [
+                "-xvs",
+                "-k",
+                "test_exp_run"
+            ],
+            "env": {
+                "FLASK_DEBUG": "development"
+            }
+        },
+        {
+            "name": "Example model",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/classification/main.py",
+            "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
                 "--dataset",
@@ -17,6 +40,6 @@
                 "--method",
                 "Nearest Neighbors"
             ]
-        }
+        },
     ]
 }

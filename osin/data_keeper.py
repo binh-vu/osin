@@ -26,6 +26,16 @@ class OsinDataKeeper:
     ) -> Path:
         return self.get_exp_dir(exp) / f"run_{exp_run.id:03d}"
 
+    def get_exp_run_params_file(
+        self, exp: Union[Exp, RemoteExp], exp_run: Union[ExpRun, RemoteExpRun]
+    ) -> Path:
+        return self.get_exp_run_dir(exp, exp_run) / "params.json"
+
+    def get_exp_run_metadata_file(
+        self, exp: Union[Exp, RemoteExp], exp_run: Union[ExpRun, RemoteExpRun]
+    ) -> Path:
+        return self.get_exp_run_dir(exp, exp_run) / "metadata.json"
+
     def get_exp_run_data_file(
         self, exp: Union[Exp, RemoteExp], exp_run: Union[ExpRun, RemoteExpRun]
     ) -> Path:

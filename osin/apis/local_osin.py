@@ -1,17 +1,25 @@
 from datetime import datetime
+import os
 from pathlib import Path
 import shutil
+import socket
 from typing import Dict, List, Optional, Union
 
 import numpy as np
 import orjson
-from osin.misc import get_caller_python_script
-from osin.models.parameters import Parameters, PyObject, PyObjectType
+import psutil
+from osin.misc import get_caller_python_script, h5_update_nested_primitive_object
+from osin.models.parameters import (
+    Parameters,
+    PyObject,
+    PyObjectType,
+    NestedPrimitiveOutputSchema,
+)
 from osin.apis.osin import Osin
 from osin.apis.remote_exp import RemoteExp, RemoteExpRun
 from osin.data_keeper import OsinDataKeeper
 from osin.models.base import init_db
-from osin.models.exp import Exp, ExpRun
+from osin.models.exp import Exp, ExpRun, NestedPrimitiveOutput, RunMetadata
 import h5py
 
 
@@ -43,7 +51,7 @@ class LocalOsin(Osin):
                 version=version,
                 program=program or get_caller_python_script(),
                 params=Parameters.get_param_types(params),
-                aggregated_outputs=aggregated_outputs or {},
+                aggregated_outputs=aggregated_outputs,
             )
         else:
             if exps[0].version > version:
@@ -61,7 +69,7 @@ class LocalOsin(Osin):
                     version=version,
                     program=program or get_caller_python_script(),
                     params=Parameters.get_param_types(params),
-                    aggregated_outputs=aggregated_outputs or {},
+                    aggregated_outputs=aggregated_outputs,
                 )
 
         return RemoteExp(
@@ -69,7 +77,7 @@ class LocalOsin(Osin):
             name=exp.name,
             version=exp.version,
             params=exp.params,
-            aggregated_outputs=exp.aggregated_lit_outputs,
+            aggregated_primitive_outputs=exp.aggregated_primitive_outputs,
             osin=self,
         )
 
@@ -85,41 +93,89 @@ class LocalOsin(Osin):
         exp_run.rundir = str(rundir)
         exp_run.save()
 
-        return RemoteExpRun(id=exp_run.id, exp=exp, rundir=rundir, osin=self)
+        return RemoteExpRun(
+            id=exp_run.id,
+            exp=exp,
+            rundir=rundir,
+            created_time=exp_run.created_time,
+            finished_time=exp_run.created_time,
+            osin=self,
+        )
 
     def finish_exp_run(self, exp_run: RemoteExpRun):
-        finished_time = datetime.utcnow()
+        exp_run.finished_time = datetime.utcnow()
 
         with h5py.File(
             self.osin_keeper.get_exp_run_data_file(exp_run.exp, exp_run), "a"
         ) as f:
             agg_group = f.create_group("aggregated")
+
+            if len(exp_run.pending_primitive_output.aggregated) > 0:
+                h5_update_nested_primitive_object(
+                    agg_group, exp_run.pending_primitive_output.aggregated
+                )
+
             agg_lit_outputs = {}
-            for key, value in exp_run.pending_literal_output.get(
-                "aggregated", {}
-            ).items():
-                agg_group[key] = value
+            for key, value in exp_run.pending_primitive_output.aggregated.items():
                 agg_lit_outputs[key] = value
-            for key, value in exp_run.pending_complex_output.get(
-                "aggregated", {}
-            ).items():
+            for key, value in exp_run.pending_complex_output.aggregated.items():
                 agg_group[key] = value
 
             ind_group = f.create_group("individual")
-            for example_id, value in exp_run.pending_literal_output.get(
-                "individual", {}
-            ).items():
-                ind_group[example_id] = value
-            for example_id, value in exp_run.pending_complex_output.get(
-                "individual", {}
-            ).items():
+            for (
+                example_id,
+                value,
+            ) in exp_run.pending_primitive_output.individual.items():
+                h5_update_nested_primitive_object(
+                    ind_group.create_group(example_id), value
+                )
+            for example_id, value in exp_run.pending_complex_output.individual.items():
                 ind_group[example_id] = value
 
-        # determine if the experiment run is finished
-        # save other metadata
+        metadata = RunMetadata.auto()
+        # save metadata
+        self.osin_keeper.get_exp_run_metadata_file(exp_run.exp, exp_run).write_bytes(
+            orjson.dumps(
+                {
+                    "created_time": exp_run.created_time.isoformat(),
+                    "finished_time": exp_run.finished_time.isoformat(),
+                    "duration": (
+                        exp_run.finished_time - exp_run.created_time
+                    ).total_seconds(),
+                    **metadata.to_dict(),
+                },
+                option=orjson.OPT_INDENT_2,
+            )
+        )
         # check if agg_lit_outputs matches with the schema.
+        if exp_run.exp.aggregated_primitive_outputs is None:
+            exp_run.exp.aggregated_primitive_outputs = (
+                NestedPrimitiveOutputSchema.infer_from_data(agg_lit_outputs)
+            )
+            has_invalid_agg_output_schema = False
+            Exp.update(
+                aggregated_primitive_outputs=exp_run.exp.aggregated_primitive_outputs
+            ).where(
+                Exp.id == exp_run.exp.id
+            ).execute()  # type: ignore
+        else:
+            has_invalid_agg_output_schema = (
+                not exp_run.exp.aggregated_primitive_outputs.does_data_match(
+                    agg_lit_outputs
+                )
+            )
+
         self.osin_keeper.get_exp_run_success_file(exp_run.exp, exp_run).touch()
-        ExpRun.update(is_finished=True, agg_lit_outputs=agg_lit_outputs).where(ExpRun.id == exp_run.id).execute()  # type: ignore
+        ExpRun.update(
+            is_finished=True,
+            is_successful=True,
+            finished_time=exp_run.finished_time,
+            has_invalid_agg_output_schema=has_invalid_agg_output_schema,
+            metadata=metadata,
+            aggregated_primitive_outputs=agg_lit_outputs,
+        ).where(
+            ExpRun.id == exp_run.id
+        ).execute()  # type: ignore
 
     def update_exp_run_params(
         self, exp_run: RemoteExpRun, params: Union[Parameters, List[Parameters]]
@@ -133,46 +189,38 @@ class LocalOsin(Osin):
         with open(exp_run.rundir / "params.json", "wb") as f:
             f.write(orjson.dumps(output, option=orjson.OPT_INDENT_2))
 
-    def update_exp_run_agg_literal_output(
-        self, exp_run: RemoteExpRun, output: Dict[str, Union[int, str, float, bool]]
+    def update_exp_run_agg_primitive_output(
+        self, exp_run: RemoteExpRun, output: NestedPrimitiveOutput
     ):
-        if "aggregated" not in exp_run.pending_literal_output:
-            exp_run.pending_literal_output["aggregated"] = {}
-        exp_run.pending_literal_output["aggregated"].update(output)
+        exp_run.pending_primitive_output.aggregated.update(output)
 
     def update_exp_run_agg_complex_output(
         self, exp_run: RemoteExpRun, output: Dict[str, PyObject]
     ):
-        if "aggregated" not in exp_run.pending_complex_output:
-            exp_run.pending_complex_output["aggregated"] = {}
-        exp_run.pending_complex_output["aggregated"].update(output)
+        exp_run.pending_complex_output.aggregated.update(output)
 
-    def update_example_literal_output(
+    def update_example_primitive_output(
         self,
         exp_run: RemoteExpRun,
         example_id: str,
-        example_name: Optional[str] = None,
-        output: Optional[Dict[str, Union[int, str, float, bool]]] = None,
+        example_name: str = "",
+        output: Optional[NestedPrimitiveOutput] = None,
     ):
-        if "individual" not in exp_run.pending_literal_output:
-            exp_run.pending_literal_output["individual"] = {}
-        exp_run.pending_literal_output["individual"][example_id] = {
+        exp_run.pending_primitive_output.individual[example_id] = {
             "id": example_id,
             "name": example_name,
-            "output": output,
+            "output": output or {},
         }
 
     def update_example_complex_output(
         self,
         exp_run: RemoteExpRun,
         example_id: str,
-        example_name: Optional[str] = None,
+        example_name: str = "",
         output: Optional[Dict[str, PyObject]] = None,
     ):
-        if "individual" not in exp_run.pending_complex_output:
-            exp_run.pending_complex_output["individual"] = {}
-        exp_run.pending_complex_output["individual"][example_id] = {
+        exp_run.pending_complex_output.individual[example_id] = {
             "id": example_id,
             "name": example_name,
-            "output": output,
+            "output": output or {},
         }

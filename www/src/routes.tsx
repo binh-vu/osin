@@ -18,7 +18,8 @@ import {
   faFlask,
 } from "@fortawesome/free-solid-svg-icons";
 import { IconProp } from "@fortawesome/fontawesome-svg-core";
-import { ExperimentRunPage } from "./pages/experiment_run/ExperimentRunPage";
+import { ExpRunExplorerPage } from "./pages/exp_run/ExpRunExplorerPage";
+import { ExpRunPage } from "./pages/exp_run/ExpRunPage";
 
 /*************************************************************************************
  * Layouts of the application
@@ -29,8 +30,14 @@ export const Layout = (
   return (props: any) => {
     const element = React.createElement(component, props);
     return (
-      <Row style={{ minHeight: "100vh" }}>
-        <Col flex="75px">
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexFlow: "row nowrap",
+        }}
+      >
+        <div style={{ width: 75 }}>
           <SideNavBar
             menus={{
               home: {
@@ -60,17 +67,15 @@ export const Layout = (
               expSetup: 1,
               reports: 1,
               runs: 1,
+              run: 1,
             }}
             isFirstItemLogo={true}
           />
-        </Col>
-        <Col
-          flex="auto"
-          style={{ marginLeft: 8, marginRight: 8, marginTop: 16 }}
-        >
+        </div>
+        <div style={{ width: "calc(100% - 75px)", marginTop: 16 }}>
           {element}
-        </Col>
-      </Row>
+        </div>
+      </div>
     );
   };
 };
@@ -94,9 +99,15 @@ export const routes = {
     exact: true,
   }),
   runs: new NoQueryArgsPathDef({
-    component: ExperimentRunPage,
+    component: ExpRunExplorerPage,
     urlSchema: { expId: "number" },
     pathDef: "/exps/:expId/runs",
+    exact: true,
+  }),
+  run: new NoQueryArgsPathDef({
+    component: ExpRunPage,
+    urlSchema: { expId: "number", runId: "number" },
+    pathDef: "/exps/:expId/runs/:runId",
     exact: true,
   }),
   home: new NoArgsPathDef({ component: HomePage, pathDef: "/", exact: true }),

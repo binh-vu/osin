@@ -7,7 +7,7 @@ from peewee import fn
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 from tornado.wsgi import WSGIContainer
-from osin.models import db as dbconn, init_db, Exp, ExpRun, Report, Dashboard
+from osin.models import db as dbconn, init_db, all_tables
 from osin.data_keeper import OsinDataKeeper
 
 
@@ -16,7 +16,7 @@ from osin.data_keeper import OsinDataKeeper
 def init(data):
     """Init database"""
     init_db(OsinDataKeeper(data).get_db_file())
-    dbconn.create_tables([Exp, ExpRun, Report, Dashboard], safe=True)
+    dbconn.create_tables(all_tables, safe=True)
 
 
 @click.command()
