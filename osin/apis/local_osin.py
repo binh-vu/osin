@@ -9,14 +9,9 @@ import numpy as np
 import orjson
 import psutil
 from osin.misc import get_caller_python_script, h5_update_nested_primitive_object
-from osin.models.parameters import (
-    Parameters,
-    PyObject,
-    PyObjectType,
-    NestedPrimitiveOutputSchema,
-)
+from osin.types import Parameters, NestedPrimitiveOutputSchema, PyObject, PyObjectType
 from osin.apis.osin import Osin
-from osin.apis.remote_exp import RemoteExp, RemoteExpRun
+from osin.apis.remote_exp import ExampleOutput, OutputType, RemoteExp, RemoteExpRun
 from osin.data_keeper import OsinDataKeeper
 from osin.models.base import init_db
 from osin.models.exp import Exp, ExpRun, NestedPrimitiveOutput, RunMetadata
@@ -35,7 +30,7 @@ class LocalOsin(Osin):
         description: Optional[str] = None,
         program: Optional[str] = None,
         params: Optional[Union[Parameters, List[Parameters]]] = None,
-        aggregated_outputs: Optional[Dict[str, PyObjectType]] = None,
+        aggregated_primitive_outputs: Optional[NestedPrimitiveOutputSchema] = None,
     ) -> RemoteExp:
         exps = (
             Exp.select().where(Exp.name == name).order_by(Exp.version.desc()).limit(1)  # type: ignore
@@ -51,7 +46,7 @@ class LocalOsin(Osin):
                 version=version,
                 program=program or get_caller_python_script(),
                 params=Parameters.get_param_types(params),
-                aggregated_outputs=aggregated_outputs,
+                aggregated_primitive_outputs=aggregated_primitive_outputs,
             )
         else:
             if exps[0].version > version:
@@ -69,7 +64,7 @@ class LocalOsin(Osin):
                     version=version,
                     program=program or get_caller_python_script(),
                     params=Parameters.get_param_types(params),
-                    aggregated_outputs=aggregated_outputs,
+                    aggregated_primitive_outputs=aggregated_primitive_outputs,
                 )
 
         return RemoteExp(
@@ -81,9 +76,15 @@ class LocalOsin(Osin):
             osin=self,
         )
 
-    def new_exp_run(self, exp: RemoteExp) -> RemoteExpRun:
+    def new_exp_run(
+        self, exp: RemoteExp, params: Union[Parameters, List[Parameters]]
+    ) -> RemoteExpRun:
         db_exp: Exp = Exp.get_by_id(exp.id)
-        exp_run = ExpRun.create(exp=db_exp, rundir="")
+
+        output = {}
+        for param in params if isinstance(params, list) else [params]:
+            output.update(param.as_dict())
+        exp_run = ExpRun.create(exp=db_exp, rundir="", params=output)
 
         rundir = self.osin_keeper.get_exp_run_dir(db_exp, exp_run)
         if rundir.exists():
@@ -92,6 +93,9 @@ class LocalOsin(Osin):
 
         exp_run.rundir = str(rundir)
         exp_run.save()
+
+        with open(rundir / "params.json", "wb") as f:
+            f.write(orjson.dumps(output, option=orjson.OPT_INDENT_2))
 
         return RemoteExpRun(
             id=exp_run.id,
@@ -110,27 +114,26 @@ class LocalOsin(Osin):
         ) as f:
             agg_group = f.create_group("aggregated")
 
-            if len(exp_run.pending_primitive_output.aggregated) > 0:
+            if len(exp_run.pending_output.aggregated.primitive) > 0:
                 h5_update_nested_primitive_object(
-                    agg_group, exp_run.pending_primitive_output.aggregated
+                    agg_group, exp_run.pending_output.aggregated.primitive
                 )
 
             agg_lit_outputs = {}
-            for key, value in exp_run.pending_primitive_output.aggregated.items():
+            for key, value in exp_run.pending_output.aggregated.primitive.items():
                 agg_lit_outputs[key] = value
-            for key, value in exp_run.pending_complex_output.aggregated.items():
+            for key, value in exp_run.pending_output.aggregated.complex.items():
                 agg_group[key] = value
 
             ind_group = f.create_group("individual")
             for (
                 example_id,
-                value,
-            ) in exp_run.pending_primitive_output.individual.items():
-                h5_update_nested_primitive_object(
-                    ind_group.create_group(example_id), value
-                )
-            for example_id, value in exp_run.pending_complex_output.individual.items():
-                ind_group[example_id] = value
+                example,
+            ) in exp_run.pending_output.individual.items():
+                grp = ind_group.create_group(example_id)
+                h5_update_nested_primitive_object(grp, example.output.primitive)
+                for key, obj in example.output.complex.items():
+                    grp[key] = obj.serialize_hdf5()
 
         metadata = RunMetadata.auto()
         # save metadata
@@ -177,50 +180,39 @@ class LocalOsin(Osin):
             ExpRun.id == exp_run.id
         ).execute()  # type: ignore
 
-    def update_exp_run_params(
-        self, exp_run: RemoteExpRun, params: Union[Parameters, List[Parameters]]
+    def update_exp_run_output(
+        self,
+        exp_run: RemoteExpRun,
+        primitive: Optional[NestedPrimitiveOutput] = None,
+        complex: Optional[Dict[str, PyObject]] = None,
     ):
-        """Update the parameters of an experiment run"""
-        output = {}
-        for param in params if isinstance(params, list) else [params]:
-            output.update(param.as_dict())
+        if primitive is not None:
+            exp_run.pending_output.aggregated.primitive.update(primitive)
+        if complex is not None:
+            exp_run.pending_output.aggregated.complex.update(complex)
 
-        ExpRun.update(params=output).where(ExpRun.id == exp_run.id).execute()  # type: ignore
-        with open(exp_run.rundir / "params.json", "wb") as f:
-            f.write(orjson.dumps(output, option=orjson.OPT_INDENT_2))
-
-    def update_exp_run_agg_primitive_output(
-        self, exp_run: RemoteExpRun, output: NestedPrimitiveOutput
-    ):
-        exp_run.pending_primitive_output.aggregated.update(output)
-
-    def update_exp_run_agg_complex_output(
-        self, exp_run: RemoteExpRun, output: Dict[str, PyObject]
-    ):
-        exp_run.pending_complex_output.aggregated.update(output)
-
-    def update_example_primitive_output(
+    def update_example_output(
         self,
         exp_run: RemoteExpRun,
         example_id: str,
         example_name: str = "",
-        output: Optional[NestedPrimitiveOutput] = None,
+        primitive: Optional[NestedPrimitiveOutput] = None,
+        complex: Optional[Dict[str, PyObject]] = None,
     ):
-        exp_run.pending_primitive_output.individual[example_id] = {
-            "id": example_id,
-            "name": example_name,
-            "output": output or {},
-        }
-
-    def update_example_complex_output(
-        self,
-        exp_run: RemoteExpRun,
-        example_id: str,
-        example_name: str = "",
-        output: Optional[Dict[str, PyObject]] = None,
-    ):
-        exp_run.pending_complex_output.individual[example_id] = {
-            "id": example_id,
-            "name": example_name,
-            "output": output or {},
-        }
+        if example_id in exp_run.pending_output.individual:
+            exp_run.pending_output.individual[example_id].name = example_name
+            exp_run.pending_output.individual[example_id].output.primitive.update(
+                primitive or {}
+            )
+            exp_run.pending_output.individual[example_id].output.complex.update(
+                complex or {}
+            )
+        else:
+            exp_run.pending_output.individual[example_id] = ExampleOutput(
+                id=example_id,
+                name=example_name,
+                output=OutputType(
+                    primitive=primitive or {},
+                    complex=complex or {},
+                ),
+            )

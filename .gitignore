@@ -133,3 +133,6 @@ osin.db
 data
 
 /libraries
+
+scripts/tmp
+osin/www

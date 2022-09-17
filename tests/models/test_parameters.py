@@ -1,7 +1,7 @@
 from typing import Dict, Union
 
 import orjson
-from osin.models.parameters import Parameters, PyObjectType
+from osin.types import Parameters, PyObjectType
 
 
 class NormalParams(Parameters):

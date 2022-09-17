@@ -1,8 +1,7 @@
 import sys
-from typing import Any, Dict
-from osin.models.exp import NestedPrimitiveOutput
+from typing import Dict
+from osin.types import NestedPrimitiveOutput, PyObject
 from h5py import Group
-from osin.models.parameters import PyObject, PyObjectType
 
 
 def get_caller_python_script():

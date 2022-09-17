@@ -4,12 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, TYPE_CHECKING, Optional, Union
 from osin.models.exp import NestedPrimitiveOutput
-from osin.models.parameters import (
-    PyObject,
-    PyObjectType,
-    Parameters,
-    NestedPrimitiveOutputSchema,
-)
+from osin.types import Parameters, NestedPrimitiveOutputSchema, PyObject, PyObjectType
 
 if TYPE_CHECKING:
     from osin.apis.osin import Osin
@@ -24,20 +19,27 @@ class RemoteExp:
     aggregated_primitive_outputs: Optional[NestedPrimitiveOutputSchema]
     osin: Osin
 
-    def new_exp_run(self) -> RemoteExpRun:
-        return self.osin.new_exp_run(self)
+    def new_exp_run(self, params: Union[Parameters, List[Parameters]]) -> RemoteExpRun:
+        return self.osin.new_exp_run(self, params)
 
 
 @dataclass
-class PendingPrimitiveOutput:
-    aggregated: NestedPrimitiveOutput = field(default_factory=dict)
-    individual: Dict[str, NestedPrimitiveOutput] = field(default_factory=dict)
+class OutputType:
+    primitive: NestedPrimitiveOutput = field(default_factory=dict)
+    complex: Dict[str, PyObject] = field(default_factory=dict)
 
 
 @dataclass
-class PendingComplexOutput:
-    aggregated: Dict[str, Any] = field(default_factory=dict)
-    individual: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+class ExampleOutput:
+    id: str
+    name: str
+    output: OutputType
+
+
+@dataclass
+class PendingOutput:
+    aggregated: OutputType = field(default_factory=OutputType)
+    individual: Dict[str, ExampleOutput] = field(default_factory=dict)
 
 
 @dataclass
@@ -50,47 +52,28 @@ class RemoteExpRun:
     finished_time: datetime
     rundir: Path
     osin: Osin
-    pending_primitive_output: PendingPrimitiveOutput = field(
-        default_factory=PendingPrimitiveOutput
-    )
-    pending_complex_output: PendingComplexOutput = field(
-        default_factory=PendingComplexOutput
-    )
+    pending_output: PendingOutput = field(default_factory=PendingOutput)
 
-    def update_params(
-        self, params: Union[Parameters, List[Parameters]]
-    ) -> RemoteExpRun:
-        self.osin.update_exp_run_params(self, params)
+    def update_output(
+        self,
+        primitive: Optional[NestedPrimitiveOutput] = None,
+        complex: Optional[Dict[str, PyObject]] = None,
+    ):
+        self.osin.update_exp_run_output(self, primitive, complex)
         return self
 
-    def update_agg_primitive_output(self, output: NestedPrimitiveOutput):
-        self.osin.update_exp_run_agg_primitive_output(self, output)
-        return self
-
-    def update_agg_complex_output(self, output: Dict[str, PyObject]):
-        self.osin.update_exp_run_agg_complex_output(self, output)
-        return self
-
-    def update_example_primitive_output(
+    def update_example_output(
         self,
         example_id: str,
         example_name: str = "",
-        output: Optional[NestedPrimitiveOutput] = None,
+        primitive: Optional[NestedPrimitiveOutput] = None,
+        complex: Optional[Dict[str, PyObject]] = None,
     ):
-        self.osin.update_example_primitive_output(
-            self, example_id, example_name, output
+        self.osin.update_example_output(
+            self, example_id, example_name, primitive=primitive, complex=complex
         )
         return self
 
-    def update_example_complex_output(
-        self,
-        example_id: str,
-        example_name: str = "",
-        output: Optional[Dict[str, PyObject]] = None,
-    ):
-        self.osin.update_example_complex_output(self, example_id, example_name, output)
-        return self
-
-    def finish_exp_run(self):
+    def finish(self):
         self.osin.finish_exp_run(self)
         return self

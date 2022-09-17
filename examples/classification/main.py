@@ -41,7 +41,7 @@ exp = osin.init_exp(
     description="Testing sklearn classifiers on some sklearn datasets",
     params=args,
 )
-exp_run = osin.new_exp_run(exp).update_params(args)
+exp_run = osin.new_exp_run(exp, args)
 
 if args.dataset == "iris":
     X, y = load_iris(return_X_y=True)
@@ -81,7 +81,7 @@ ytestpred = clf.predict(X_test)
 
 res = classification_report(y_train, ytrainpred, output_dict=True)
 print(res)
-osin.update_exp_run_agg_primitive_output(
+osin.update_exp_run_output(
     exp_run=exp_run,
     output=res,
     # output={
@@ -92,7 +92,7 @@ osin.update_exp_run_agg_primitive_output(
 )
 res = classification_report(y_test, ytestpred, output_dict=True)
 print(res)
-osin.update_exp_run_agg_primitive_output(
+osin.update_exp_run_output(
     exp_run=exp_run,
     output=res,
     # output={

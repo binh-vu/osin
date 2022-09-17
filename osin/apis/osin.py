@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 from osin.models.exp import NestedPrimitiveOutput
-from osin.models.parameters import Parameters, PyObject, PyObjectType
+from osin.types import PyObject, NestedPrimitiveOutputSchema, Parameters
 from osin.apis.remote_exp import RemoteExp, RemoteExpRun
 
 
@@ -25,7 +25,7 @@ class Osin(ABC):
         description: Optional[str] = None,
         program: Optional[str] = None,
         params: Optional[Union[Parameters, List[Parameters]]] = None,
-        aggregated_outputs: Optional[Dict[str, PyObjectType]] = None,
+        aggregated_primitive_outputs: Optional[NestedPrimitiveOutputSchema] = None,
     ) -> RemoteExp:
         """Init an experiment in Osin.
 
@@ -38,13 +38,15 @@ class Osin(ABC):
             description: Description of the experiment
             program: The python program to invoke the experiment
             params: The parameters of the experiment.
-            aggregated_outputs: The aggregated outputs of the experiment.
+            aggregated_primitive_outputs: The aggregated outputs of the experiment.
                 If not provided, it will be inferred automatically when the experiment is run.
         """
         pass
 
     @abstractmethod
-    def new_exp_run(self, exp: RemoteExp) -> RemoteExpRun:
+    def new_exp_run(
+        self, exp: RemoteExp, params: Union[Parameters, List[Parameters]]
+    ) -> RemoteExpRun:
         """Create a new run for an experiment."""
         pass
 
@@ -54,40 +56,21 @@ class Osin(ABC):
         pass
 
     @abstractmethod
-    def update_exp_run_params(
-        self, exp_run: RemoteExpRun, params: Union[Parameters, List[Parameters]]
-    ):
-        """Update the parameters of an experiment run"""
-        pass
-
-    @abstractmethod
-    def update_exp_run_agg_primitive_output(
-        self, exp_run: RemoteExpRun, output: NestedPrimitiveOutput
+    def update_exp_run_output(
+        self,
+        exp_run: RemoteExpRun,
+        primitive: Optional[NestedPrimitiveOutput] = None,
+        complex: Optional[Dict[str, PyObject]] = None,
     ):
         pass
 
     @abstractmethod
-    def update_exp_run_agg_complex_output(
-        self, exp_run: RemoteExpRun, output: Dict[str, PyObject]
-    ):
-        pass
-
-    @abstractmethod
-    def update_example_primitive_output(
+    def update_example_output(
         self,
         exp_run: RemoteExpRun,
         example_id: str,
         example_name: str = "",
-        output: Optional[NestedPrimitiveOutput] = None,
-    ):
-        pass
-
-    @abstractmethod
-    def update_example_complex_output(
-        self,
-        exp_run: RemoteExpRun,
-        example_id: str,
-        example_name: str = "",
-        output: Optional[Dict[str, PyObject]] = None,
+        primitive: Optional[NestedPrimitiveOutput] = None,
+        complex: Optional[Dict[str, PyObject]] = None,
     ):
         pass

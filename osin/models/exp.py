@@ -7,7 +7,6 @@ from typing import Union, Dict
 from peewee import (
     CharField,
     ForeignKeyField,
-    CompositeKey,
     TextField,
     IntegerField,
     BooleanField,
@@ -18,11 +17,7 @@ from playhouse.sqlite_ext import JSONField
 import psutil
 from osin.models.base import BaseModel
 from gena.custom_fields import DictDataClassField, DataClassField
-from osin.models.parameters import PyObjectType, NestedPrimitiveOutputSchema
-
-
-PrimitiveValue = Union[str, int, float, bool, None]
-NestedPrimitiveOutput = Dict[str, Union[PrimitiveValue, "NestedPrimitiveOutput"]]
+from osin.types import PyObjectType, NestedPrimitiveOutput, NestedPrimitiveOutputSchema
 
 
 @dataclass
