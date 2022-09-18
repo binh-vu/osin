@@ -61,7 +61,7 @@ class Exp(BaseModel):
 
 class ExpRun(BaseModel):
     id: int = AutoField()  # type: ignore
-    exp: Union[int, Exp] = ForeignKeyField(Exp, backref="runs", on_delete="CASCADE")  # type: ignore
+    exp: Exp = ForeignKeyField(Exp, backref="runs", on_delete="CASCADE")  # type: ignore
     is_deleted: bool = BooleanField(default=False, index=True)  # type: ignore
     is_finished: bool = BooleanField(default=False, index=True)  # type: ignore
     is_successful: bool = BooleanField(default=False, index=True)  # type: ignore
@@ -69,7 +69,6 @@ class ExpRun(BaseModel):
     has_invalid_agg_output_schema: bool = BooleanField(default=False, index=True)  # type: ignore
     created_time: datetime = DateTimeField(default=datetime.utcnow)  # type: ignore
     finished_time: datetime = DateTimeField(null=True)  # type: ignore
-    rundir: str = TextField()  # type: ignore
     params: dict = JSONField(default={})  # type: ignore
     metadata: RunMetadata = DataClassField(RunMetadata, null=True)  # type: ignore
     aggregated_primitive_outputs: NestedPrimitiveOutput = JSONField(default={})  # type: ignore

@@ -1,24 +1,18 @@
-import { ProColumns } from "@ant-design/pro-table";
-import { makeStyles } from "@mui/styles";
-import { Col, Divider, Row, Space, Tabs, Tag, Typography } from "antd";
-import { InternalLink, LoadingComponent, NotFoundComponent } from "gena-app";
-import { observer } from "mobx-react";
-import { useEffect } from "react";
-import { TableComponent } from "../../components/TableComponent";
-import { Experiment, ExperimentRun, useStores } from "../../models";
-import { routes } from "../../routes";
-import humanizeDuration from "humanize-duration";
-import filesize from "filesize";
-import { NestedPrimitiveOutputSchema } from "../../models/experiments";
-import { ExperimentRunExplorer } from "./ExpRunExplorer";
 import {
+  CalendarOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  CalendarOutlined,
-  ExclamationCircleOutlined,
-  MinusCircleOutlined,
   SyncOutlined,
 } from "@ant-design/icons";
+import { makeStyles } from "@mui/styles";
+import { Tabs, Tag, Typography } from "antd";
+import { LoadingComponent, NotFoundComponent } from "gena-app";
+import humanizeDuration from "humanize-duration";
+import { observer } from "mobx-react";
+import { useEffect } from "react";
+import { useStores } from "../../../models";
+import { routes } from "../../../routes";
+import { ExampleExplorer } from "./ExampleExplorer";
 
 const useStyles = makeStyles({
   status: {
@@ -161,7 +155,7 @@ export const ExpRunPage = observer(() => {
           {
             label: "Examples",
             key: "Examples",
-            children: <h1>Parameters</h1>,
+            children: <ExampleExplorer />,
           },
         ]}
       />

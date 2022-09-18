@@ -11,11 +11,11 @@ import psutil
 from osin.misc import get_caller_python_script, h5_update_nested_primitive_object
 from osin.types import Parameters, NestedPrimitiveOutputSchema, PyObject, PyObjectType
 from osin.apis.osin import Osin
-from osin.apis.remote_exp import ExampleOutput, OutputType, RemoteExp, RemoteExpRun
+from osin.apis.remote_exp import RemoteExp, RemoteExpRun
 from osin.data_keeper import OsinDataKeeper
 from osin.models.base import init_db
 from osin.models.exp import Exp, ExpRun, NestedPrimitiveOutput, RunMetadata
-import h5py
+from osin.models.exp_data import Record, ExampleData
 
 
 class LocalOsin(Osin):
@@ -84,15 +84,12 @@ class LocalOsin(Osin):
         output = {}
         for param in params if isinstance(params, list) else [params]:
             output.update(param.as_dict())
-        exp_run = ExpRun.create(exp=db_exp, rundir="", params=output)
+        exp_run = ExpRun.create(exp=db_exp, params=output)
 
         rundir = self.osin_keeper.get_exp_run_dir(db_exp, exp_run)
         if rundir.exists():
             shutil.rmtree(rundir)
         rundir.mkdir(parents=True)
-
-        exp_run.rundir = str(rundir)
-        exp_run.save()
 
         with open(rundir / "params.json", "wb") as f:
             f.write(orjson.dumps(output, option=orjson.OPT_INDENT_2))
@@ -109,31 +106,10 @@ class LocalOsin(Osin):
     def finish_exp_run(self, exp_run: RemoteExpRun):
         exp_run.finished_time = datetime.utcnow()
 
-        with h5py.File(
-            self.osin_keeper.get_exp_run_data_file(exp_run.exp, exp_run), "a"
-        ) as f:
-            agg_group = f.create_group("aggregated")
-
-            if len(exp_run.pending_output.aggregated.primitive) > 0:
-                h5_update_nested_primitive_object(
-                    agg_group, exp_run.pending_output.aggregated.primitive
-                )
-
-            agg_lit_outputs = {}
-            for key, value in exp_run.pending_output.aggregated.primitive.items():
-                agg_lit_outputs[key] = value
-            for key, value in exp_run.pending_output.aggregated.complex.items():
-                agg_group[key] = value
-
-            ind_group = f.create_group("individual")
-            for (
-                example_id,
-                example,
-            ) in exp_run.pending_output.individual.items():
-                grp = ind_group.create_group(example_id)
-                h5_update_nested_primitive_object(grp, example.output.primitive)
-                for key, obj in example.output.complex.items():
-                    grp[key] = obj.serialize_hdf5()
+        self.osin_keeper.get_exp_run_data_format(exp_run.exp, exp_run).save_run_data(
+            exp_run.pending_output,
+            self.osin_keeper.get_exp_run_data_file(exp_run.exp, exp_run),
+        )
 
         metadata = RunMetadata.auto()
         # save metadata
@@ -153,7 +129,9 @@ class LocalOsin(Osin):
         # check if agg_lit_outputs matches with the schema.
         if exp_run.exp.aggregated_primitive_outputs is None:
             exp_run.exp.aggregated_primitive_outputs = (
-                NestedPrimitiveOutputSchema.infer_from_data(agg_lit_outputs)
+                NestedPrimitiveOutputSchema.infer_from_data(
+                    exp_run.pending_output.aggregated.primitive
+                )
             )
             has_invalid_agg_output_schema = False
             Exp.update(
@@ -164,7 +142,7 @@ class LocalOsin(Osin):
         else:
             has_invalid_agg_output_schema = (
                 not exp_run.exp.aggregated_primitive_outputs.does_data_match(
-                    agg_lit_outputs
+                    exp_run.pending_output.aggregated.primitive
                 )
             )
 
@@ -175,7 +153,7 @@ class LocalOsin(Osin):
             finished_time=exp_run.finished_time,
             has_invalid_agg_output_schema=has_invalid_agg_output_schema,
             metadata=metadata,
-            aggregated_primitive_outputs=agg_lit_outputs,
+            aggregated_primitive_outputs=exp_run.pending_output.aggregated.primitive,
         ).where(
             ExpRun.id == exp_run.id
         ).execute()  # type: ignore
@@ -201,17 +179,17 @@ class LocalOsin(Osin):
     ):
         if example_id in exp_run.pending_output.individual:
             exp_run.pending_output.individual[example_id].name = example_name
-            exp_run.pending_output.individual[example_id].output.primitive.update(
+            exp_run.pending_output.individual[example_id].data.primitive.update(
                 primitive or {}
             )
-            exp_run.pending_output.individual[example_id].output.complex.update(
+            exp_run.pending_output.individual[example_id].data.complex.update(
                 complex or {}
             )
         else:
-            exp_run.pending_output.individual[example_id] = ExampleOutput(
+            exp_run.pending_output.individual[example_id] = ExampleData(
                 id=example_id,
                 name=example_name,
-                output=OutputType(
+                data=Record(
                     primitive=primitive or {},
                     complex=complex or {},
                 ),

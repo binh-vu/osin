@@ -3,8 +3,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, TYPE_CHECKING, Optional, Union
-from osin.models.exp import NestedPrimitiveOutput
-from osin.types import Parameters, NestedPrimitiveOutputSchema, PyObject, PyObjectType
+from osin.models import ExpRunData
+from osin.types import (
+    Parameters,
+    NestedPrimitiveOutputSchema,
+    PyObject,
+    PyObjectType,
+    NestedPrimitiveOutput,
+)
 
 if TYPE_CHECKING:
     from osin.apis.osin import Osin
@@ -24,25 +30,6 @@ class RemoteExp:
 
 
 @dataclass
-class OutputType:
-    primitive: NestedPrimitiveOutput = field(default_factory=dict)
-    complex: Dict[str, PyObject] = field(default_factory=dict)
-
-
-@dataclass
-class ExampleOutput:
-    id: str
-    name: str
-    output: OutputType
-
-
-@dataclass
-class PendingOutput:
-    aggregated: OutputType = field(default_factory=OutputType)
-    individual: Dict[str, ExampleOutput] = field(default_factory=dict)
-
-
-@dataclass
 class RemoteExpRun:
     # id to the experiment run in osin
     id: int
@@ -52,7 +39,7 @@ class RemoteExpRun:
     finished_time: datetime
     rundir: Path
     osin: Osin
-    pending_output: PendingOutput = field(default_factory=PendingOutput)
+    pending_output: ExpRunData = field(default_factory=ExpRunData)
 
     def update_output(
         self,

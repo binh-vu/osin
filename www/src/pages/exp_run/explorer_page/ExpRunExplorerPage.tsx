@@ -4,12 +4,12 @@ import { Divider, Space, Tag, Typography } from "antd";
 import { InternalLink, LoadingComponent, NotFoundComponent } from "gena-app";
 import { observer } from "mobx-react";
 import { useEffect } from "react";
-import { TableComponent } from "../../components/TableComponent";
-import { Experiment, ExperimentRun, useStores } from "../../models";
-import { routes } from "../../routes";
+import { TableComponent } from "../../../components/TableComponent";
+import { Experiment, ExperimentRun, useStores } from "../../../models";
+import { routes } from "../../../routes";
 import humanizeDuration from "humanize-duration";
 import filesize from "filesize";
-import { NestedPrimitiveOutputSchema } from "../../models/experiments";
+import { NestedPrimitiveOutputSchema } from "../../../models/experiments";
 import { ExperimentRunExplorer } from "./ExpRunExplorer";
 
 const useStyles = makeStyles({

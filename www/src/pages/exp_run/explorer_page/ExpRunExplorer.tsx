@@ -1,15 +1,12 @@
 import { ProColumns } from "@ant-design/pro-table";
-import { makeStyles } from "@mui/styles";
-import { Divider, Space, Tag, Typography } from "antd";
-import { InternalLink, LoadingComponent, NotFoundComponent } from "gena-app";
-import { observer } from "mobx-react";
-import { useEffect } from "react";
-import { TableComponent } from "../../components/TableComponent";
-import { Experiment, ExperimentRun, useStores } from "../../models";
-import { routes } from "../../routes";
-import humanizeDuration from "humanize-duration";
 import filesize from "filesize";
-import { NestedPrimitiveOutputSchema } from "../../models/experiments";
+import { InternalLink } from "gena-app";
+import humanizeDuration from "humanize-duration";
+import { observer } from "mobx-react";
+import { TableComponent } from "../../../components/TableComponent";
+import { Experiment, ExperimentRun, useStores } from "../../../models";
+import { NestedPrimitiveOutputSchema } from "../../../models/experiments";
+import { routes } from "../../../routes";
 
 const render2str = (text: any) => {
   return text.toString();

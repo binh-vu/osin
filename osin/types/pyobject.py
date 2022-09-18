@@ -2,16 +2,25 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Generic, List, TypeVar
+from typing import Any, Generic, List, Type, TypeVar
 
 import numpy as np
 import orjson
 from osin.types.primitive_type import NestedPrimitiveOutput
+from osin.types.pyobject_type import PyObjectType
 
 T = TypeVar("T", np.ndarray, bytes)
 
 
 class PyObject(ABC, Generic[T]):
+    def get_classpath(self) -> str:
+        return PyObjectType.from_type_hint(self.__class__).path
+
+    @staticmethod
+    def from_classpath(classpath: str) -> Type[PyObject]:
+        # we know that variants of pyobject must be member of this module
+        return globals()[classpath.split(".")[-1]]
+
     @abstractmethod
     def serialize_hdf5(self) -> T:
         pass
@@ -22,25 +31,27 @@ class PyObject(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def serialize_js(self) -> dict:
+    def to_dict(self) -> dict:
         pass
 
 
 @dataclass
 class OTable(PyObject[bytes]):
-    object: List[NestedPrimitiveOutput]
+    headers: List[str]
+    rows: List[NestedPrimitiveOutput]
 
     def serialize_hdf5(self) -> bytes:
-        return orjson.dumps(self.object)
+        return orjson.dumps({"headers": self.headers, "rows": self.rows})
 
     @staticmethod
     def from_hdf5(value: bytes) -> OTable:
-        return OTable(orjson.loads(value))
+        return OTable(**orjson.loads(value))
 
-    def serialize_js(self) -> dict:
+    def to_dict(self) -> dict:
         return {
             "type": "table",
-            "value": self.object,
+            "headers": self.headers,
+            "rows": self.rows,
         }
 
 
@@ -55,7 +66,7 @@ class OImage(PyObject[np.ndarray]):
     def from_hdf5(value: np.ndarray) -> OImage:
         raise NotImplementedError()
 
-    def serialize_js(self) -> Any:
+    def to_dict(self) -> Any:
         raise NotImplementedError()
 
 
@@ -70,5 +81,5 @@ class OAudio(PyObject[np.ndarray]):
     def from_hdf5(value: np.ndarray) -> OAudio:
         raise NotImplementedError()
 
-    def serialize_js(self) -> dict:
+    def to_dict(self) -> dict:
         raise NotImplementedError()

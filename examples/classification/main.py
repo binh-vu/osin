@@ -5,7 +5,7 @@ from sklearn.datasets import load_digits, load_iris
 from sklearn.metrics import classification_report
 from sklearn.svm import SVC
 from osin.apis import Osin
-from osin.models import Parameters
+from osin.types import Parameters, OTable
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -57,11 +57,11 @@ X_train, X_test, y_train, y_test = train_test_split(
 classifiers = {
     "Nearest Neighbors": KNeighborsClassifier(3),
     "Linear SVM": SVC(kernel="linear", C=0.025),
-    "RBF SVM": SVC(gamma=2, C=1),
+    "RBF SVM": SVC(gamma=2, C=1),  # type: ignore
     "Gaussian Process": GaussianProcessClassifier(1.0 * RBF(1.0)),
     "Decision Tree": DecisionTreeClassifier(max_depth=5),
     "Random Forest": RandomForestClassifier(
-        max_depth=5, n_estimators=10, max_features=1
+        max_depth=5, n_estimators=10, max_features=1  # type: ignore
     ),
     "Neural Net": MLPClassifier(alpha=1, max_iter=1000),
     "AdaBoost": AdaBoostClassifier(),
@@ -79,27 +79,30 @@ clf.fit(X_train, y_train)
 ytrainpred = clf.predict(X_train)
 ytestpred = clf.predict(X_test)
 
+for i in range(len(y_test)):
+    osin.update_example_output(
+        exp_run,
+        example_id=f"test:{i}",
+        complex={
+            "features": OTable(
+                headers=[f"feature_{j}" for j in range(len(X_test[i]))]
+                + ["label", "prediction"],
+                rows=X_test[i].tolist() + [int(y_test[i]), int(ytestpred[i])],
+            )
+        },
+    )
+
 res = classification_report(y_train, ytrainpred, output_dict=True)
-print(res)
+assert isinstance(res, dict)
 osin.update_exp_run_output(
     exp_run=exp_run,
-    output=res,
-    # output={
-    #     f"train.{k}.{k2}": v
-    #     for k, vs in res.items()
-    #     for k2, v in (vs.items() if isinstance(vs, dict) else [("", vs)])
-    # },
+    primitive=res,
 )
 res = classification_report(y_test, ytestpred, output_dict=True)
-print(res)
+assert isinstance(res, dict)
 osin.update_exp_run_output(
     exp_run=exp_run,
-    output=res,
-    # output={
-    #     f"train.{k}.{k2}": v
-    #     for k, vs in res.items()
-    #     for k2, v in (vs.items() if isinstance(vs, dict) else [("", vs)])
-    # },
+    primitive=res,
 )
 
 osin.finish_exp_run(exp_run)

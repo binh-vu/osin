@@ -1,25 +1,18 @@
-import {
-  PathDef,
-  NoArgsPathDef,
-  NoQueryArgsPathDef,
-  applyLayout,
-} from "gena-app";
-import { HomePage, SettingPage } from "./pages";
+import { applyLayout, NoArgsPathDef, NoQueryArgsPathDef } from "gena-app";
+import { HomePage } from "./pages";
 
 import React from "react";
 import { SideNavBar } from "./components/Navbar";
-import { Space, Layout as AntdLayou, Row, Col } from "antd";
 import logo from "./logo.svg";
 
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faTableList,
   faChartLine,
   faFlask,
+  faTableList,
 } from "@fortawesome/free-solid-svg-icons";
-import { IconProp } from "@fortawesome/fontawesome-svg-core";
-import { ExpRunExplorerPage } from "./pages/exp_run/ExpRunExplorerPage";
-import { ExpRunPage } from "./pages/exp_run/ExpRunPage";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { ExpRunPage } from "./pages/exp_run/detailed_page/ExpRunPage";
+import { ExpRunExplorerPage } from "./pages/exp_run/explorer_page/ExpRunExplorerPage";
 
 /*************************************************************************************
  * Layouts of the application

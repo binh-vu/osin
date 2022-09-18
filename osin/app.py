@@ -13,6 +13,7 @@ app = generate_app(
         exp_run_bp,
     ],
     os.path.dirname(__file__),
+    log_sql_queries=False,
 )
 
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # maximum upload of 16 MB

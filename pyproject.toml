@@ -17,6 +17,8 @@ orjson = "^3.8.0"
 typed-argument-parser = "^1.7.2"
 h5py = "^3.7.0"
 psutil = "^5.9.2"
+python-dateutil = "^2.8.2"
+python-slugify = "^6.1.2"
 
 
 [tool.poetry.dev-dependencies]
