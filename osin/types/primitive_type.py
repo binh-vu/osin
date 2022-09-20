@@ -15,7 +15,7 @@ NestedPrimitiveOutput = Dict[str, Union[PrimitiveValue, "NestedPrimitiveOutput"]
 
 @dataclass
 class NestedPrimitiveOutputSchema:
-    schema: Dict[str, Union[PyObjectType, "NestedPrimitiveOutputSchema"]]
+    schema: Dict[str, Union[PyObjectType, NestedPrimitiveOutputSchema]]
 
     @staticmethod
     def from_tuple(object):

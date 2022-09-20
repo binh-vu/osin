@@ -1,0 +1,4 @@
+.venv
+.cache
+.pytest_cache
+www/node_modules
