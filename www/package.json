@@ -1,0 +1,96 @@
+{
+  "name": "osin",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@ant-design/colors": "^6.0.0",
+    "@ant-design/pro-table": "^3.0.6",
+    "@antv/g6": "^4.7.3",
+    "@antv/g6-react-node": "^1.4.5",
+    "@emotion/react": "^11.10.0",
+    "@emotion/styled": "^11.10.4",
+    "@fortawesome/fontawesome-svg-core": "^6.2.0",
+    "@fortawesome/free-regular-svg-icons": "^6.0.0",
+    "@fortawesome/free-solid-svg-icons": "^6.0.0",
+    "@fortawesome/react-fontawesome": "^0.2.0",
+    "@mui/styles": "^5.10.3",
+    "@testing-library/jest-dom": "^5.11.4",
+    "@testing-library/react": "^11.1.0",
+    "@testing-library/user-event": "^12.1.10",
+    "@types/jest": "^26.0.15",
+    "@types/lodash": "^4.14.173",
+    "@types/node": "^12.0.0",
+    "@types/react": "^17.0.0",
+    "@types/react-dom": "^17.0.0",
+    "@types/react-router-dom": "^5.1.9",
+    "@types/tinycolor2": "^1.4.3",
+    "antd": "^4.23.1",
+    "axios": "^0.27.2",
+    "filesize": "^9.0.11",
+    "fuse.js": "^6.4.6",
+    "gena-app": "^4.0.0",
+    "humanize-duration": "^3.27.3",
+    "hyphenation.en-us": "^0.2.1",
+    "lodash": "^4.17.21",
+    "memoize-one": "^5.2.1",
+    "mobx": "^6.3.3",
+    "mobx-react": "^7.2.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-hotkeys-hook": "^3.4.0",
+    "react-router-dom": "^5.3.0",
+    "react-scripts": "4.0.3",
+    "tinycolor2": "^1.4.2",
+    "typescript": "^4.1.2",
+    "web-vitals": "^1.0.1"
+  },
+  "resolutions": {
+    "//": "See https://github.com/facebook/create-react-app/issues/11773",
+    "react-error-overlay": "6.0.9"
+  },
+  "devDependencies": {
+    "//": "See https://github.com/facebook/create-react-app/issues/11773",
+    "@types/humanize-duration": "^3.27.1",
+    "react-error-overlay": "6.0.9"
+  },
+  "scripts": {
+    "start": "BROWSER=none react-scripts start",
+    "build": "python ./scripts/build.py ../osin/www",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "build:lib": "yarn compile && yarn compile:post",
+    "compile": "tsc --outDir lib --declaration true --noEmit false",
+    "compile:watch": "tsc --outDir lib --declaration true --noEmit false -w",
+    "compile:post": "cp src/*.css lib/ && cp src/*.png lib/"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ],
+    "rules": {
+      "jsx-a11y/anchor-is-valid": "off",
+      "react-hooks/exhaustive-deps": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          "args": "none",
+          "varsIgnorePattern": "^_"
+        }
+      ]
+    }
+  },
+  "proxy": "http://127.0.0.1:5524",
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
