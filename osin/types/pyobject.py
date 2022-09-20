@@ -37,11 +37,11 @@ class PyObject(ABC, Generic[T]):
 
 @dataclass
 class OTable(PyObject[bytes]):
-    headers: List[str]
+    columns: List[str]
     rows: List[NestedPrimitiveOutput]
 
     def serialize_hdf5(self) -> bytes:
-        return orjson.dumps({"headers": self.headers, "rows": self.rows})
+        return orjson.dumps({"columns": self.columns, "rows": self.rows})
 
     @staticmethod
     def from_hdf5(value: bytes) -> OTable:
@@ -50,7 +50,7 @@ class OTable(PyObject[bytes]):
     def to_dict(self) -> dict:
         return {
             "type": "table",
-            "headers": self.headers,
+            "columns": self.columns,
             "rows": self.rows,
         }
 

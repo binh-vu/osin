@@ -1,7 +1,18 @@
 from dataclasses import dataclass
 import math, numpy as np
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, Literal, Optional, Set, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Literal,
+    Optional,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 from numpy import sort
 from osin.models import ExpRunData, ExampleData, Record
@@ -52,7 +63,7 @@ class Hdf5Format:
         offset: int = 0,
         sorted_by: Optional[str] = None,
         sorted_order: Literal["ascending", "descending"] = "ascending",
-    ) -> ExpRunData:
+    ) -> Tuple[ExpRunData, int]:
         """Load experiment run data from a file"""
         if fields is None:
             fields = {
@@ -111,8 +122,8 @@ class Hdf5Format:
                         reverse=sorted_order == "descending",
                     )
 
-                for key, ex_group in selected_examples:
-                    if key not in expdata.individual:
+                for example_id, ex_group in selected_examples:
+                    if example_id not in expdata.individual:
                         example = ExampleData(
                             id=ex_group.attrs["id"],
                             name=ex_group.attrs["name"],
@@ -125,16 +136,16 @@ class Hdf5Format:
                         if "complex" in fields["individual"]:
                             for key, value in ex_group["complex"].items():
                                 pyobject_class = PyObject.from_classpath(
-                                    ex_group.attrs[key]
+                                    ex_group["complex"].attrs[key]
                                 )
                                 example.data.complex[key] = pyobject_class.from_hdf5(
                                     value[()]
                                 )
-                        expdata.individual[key] = example
+                        expdata.individual[example_id] = example
                     else:
                         if "primitive" in fields["individual"]:
                             expdata.individual[
-                                key
+                                example_id
                             ].data.primitive = self._load_nested_primitive_object(
                                 ex_group["primitive"]
                             )
@@ -144,11 +155,12 @@ class Hdf5Format:
                                 pyobject_class = PyObject.from_classpath(
                                     ex_group.attrs[key]
                                 )
-                                expdata.individual[key].data.complex[
+                                expdata.individual[example_id].data.complex[
                                     key
                                 ] = pyobject_class.from_hdf5(value[()])
 
-        return expdata
+            n_examples = len(f["individual"])
+        return expdata, n_examples
 
     def _update_nested_primitive_object(
         self, group: Group, primitive_object: NestedPrimitiveOutput
@@ -171,6 +183,7 @@ class Hdf5Format:
                     val = float(val)
                 elif isinstance(val, np.integer):
                     val = int(val)
-
+                elif isinstance(val, np.bool_):
+                    val = bool(val)
                 primitive_object[key] = val
         return primitive_object

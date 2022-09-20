@@ -13,6 +13,7 @@ import { useEffect } from "react";
 import { useStores } from "../../../models";
 import { routes } from "../../../routes";
 import { ExampleExplorer } from "./ExampleExplorer";
+import { ExpRunOverview } from "./ExpRunOverview";
 
 const useStyles = makeStyles({
   status: {
@@ -135,7 +136,7 @@ export const ExpRunPage = observer(() => {
           {
             label: "Overview",
             key: "Overview",
-            children: <h1>Overview</h1>,
+            children: <ExpRunOverview expRun={exprun} />,
           },
           {
             label: "Parameters",
@@ -155,7 +156,7 @@ export const ExpRunPage = observer(() => {
           {
             label: "Examples",
             key: "Examples",
-            children: <ExampleExplorer />,
+            children: <ExampleExplorer expRun={exprun} />,
           },
         ]}
       />

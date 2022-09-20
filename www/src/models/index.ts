@@ -6,6 +6,8 @@ import {
   ExperimentStore,
   ExperimentRun,
   ExperimentRunStore,
+  PyObjectType,
+  NestedPrimitiveOutputSchema,
 } from "./experiments";
 import { toJS } from "mobx";
 
@@ -33,4 +35,11 @@ export function useStores(): IStore {
   return React.useContext(StoreContext);
 }
 
-export { Experiment, ExperimentStore, ExperimentRun, ExperimentRunStore };
+export {
+  Experiment,
+  ExperimentStore,
+  ExperimentRun,
+  ExperimentRunStore,
+  PyObjectType,
+  NestedPrimitiveOutputSchema,
+};

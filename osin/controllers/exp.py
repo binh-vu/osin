@@ -1,14 +1,10 @@
-from curses.ascii import isdigit
-from typing import Optional, Union, cast
+from datetime import datetime
 from flask import jsonify, request
-from loguru import logger
 import orjson
 from gena import generate_api
 from dateutil.parser import parse
-from peewee import DoesNotExist
+from peewee import DoesNotExist, fn
 from osin.models.exp import Exp, ExpRun
-from osin.types import PyObject
-from osin.misc import h5_read_nested_primitive_object
 from werkzeug.exceptions import BadRequest, NotFound
 from osin.data_keeper import OsinDataKeeper
 import h5py
@@ -23,6 +19,29 @@ exp_run_bp = generate_api(
         "aggregated_primitive_outputs": orjson.loads,
     },
 )
+
+
+@exp_run_bp.route(f"/{exp_run_bp.name}/activity", methods=["GET"])
+def run_activity():
+    if "since" in request.args:
+        try:
+            since = datetime.utcfromtimestamp(int(request.args.get("since", 0)) / 1000)
+        except:
+            raise BadRequest("since must be milliseconds since epoch")
+    else:
+        since = None
+    day = fn.Strftime("%Y-%m-%d", ExpRun.created_time).alias("day")
+    query = ExpRun.select(
+        fn.Count(ExpRun.id).alias("n_runs"),
+        day,
+    )
+
+    if since is not None:
+        query = query.where(ExpRun.created_time > since)
+
+    query = query.group_by(day)
+
+    return jsonify([{"count": r.n_runs, "date": r.day} for r in query])
 
 
 @exp_run_bp.route(f"/{exp_run_bp.name}/<id>/data", methods=["GET"])
@@ -52,6 +71,7 @@ def fetch_exp_run_data(id: int):
             parts = field.split(".")
             if len(parts) == 0 or len(parts) > 2:
                 raise BadRequest(f"Invalid field: {field}")
+
             if parts[0] not in ["aggregated", "individual"]:
                 raise BadRequest(f"Invalid field {field}")
             if len(parts) == 1:
@@ -59,7 +79,7 @@ def fetch_exp_run_data(id: int):
             else:
                 if parts[1] not in {"primitive", "complex"}:
                     raise BadRequest(f"Invalid field {field}")
-                fields[parts[0]] = {parts[1]}
+                fields.setdefault(parts[0], set()).add(parts[1])
     else:
         fields = None
 
@@ -74,12 +94,13 @@ def fetch_exp_run_data(id: int):
         sorted_by = None
         sorted_order = "ascending"
 
-    # try:
-    exp_run_data = format.load_exp_run_data(
-        h5file, fields, limit, offset, sorted_by, sorted_order
-    )
-    # except KeyError:
-    #     logger.exception("Error loading exp run data")
-    #     raise BadRequest(f"Invalid sort_by {sorted_by}")
+    try:
+        exp_run_data, n_examples = format.load_exp_run_data(
+            h5file, fields, limit, offset, sorted_by, sorted_order
+        )
+    except KeyError:
+        raise BadRequest(f"Invalid sort_by {sorted_by}")
 
-    return jsonify(exp_run_data.to_dict())
+    out = exp_run_data.to_dict()
+    out["n_examples"] = n_examples
+    return jsonify(out)

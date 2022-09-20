@@ -83,11 +83,16 @@ for i in range(len(y_test)):
     osin.update_example_output(
         exp_run,
         example_id=f"test:{i}",
+        primitive={
+            "label": int(y_test[i]),
+            "prediction": int(ytestpred[i]),
+            "correct": y_test[i] == ytestpred[i],
+        },
         complex={
             "features": OTable(
-                headers=[f"feature_{j}" for j in range(len(X_test[i]))]
+                columns=[f"feature_{j}" for j in range(len(X_test[i]))]
                 + ["label", "prediction"],
-                rows=X_test[i].tolist() + [int(y_test[i]), int(ytestpred[i])],
+                rows=[X_test[i].tolist() + [int(y_test[i]), int(ytestpred[i])]],
             )
         },
     )

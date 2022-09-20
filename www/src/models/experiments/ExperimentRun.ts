@@ -1,10 +1,10 @@
 import { action, computed, makeObservable, observable } from "mobx";
 import { Record } from "gena-app";
-
-export interface NestedPrimitiveData {
-  [key: string]: string | number | boolean | null | NestedPrimitiveData;
-}
-
+import {
+  NestedPrimitiveData,
+  ExperimentRunData,
+  ExpRunDataTracker,
+} from "./ExperimentRunData";
 export interface Metadata {
   hostname: string;
   n_cpus: number;
@@ -21,7 +21,8 @@ export class ExperimentRun implements Record<number> {
   finishedTime: Date;
   params: NestedPrimitiveData;
   metadata: Metadata;
-  aggregatedPrimitiveOutputs: NestedPrimitiveData;
+  data: ExperimentRunData;
+  dataTracker: ExpRunDataTracker;
 
   public constructor(
     id: number,
@@ -33,7 +34,8 @@ export class ExperimentRun implements Record<number> {
     finishedTime: Date,
     params: NestedPrimitiveData,
     metadata: Metadata,
-    aggregatedPrimitiveOutputs: NestedPrimitiveData
+    data: ExperimentRunData,
+    dataTracker: ExpRunDataTracker
   ) {
     this.id = id;
     this.exp = exp;
@@ -44,7 +46,8 @@ export class ExperimentRun implements Record<number> {
     this.finishedTime = finishedTime;
     this.params = params;
     this.metadata = metadata;
-    this.aggregatedPrimitiveOutputs = aggregatedPrimitiveOutputs;
+    this.data = data;
+    this.dataTracker = dataTracker;
 
     makeObservable(this, {
       id: observable,
@@ -56,7 +59,8 @@ export class ExperimentRun implements Record<number> {
       finishedTime: observable,
       params: observable,
       metadata: observable,
-      aggregatedPrimitiveOutputs: observable,
+      data: observable,
+      dataTracker: observable,
     });
   }
 }

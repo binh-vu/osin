@@ -40,5 +40,5 @@ class ExpRunData:
     def to_dict(self):
         return {
             "aggregated": self.aggregated.to_dict(),
-            "individual": {k: v.to_dict() for k, v in self.individual.items()},
+            "individual": [v.to_dict() for k, v in self.individual.items()],
         }

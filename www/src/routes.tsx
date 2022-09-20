@@ -1,8 +1,8 @@
 import { applyLayout, NoArgsPathDef, NoQueryArgsPathDef } from "gena-app";
-import { HomePage } from "./pages";
+import { HomePage } from "pages";
 
 import React from "react";
-import { SideNavBar } from "./components/Navbar";
+import { SideNavBar } from "components/Navbar";
 import logo from "./logo.svg";
 
 import {
@@ -11,8 +11,8 @@ import {
   faTableList,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { ExpRunPage } from "./pages/exp_run/detailed_page/ExpRunPage";
-import { ExpRunExplorerPage } from "./pages/exp_run/explorer_page/ExpRunExplorerPage";
+import { ExpRunPage } from "pages/exp_run/detailed_page/ExpRunPage";
+import { ExpRunExplorerPage } from "pages/exp_run/explorer_page/ExpRunExplorerPage";
 
 /*************************************************************************************
  * Layouts of the application
@@ -25,7 +25,7 @@ export const Layout = (
     return (
       <div
         style={{
-          minHeight: "100vh",
+          maxHeight: "100vh",
           display: "flex",
           flexFlow: "row nowrap",
         }}
@@ -65,7 +65,13 @@ export const Layout = (
             isFirstItemLogo={true}
           />
         </div>
-        <div style={{ width: "calc(100% - 75px)", marginTop: 16 }}>
+        <div
+          style={{
+            width: "calc(100% - 75px)",
+            marginTop: 16,
+            overflowY: "auto",
+          }}
+        >
           {element}
         </div>
       </div>

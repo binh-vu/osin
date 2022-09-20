@@ -1,6 +1,7 @@
 import { SimpleCRUDStore, SingleKeyIndex } from "gena-app";
-import { SERVER } from "../../env";
-import { Experiment, NestedPrimitiveOutputSchema } from "./Experiment";
+import { SERVER } from "env";
+import { Experiment } from "./Experiment";
+import { NestedPrimitiveOutputSchema } from "./NestedPrimitiveType";
 
 export class ExperimentStore extends SimpleCRUDStore<number, Experiment> {
   constructor() {

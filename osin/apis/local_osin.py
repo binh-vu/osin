@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import orjson
 import psutil
-from osin.misc import get_caller_python_script, h5_update_nested_primitive_object
+from osin.misc import get_caller_python_script
 from osin.types import Parameters, NestedPrimitiveOutputSchema, PyObject, PyObjectType
 from osin.apis.osin import Osin
 from osin.apis.remote_exp import RemoteExp, RemoteExpRun

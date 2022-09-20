@@ -1,28 +1,12 @@
 import { ProColumns } from "@ant-design/pro-table";
 import filesize from "filesize";
 import { InternalLink } from "gena-app";
-import humanizeDuration from "humanize-duration";
 import { observer } from "mobx-react";
-import { TableComponent } from "../../../components/TableComponent";
+import { TableComponent, Render } from "../../../components/TableComponent";
 import { Experiment, ExperimentRun, useStores } from "../../../models";
-import { NestedPrimitiveOutputSchema } from "../../../models/experiments";
+import { NestedPrimitiveOutputSchema } from "models";
 import { routes } from "../../../routes";
 
-const render2str = (text: any) => {
-  return text.toString();
-};
-const render2number = (value: number) => {
-  return value.toLocaleString(undefined, { minimumFractionDigits: 3 });
-};
-const dtFormatter = new Intl.DateTimeFormat("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "numeric",
-  hour12: false,
-  second: "numeric",
-});
 const defaultColumns: ProColumns[] = [
   {
     dataIndex: "id",
@@ -44,22 +28,7 @@ const defaultColumns: ProColumns[] = [
   {
     dataIndex: "createdTime",
     title: "Started at",
-    render: ((createdTime: Date) => {
-      const [
-        month,
-        lit1,
-        day,
-        lit2,
-        year,
-        lit3,
-        hour,
-        lit4,
-        minute,
-        lit5,
-        second,
-      ] = dtFormatter.formatToParts(createdTime);
-      return `${hour.value}:${minute.value}:${second.value} · ${day.value} ${month.value}, ${year.value}`;
-    }) as any,
+    render: Render.datetimeFmt1 as any,
   },
   {
     dataIndex: "finishedTime",
@@ -67,23 +36,23 @@ const defaultColumns: ProColumns[] = [
     render: ((text: any, record: ExperimentRun) => {
       const duration =
         record.finishedTime.getTime() - record.createdTime.getTime();
-      return humanizeDuration(duration);
+      return Render.duration(duration);
     }) as any,
   },
   {
     dataIndex: "isFinished",
     title: <abbr title="is finished">F</abbr>,
-    render: render2str,
+    render: Render.boolFmt1 as any,
   },
   {
     dataIndex: "isSuccessful",
     title: <abbr title="is succesful">S</abbr>,
-    render: render2str,
+    render: Render.boolFmt1 as any,
   },
   {
     dataIndex: "isDeleted",
     title: <abbr title="is deleted">D</abbr>,
-    render: render2str,
+    render: Render.boolFmt3Reverse as any,
   },
 ];
 
@@ -94,7 +63,7 @@ export const ExperimentRunExplorer = observer(
     let columns = defaultColumns.concat([
       schema2columns(
         "Metrics",
-        ["aggregatedPrimitiveOutputs"],
+        ["data", "aggregated", "primitive"],
         exp.aggregatedPrimitiveOutputs
       ),
       {
@@ -103,7 +72,7 @@ export const ExperimentRunExplorer = observer(
           {
             title: "CPUs",
             dataIndex: ["metadata", "n_cpus"],
-            render: render2str,
+            render: Render.str,
           },
           {
             title: "Memory Usage",
@@ -118,7 +87,7 @@ export const ExperimentRunExplorer = observer(
           {
             title: "Hostname",
             dataIndex: ["metadata", "hostname"],
-            render: render2str,
+            render: Render.str,
           },
         ],
       },
@@ -138,7 +107,7 @@ export const ExperimentRunExplorer = observer(
   }
 );
 
-const schema2columns = (
+export const schema2columns = (
   title: string,
   path: string[],
   schema: NestedPrimitiveOutputSchema
@@ -152,7 +121,11 @@ const schema2columns = (
       return {
         title: key,
         dataIndex: path.concat([key]),
-        render: value.isNumber() ? render2number : render2str,
+        render: value.isNumber()
+          ? Render.number
+          : value.isBoolean()
+          ? Render.boolFmt2
+          : Render.str,
       };
     }),
   };

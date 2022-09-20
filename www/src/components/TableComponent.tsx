@@ -2,7 +2,10 @@ import { SearchOutlined } from "@ant-design/icons";
 import ProTable, { ActionType, ProColumns } from "@ant-design/pro-table";
 import { makeStyles } from "@mui/styles";
 import { Descriptions, Tag, Typography } from "antd";
+import { ExpandableConfig } from "antd/lib/table/interface";
 import { ExternalLink } from "gena-app";
+import humanizeDuration from "humanize-duration";
+import { CheckCircleFilled, CloseCircleFilled } from "@ant-design/icons";
 import { observer } from "mobx-react";
 import React, {
   forwardRef,
@@ -10,9 +13,15 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { green, red } from "@ant-design/colors";
 
 export const useStyles = makeStyles({
-  table: {},
+  table: {
+    "& .ant-table": {
+      // having this issue with PyObjectTable that somehow margin is -8
+      margin: "0px !important",
+    },
+  },
   fullWidthTable: {
     "& .ant-pro-card-body": {
       paddingLeft: 0,
@@ -40,6 +49,7 @@ interface TableComponentProps {
   selectRows?: boolean;
   fullWidth?: boolean;
   scroll?: { x?: number | string | true; y?: number | string };
+  expandable?: ExpandableConfig<any>;
 }
 
 export const TableComponent = observer(
@@ -54,6 +64,7 @@ export const TableComponent = observer(
         columns,
         fullWidth = true,
         scroll,
+        expandable,
       }: TableComponentProps,
       ref
     ) => {
@@ -124,8 +135,64 @@ export const TableComponent = observer(
           toolBarRender={toolBarRender}
           rowKey="id"
           columns={columns}
+          expandable={expandable}
         />
       );
     }
   )
 );
+
+const dtFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "numeric",
+  hour12: false,
+  second: "numeric",
+});
+
+export const Render = {
+  str: (text: any) => text.toString(),
+  boolFmt1: (value: boolean) =>
+    value ? (
+      <CheckCircleFilled style={{ color: green[6] }} />
+    ) : (
+      <CloseCircleFilled style={{ color: red[6] }} />
+    ),
+  boolFmt2: (value: boolean) =>
+    value ? <Tag color="success">true</Tag> : <Tag color="error">false</Tag>,
+  boolFmt3Reverse: (value: boolean) =>
+    value ? <Tag color="error">yes</Tag> : <Tag color="success">no</Tag>,
+  number: (value: number) =>
+    value.toLocaleString(undefined, { minimumFractionDigits: 3 }),
+  datetimeFmt1: (dt: Date) => {
+    // time first
+    const [
+      month,
+      lit1,
+      day,
+      lit2,
+      year,
+      lit3,
+      hour,
+      lit4,
+      minute,
+      lit5,
+      second,
+    ] = dtFormatter.formatToParts(dt);
+    return `${hour.value}:${minute.value}:${second.value} · ${day.value} ${month.value}, ${year.value}`;
+  },
+  duration: (ms: number) => {
+    return humanizeDuration(ms);
+  },
+  auto: (value: any) => {
+    if (typeof value === "number") {
+      return Render.number(value);
+    }
+    if (typeof value === "boolean") {
+      return Render.boolFmt2(value);
+    }
+    return Render.str(value);
+  },
+};

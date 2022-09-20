@@ -14,8 +14,24 @@ body {
   margin-left: 8px;
 }
 
+.mr-8 {
+  margin-right: 8px;
+}
+
+.mt-8 {
+  margin-top: 8px;
+}
+
+.mb-8 {
+  margin-bottom: 8px;
+}
+
 .ml-16 {
   margin-left: 16px;
+}
+
+.mr-16 {
+  margin-right: 16px;
 }
 
 .pl-8 {
