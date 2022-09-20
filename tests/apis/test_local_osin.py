@@ -53,7 +53,6 @@ def test_smoke(clean_db: SqliteDatabase, tmp_path: Path):
             has_invalid_agg_output_schema=False,
             created_time=exp_run1.created_time,
             finished_time=exp_run1.finished_time,
-            rundir=str(exp_run1.rundir),
             params={
                 "dataset": "iris",
                 "method": "Nearest Neighbors",
@@ -74,7 +73,6 @@ def test_smoke(clean_db: SqliteDatabase, tmp_path: Path):
             has_invalid_agg_output_schema=False,
             created_time=exp_run2.created_time,
             finished_time=exp_run2.finished_time,
-            rundir=str(exp_run2.rundir),
             params={
                 "dataset": "iris",
                 "method": "Nearest Neighbors",
