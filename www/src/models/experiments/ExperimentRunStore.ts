@@ -106,7 +106,7 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
     limit: number,
     offset: number,
     sortedBy?: string,
-    sortedOrder?: "ascending" | "descending"
+    sortedOrder?: "asc" | "desc"
   ) => CancellablePromise<void> = flow(function* (
     this: ExperimentRunStore,
     exp: ExperimentRun,
@@ -117,7 +117,7 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
     limit: number,
     offset: number,
     sortedBy?: string,
-    sortedOrder?: "ascending" | "descending"
+    sortedOrder?: "asc" | "desc"
   ) {
     let _fields = [];
     if (fields.aggregated.primitive) {
@@ -141,8 +141,12 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
           fields: _fields.join(","),
           limit,
           offset,
-          sorted_by: sortedBy,
-          sorted_order: sortedOrder,
+          sorted_by:
+            sortedBy !== undefined
+              ? sortedOrder === "desc"
+                ? "-" + sortedBy
+                : sortedBy
+              : undefined,
         },
       });
     } catch (error: any) {
@@ -181,9 +185,12 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
         if (start >= exp.dataTracker.individual.primitive.start) {
           if (start <= exp.dataTracker.individual.primitive.end) {
             // overlapping
-            exp.dataTracker.individual.primitive.keys = resp.data.individual
-              .slice(exp.dataTracker.individual.primitive.end - start)
-              .map((example: ExampleData) => example.id);
+            exp.dataTracker.individual.primitive.keys =
+              exp.dataTracker.individual.primitive.keys.concat(
+                resp.data.individual
+                  .slice(exp.dataTracker.individual.primitive.end - start)
+                  .map((example: ExampleData) => example.id)
+              );
             exp.dataTracker.individual.primitive.end = end;
           } else {
             // non-overlapping
@@ -197,7 +204,8 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
             // overlapping
             exp.dataTracker.individual.primitive.keys = resp.data.individual
               .slice(0, end - exp.dataTracker.individual.primitive.start)
-              .map((example: ExampleData) => example.id);
+              .map((example: ExampleData) => example.id)
+              .concat(exp.dataTracker.individual.primitive.keys);
             exp.dataTracker.individual.primitive.start = start;
             exp.dataTracker.individual.primitive.end = Math.max(
               exp.dataTracker.individual.primitive.end,
@@ -246,9 +254,12 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
         if (start >= exp.dataTracker.individual.complex.start) {
           if (start <= exp.dataTracker.individual.complex.end) {
             // overlapping
-            exp.dataTracker.individual.complex.keys = resp.data.individual
-              .slice(exp.dataTracker.individual.complex.end - start)
-              .map((example: ExampleData) => example.id);
+            exp.dataTracker.individual.complex.keys =
+              exp.dataTracker.individual.complex.keys.concat(
+                resp.data.individual
+                  .slice(exp.dataTracker.individual.complex.end - start)
+                  .map((example: ExampleData) => example.id)
+              );
             exp.dataTracker.individual.complex.end = end;
           } else {
             // non-overlapping
@@ -263,7 +274,8 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
             // overlapping
             exp.dataTracker.individual.complex.keys = resp.data.individual
               .slice(0, end - exp.dataTracker.individual.complex.start)
-              .map((example: ExampleData) => example.id);
+              .map((example: ExampleData) => example.id)
+              .concat(exp.dataTracker.individual.complex.keys);
             exp.dataTracker.individual.complex.start = start;
             exp.dataTracker.individual.complex.end = Math.max(
               exp.dataTracker.individual.complex.end,

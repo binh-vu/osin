@@ -1,3 +1,4 @@
+import atexit
 from datetime import datetime
 import os
 from pathlib import Path
@@ -94,16 +95,22 @@ class LocalOsin(Osin):
         with open(rundir / "params.json", "wb") as f:
             f.write(orjson.dumps(output, option=orjson.OPT_INDENT_2))
 
-        return RemoteExpRun(
+        remote_exp_run = RemoteExpRun(
             id=exp_run.id,
             exp=exp,
             rundir=rundir,
             created_time=exp_run.created_time,
-            finished_time=exp_run.created_time,
+            finished_time=None,
             osin=self,
         )
 
-    def finish_exp_run(self, exp_run: RemoteExpRun):
+        atexit.register(
+            self._cleanup,
+            exp_run=remote_exp_run,
+        )
+        return remote_exp_run
+
+    def finish_exp_run(self, exp_run: RemoteExpRun, is_successful: bool = True):
         exp_run.finished_time = datetime.utcnow()
 
         self.osin_keeper.get_exp_run_data_format(exp_run.exp, exp_run).save_run_data(
@@ -149,7 +156,7 @@ class LocalOsin(Osin):
         self.osin_keeper.get_exp_run_success_file(exp_run.exp, exp_run).touch()
         ExpRun.update(
             is_finished=True,
-            is_successful=True,
+            is_successful=is_successful,
             finished_time=exp_run.finished_time,
             has_invalid_agg_output_schema=has_invalid_agg_output_schema,
             metadata=metadata,
@@ -157,6 +164,12 @@ class LocalOsin(Osin):
         ).where(
             ExpRun.id == exp_run.id
         ).execute()  # type: ignore
+
+    def _cleanup(self, exp_run: RemoteExpRun):
+        if exp_run.finished_time is None:
+            # the user may forget to call finish_exp_run
+            # we decide that it is still a failure
+            self.finish_exp_run(exp_run, is_successful=False)
 
     def update_exp_run_output(
         self,

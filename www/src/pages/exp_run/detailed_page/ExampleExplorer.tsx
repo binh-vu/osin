@@ -3,11 +3,10 @@ import { Tabs } from "antd";
 import { Render, TableComponent } from "components/TableComponent";
 import { observer } from "mobx-react";
 import { ExperimentRun, useStores } from "models";
-import {
-  ExampleData,
-  NestedPrimitiveData,
-} from "models/experiments/ExperimentRunData";
+import { NestedPrimitiveData } from "models/experiments";
+import { ExampleData } from "models/experiments/ExperimentRunData";
 import { PyObjectComponent } from "./pyobjects/PyObject";
+import { toJS } from "mobx";
 
 const defaultColumns: ProColumns[] = [
   {
@@ -15,12 +14,14 @@ const defaultColumns: ProColumns[] = [
     title: "Example",
     width: "max-content",
     fixed: "left",
+    sorter: true,
   },
   {
     dataIndex: "name",
     title: "Name",
     width: "max-content",
     fixed: "left",
+    sorter: true,
   },
 ];
 
@@ -48,8 +49,20 @@ export const ExampleExplorer = observer(
       <TableComponent
         selectRows={false}
         scroll={{ x: "max-content" }}
-        query={async (limit, offset) => {
-          // expRun.dataTracker.individual
+        query={async (limit, offset, sort) => {
+          const sortEntries = Object.entries(sort).filter(
+            (entries) => entries[1] !== null
+          );
+          let sortedBy = undefined;
+          let sortedOrder: "desc" | "asc" | undefined = undefined;
+
+          if (sortEntries.length > 0) {
+            sortedBy = sortEntries[0][0]
+              .replaceAll(",", ".")
+              .replace("data.", "");
+            sortedOrder = sortEntries[0][1] === "descend" ? "desc" : "asc";
+          }
+
           await expRunStore.fetchExpRunData(
             expRun,
             {
@@ -60,7 +73,9 @@ export const ExampleExplorer = observer(
               },
             },
             limit,
-            offset
+            offset,
+            sortedBy,
+            sortedOrder
           );
 
           let records: ExampleData[] = [];
@@ -113,6 +128,7 @@ export const data2columns = (
       return {
         title: key,
         dataIndex: path.concat([key]),
+        sorter: true,
         render:
           typeof value === "number"
             ? Render.number

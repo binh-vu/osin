@@ -6,8 +6,8 @@ import {
 } from "@ant-design/icons";
 import { makeStyles } from "@mui/styles";
 import { Tabs, Tag, Typography } from "antd";
+import { Render } from "components/TableComponent";
 import { LoadingComponent, NotFoundComponent } from "gena-app";
-import humanizeDuration from "humanize-duration";
 import { observer } from "mobx-react";
 import { useEffect } from "react";
 import { useStores } from "../../../models";
@@ -30,21 +30,6 @@ const useStyles = makeStyles({
     },
   },
 });
-
-const dtFormatter = new Intl.DateTimeFormat("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "numeric",
-  hour12: false,
-  second: "numeric",
-});
-const formatDt = (dt: Date) => {
-  const [month, lit1, day, lit2, year, lit3, hour, lit4, minute, lit5, second] =
-    dtFormatter.formatToParts(dt);
-  return `${day.value} ${month.value} ${year.value}, ${hour.value}:${minute.value}:${second.value}`;
-};
 
 export const ExpRunPage = observer(() => {
   const classes = useStyles();
@@ -124,34 +109,19 @@ export const ExpRunPage = observer(() => {
         {status}
       </div>
       <p className="ml-16" style={{ color: "#606986", fontSize: 12 }}>
-        <CalendarOutlined /> {formatDt(exprun.createdTime)}&nbsp;•&nbsp;
-        {humanizeDuration(
-          exprun.finishedTime.getTime() - exprun.createdTime.getTime()
-        )}
+        <CalendarOutlined /> {Render.datetimeFmt2(exprun.createdTime)}
+        &nbsp;•&nbsp;
+        {Render.duration(exprun.duration)}
       </p>
 
       <Tabs
         className={classes.tabs}
+        defaultActiveKey="Examples"
         items={[
           {
             label: "Overview",
             key: "Overview",
             children: <ExpRunOverview expRun={exprun} />,
-          },
-          {
-            label: "Parameters",
-            key: "Parameters",
-            children: <h1>Parameters</h1>,
-          },
-          {
-            label: "Metrics",
-            key: "Metrics",
-            children: <h1>Parameters</h1>,
-          },
-          {
-            label: "System Metrics",
-            key: "System Metrics",
-            children: <h1>Parameters</h1>,
           },
           {
             label: "Examples",

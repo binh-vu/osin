@@ -106,11 +106,7 @@ class Hdf5Format:
                         limit = math.inf  # type: ignore
                     selected_examples = []
                     sorted_keys = {}
-                    for i, (key, ex_group) in enumerate(f["individual"].items()):
-                        if i < offset:
-                            continue
-                        if i >= offset + limit:
-                            break
+                    for key, ex_group in f["individual"].items():
                         selected_examples.append((key, ex_group))
                         # this works for nested keys
                         if sorted_by not in ex_group:
@@ -118,9 +114,10 @@ class Hdf5Format:
                         sorted_keys[key] = ex_group[sorted_by][()]
 
                     selected_examples.sort(
-                        key=lambda x: sorted_keys[x],
+                        key=lambda x: sorted_keys[x[0]],
                         reverse=sorted_order == "descending",
                     )
+                    selected_examples = selected_examples[offset : offset + limit]
 
                 for example_id, ex_group in selected_examples:
                     if example_id not in expdata.individual:

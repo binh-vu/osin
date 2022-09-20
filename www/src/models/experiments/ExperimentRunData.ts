@@ -1,4 +1,5 @@
 import { makeObservable, observable } from "mobx";
+import { NestedPrimitiveData } from "./NestedPrimitiveType";
 
 export interface PyOTable {
   type: "table";
@@ -7,10 +8,6 @@ export interface PyOTable {
 }
 
 export type PyObject = PyOTable;
-
-export interface NestedPrimitiveData {
-  [key: string]: string | number | boolean | null | NestedPrimitiveData;
-}
 
 export class ExperimentRunData {
   public aggregated: ExpDataRecord;
@@ -49,7 +46,7 @@ export class ExpRunDataTracker {
       end: number;
       total: number;
       sortedBy?: string;
-      sortedOrder?: "ascending" | "descending";
+      sortedOrder?: "asc" | "desc";
       keys: string[];
     };
     complex: {
@@ -57,7 +54,7 @@ export class ExpRunDataTracker {
       end: number;
       total: number;
       sortedBy?: string;
-      sortedOrder?: "ascending" | "descending";
+      sortedOrder?: "asc" | "desc";
       keys: string[];
     };
   };
@@ -70,14 +67,14 @@ export class ExpRunDataTracker {
         end?: number;
         total?: number;
         sortedBy?: string;
-        sortedOrder?: "ascending" | "descending";
+        sortedOrder?: "asc" | "desc";
       };
       complex: {
         start?: number;
         end?: number;
         total?: number;
         sortedBy?: string;
-        sortedOrder?: "ascending" | "descending";
+        sortedOrder?: "asc" | "desc";
       };
     }
   ) {

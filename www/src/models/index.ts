@@ -7,7 +7,8 @@ import {
   ExperimentRun,
   ExperimentRunStore,
   PyObjectType,
-  NestedPrimitiveOutputSchema,
+  NestedPrimitiveDataSchema,
+  NestedPrimitiveData,
 } from "./experiments";
 import { toJS } from "mobx";
 
@@ -41,5 +42,7 @@ export {
   ExperimentRun,
   ExperimentRunStore,
   PyObjectType,
-  NestedPrimitiveOutputSchema,
+  NestedPrimitiveDataSchema,
 };
+
+export type { NestedPrimitiveData };

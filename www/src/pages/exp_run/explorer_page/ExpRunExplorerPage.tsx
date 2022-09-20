@@ -9,7 +9,7 @@ import { Experiment, ExperimentRun, useStores } from "../../../models";
 import { routes } from "../../../routes";
 import humanizeDuration from "humanize-duration";
 import filesize from "filesize";
-import { NestedPrimitiveOutputSchema } from "../../../models/experiments";
+import { NestedPrimitiveDataSchema } from "../../../models/experiments";
 import { ExperimentRunExplorer } from "./ExpRunExplorer";
 
 const useStyles = makeStyles({

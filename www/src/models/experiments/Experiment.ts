@@ -1,9 +1,6 @@
 import { Record } from "gena-app";
 import { makeObservable, observable } from "mobx";
-import {
-  NestedPrimitiveOutputSchema,
-  PyObjectType,
-} from "./NestedPrimitiveType";
+import { NestedPrimitiveDataSchema, PyObjectType } from "./NestedPrimitiveType";
 
 export class Experiment implements Record<number> {
   id: number;
@@ -12,7 +9,7 @@ export class Experiment implements Record<number> {
   description: string;
   program: string;
   params: { [key: string]: PyObjectType };
-  aggregatedPrimitiveOutputs: NestedPrimitiveOutputSchema;
+  aggregatedPrimitiveOutputs: NestedPrimitiveDataSchema;
 
   public constructor(
     id: number,
@@ -21,7 +18,7 @@ export class Experiment implements Record<number> {
     description: string,
     program: string,
     params: { [key: string]: PyObjectType },
-    aggregatedPrimitiveOutputs: NestedPrimitiveOutputSchema
+    aggregatedPrimitiveOutputs: NestedPrimitiveDataSchema
   ) {
     this.id = id;
     this.name = name;

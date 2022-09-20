@@ -34,11 +34,11 @@ export class PyObjectType {
   }
 }
 
-export class NestedPrimitiveOutputSchema {
-  schema: { [key: string]: PyObjectType | NestedPrimitiveOutputSchema };
+export class NestedPrimitiveDataSchema {
+  schema: { [key: string]: PyObjectType | NestedPrimitiveDataSchema };
 
   public constructor(schema: {
-    [key: string]: PyObjectType | NestedPrimitiveOutputSchema;
+    [key: string]: PyObjectType | NestedPrimitiveDataSchema;
   }) {
     this.schema = schema;
 
@@ -47,12 +47,12 @@ export class NestedPrimitiveOutputSchema {
     });
   }
 
-  public static deserialize(record: any): NestedPrimitiveOutputSchema {
-    return new NestedPrimitiveOutputSchema(
+  public static deserialize(record: any): NestedPrimitiveDataSchema {
+    return new NestedPrimitiveDataSchema(
       Object.fromEntries(
         Object.entries(record.schema).map(([key, value]: [string, any]) => {
           if (value.schema !== undefined) {
-            return [key, NestedPrimitiveOutputSchema.deserialize(value)];
+            return [key, NestedPrimitiveDataSchema.deserialize(value)];
           } else {
             return [key, PyObjectType.deserialize(value)];
           }
@@ -60,30 +60,28 @@ export class NestedPrimitiveOutputSchema {
       )
     );
   }
-}
 
-export class NestedPrimitiveOutput {
-  value: {
-    [key: string]: string | number | boolean | null | NestedPrimitiveOutput;
-  };
-
-  public constructor(value: {
-    [key: string]: string | number | boolean | null | NestedPrimitiveOutput;
-  }) {
-    this.value = value;
-
-    makeObservable(this, {
-      value: observable,
-    });
-  }
-
-  public static deserialize(record: any): NestedPrimitiveOutput {
-    for (const key in record) {
-      const value = record[key];
-      if (typeof value === "object") {
-        record[key] = NestedPrimitiveOutput.deserialize(value);
+  public static flatten(
+    nestedData: NestedPrimitiveData
+  ): { key: string; value: string | number | boolean | null }[] {
+    let out = [];
+    for (const key in nestedData) {
+      const value = nestedData[key];
+      if (value !== null && typeof value === "object") {
+        for (const item of NestedPrimitiveDataSchema.flatten(value)) {
+          out.push({
+            key: `${key}.${item.key}`,
+            value: item.value,
+          });
+        }
+      } else {
+        out.push({ key, value });
       }
     }
-    return new NestedPrimitiveOutput(record);
+    return out;
   }
+}
+
+export interface NestedPrimitiveData {
+  [key: string]: string | number | boolean | null | NestedPrimitiveData;
 }

@@ -84,7 +84,7 @@ def fetch_exp_run_data(id: int):
         fields = None
 
     if "sorted_by" in request.args:
-        sorted_by = request.args["sorted_by"]
+        sorted_by = request.args["sorted_by"].replace(".", "/")
         if sorted_by.startswith("-"):
             sorted_by = sorted_by[1:]
             sorted_order = "descending"

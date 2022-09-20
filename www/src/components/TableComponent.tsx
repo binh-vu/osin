@@ -2,7 +2,7 @@ import { SearchOutlined } from "@ant-design/icons";
 import ProTable, { ActionType, ProColumns } from "@ant-design/pro-table";
 import { makeStyles } from "@mui/styles";
 import { Descriptions, Tag, Typography } from "antd";
-import { ExpandableConfig } from "antd/lib/table/interface";
+import { ExpandableConfig, SortOrder } from "antd/lib/table/interface";
 import { ExternalLink } from "gena-app";
 import humanizeDuration from "humanize-duration";
 import { CheckCircleFilled, CloseCircleFilled } from "@ant-design/icons";
@@ -41,7 +41,8 @@ interface TableComponentProps {
   defaultPageSize?: number;
   query: (
     limit: number,
-    offset: number
+    offset: number,
+    sort: Record<string, SortOrder>
   ) => Promise<{ records: any[]; total: number }>;
   toolBarRender?: false;
   showRowIndex?: boolean;
@@ -107,10 +108,11 @@ export const TableComponent = observer(
           }
           defaultSize="small"
           bordered={true}
-          request={async (params, sort, filter) => {
+          request={async (params, sort: Record<string, SortOrder>, filter) => {
             const { records, total } = await query(
               params.pageSize!,
-              (params.current! - 1) * params.pageSize!
+              (params.current! - 1) * params.pageSize!,
+              sort
             );
             return {
               data: records,
@@ -151,9 +153,33 @@ const dtFormatter = new Intl.DateTimeFormat("en-US", {
   hour12: false,
   second: "numeric",
 });
+export const dtFormatToParts = (dt: Date, formatter?: Intl.DateTimeFormat) => {
+  const [month, lit1, day, lit2, year, lit3, hour, lit4, minute, lit5, second] =
+    (formatter || dtFormatter).formatToParts(dt);
+
+  return {
+    month: month.value,
+    day: day.value,
+    year: year.value,
+    hour: hour.value,
+    minute: minute.value,
+    second: second.value,
+  };
+};
 
 export const Render = {
-  str: (text: any) => text.toString(),
+  str: (text: any) => {
+    if (text === null || text === undefined) {
+      return "";
+    }
+    return text.toString();
+  },
+  strMonospace: (text: any) => {
+    if (text === null || text === undefined) {
+      return "";
+    }
+    return <Typography.Text code={true}>{text.toString()}</Typography.Text>;
+  },
   boolFmt1: (value: boolean) =>
     value ? (
       <CheckCircleFilled style={{ color: green[6] }} />
@@ -168,22 +194,17 @@ export const Render = {
     value.toLocaleString(undefined, { minimumFractionDigits: 3 }),
   datetimeFmt1: (dt: Date) => {
     // time first
-    const [
-      month,
-      lit1,
-      day,
-      lit2,
-      year,
-      lit3,
-      hour,
-      lit4,
-      minute,
-      lit5,
-      second,
-    ] = dtFormatter.formatToParts(dt);
-    return `${hour.value}:${minute.value}:${second.value} · ${day.value} ${month.value}, ${year.value}`;
+    const p = dtFormatToParts(dt);
+    return `${p.hour}:${p.minute}:${p.second} · ${p.day} ${p.month}, ${p.year}`;
   },
-  duration: (ms: number) => {
+  datetimeFmt2: (dt: Date) => {
+    const p = dtFormatToParts(dt);
+    return `${p.day} ${p.month} ${p.year}, ${p.hour}:${p.minute}:${p.second}`;
+  },
+  duration: (ms: number | undefined | null) => {
+    if (ms === undefined || ms === null) {
+      return "";
+    }
     return humanizeDuration(ms);
   },
   auto: (value: any) => {

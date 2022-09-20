@@ -1,7 +1,7 @@
 import { SimpleCRUDStore, SingleKeyIndex } from "gena-app";
 import { SERVER } from "env";
 import { Experiment } from "./Experiment";
-import { NestedPrimitiveOutputSchema } from "./NestedPrimitiveType";
+import { NestedPrimitiveDataSchema } from "./NestedPrimitiveType";
 
 export class ExperimentStore extends SimpleCRUDStore<number, Experiment> {
   constructor() {
@@ -23,9 +23,7 @@ export class ExperimentStore extends SimpleCRUDStore<number, Experiment> {
       record.description,
       record.program,
       record.params,
-      NestedPrimitiveOutputSchema.deserialize(
-        record.aggregated_primitive_outputs
-      )
+      NestedPrimitiveDataSchema.deserialize(record.aggregated_primitive_outputs)
     );
   }
 }

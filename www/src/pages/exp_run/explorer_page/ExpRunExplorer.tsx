@@ -4,7 +4,7 @@ import { InternalLink } from "gena-app";
 import { observer } from "mobx-react";
 import { TableComponent, Render } from "../../../components/TableComponent";
 import { Experiment, ExperimentRun, useStores } from "../../../models";
-import { NestedPrimitiveOutputSchema } from "models";
+import { NestedPrimitiveDataSchema } from "models";
 import { routes } from "../../../routes";
 
 const defaultColumns: ProColumns[] = [
@@ -31,13 +31,14 @@ const defaultColumns: ProColumns[] = [
     render: Render.datetimeFmt1 as any,
   },
   {
-    dataIndex: "finishedTime",
+    dataIndex: "duration",
     title: "Duration",
-    render: ((text: any, record: ExperimentRun) => {
-      const duration =
-        record.finishedTime.getTime() - record.createdTime.getTime();
-      return Render.duration(duration);
-    }) as any,
+    render: Render.duration as any,
+    // render: ((text: any, record: ExperimentRun) => {
+    //   const duration =
+    //     record.finishedTime.getTime() - record.createdTime.getTime();
+    //   return Render.duration(duration);
+    // }) as any,
   },
   {
     dataIndex: "isFinished",
@@ -110,12 +111,12 @@ export const ExperimentRunExplorer = observer(
 export const schema2columns = (
   title: string,
   path: string[],
-  schema: NestedPrimitiveOutputSchema
+  schema: NestedPrimitiveDataSchema
 ) => {
   return {
     title,
     children: Object.entries(schema.schema).map(([key, value]): any => {
-      if (value instanceof NestedPrimitiveOutputSchema) {
+      if (value instanceof NestedPrimitiveDataSchema) {
         return schema2columns(key, path.concat([key]), value);
       }
       return {

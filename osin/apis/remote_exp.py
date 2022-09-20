@@ -36,7 +36,7 @@ class RemoteExpRun:
     # id to the experiment in osin
     exp: RemoteExp
     created_time: datetime
-    finished_time: datetime
+    finished_time: Optional[datetime]
     rundir: Path
     osin: Osin
     pending_output: ExpRunData = field(default_factory=ExpRunData)
