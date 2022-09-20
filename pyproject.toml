@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "osin"
-version = "1.0.0"
+version = "1.0.1"
 description = "Rethink Experimenting"
 authors = ["Binh Vu <binh@toan2.com>"]
 license = "MIT"

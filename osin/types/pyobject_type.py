@@ -45,10 +45,9 @@ class PyObjectType:
                 path = hint.__module__ + "." + hint._name
                 if path in TYPE_ALIASES:
                     path = TYPE_ALIASES[path]
-            elif hasattr(typing, "_UnionGenericAlias") and isinstance(
-                hint, getattr(typing, "_UnionGenericAlias")
-            ):
-                path = "typing.Union"
+            elif hasattr(hint, "__origin__") and hasattr(hint.__origin__, "_name"):
+                # found one case which is typing.Union
+                path = hint.__module__ + "." + hint.__origin__._name
             else:
                 raise NotImplementedError(hint)
 
