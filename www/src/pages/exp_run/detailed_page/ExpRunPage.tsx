@@ -14,6 +14,7 @@ import { useStores } from "../../../models";
 import { routes } from "../../../routes";
 import { ExampleExplorer } from "./ExampleExplorer";
 import { ExpRunOverview } from "./ExpRunOverview";
+import { ExpRunSettings } from "./ExpRunSettings";
 
 const useStyles = makeStyles({
   status: {
@@ -116,7 +117,6 @@ export const ExpRunPage = observer(() => {
 
       <Tabs
         className={classes.tabs}
-        defaultActiveKey="Examples"
         items={[
           {
             label: "Overview",
@@ -127,6 +127,11 @@ export const ExpRunPage = observer(() => {
             label: "Examples",
             key: "Examples",
             children: <ExampleExplorer expRun={exprun} />,
+          },
+          {
+            label: "Settings",
+            key: "Settings",
+            children: <ExpRunSettings expRun={exprun} />,
           },
         ]}
       />

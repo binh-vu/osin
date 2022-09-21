@@ -2,13 +2,16 @@ import { Render, TableComponent } from "components/TableComponent";
 import { PyObject } from "models/experiments/ExperimentRunData";
 
 export const PyObjectTable = ({ object }: { object: PyObject }) => {
-  let columns = object.columns.map((column, index) => {
-    return {
-      title: column,
-      dataIndex: ["row", index],
-      render: Render.auto as any,
-    };
-  });
+  let columns =
+    object.rows.length === 0
+      ? []
+      : Object.keys(object.rows[0]).map((column) => {
+          return {
+            title: column,
+            dataIndex: ["row", column],
+            render: Render.auto as any,
+          };
+        });
 
   return (
     <TableComponent

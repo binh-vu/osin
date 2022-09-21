@@ -90,9 +90,13 @@ for i in range(len(y_test)):
         },
         complex={
             "features": OTable(
-                columns=[f"feature_{j}" for j in range(len(X_test[i]))]
-                + ["label", "prediction"],
-                rows=[X_test[i].tolist() + [int(y_test[i]), int(ytestpred[i])]],
+                rows=[{
+                    **{
+                        f"feature_{j}": val for j, val in enumerate(X_test[i].tolist()))
+                    },
+                    "label": int(y_test[i]),
+                    "prediction": int(ytestpred[i]),
+                }]
             )
         },
     )

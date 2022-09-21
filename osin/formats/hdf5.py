@@ -33,6 +33,7 @@ class Hdf5Format:
 
             grp = f.create_group("/aggregated/complex", track_order=True)
             for key, value in data.aggregated.complex.items():
+                self._validate_key(key)
                 grp[key] = value.serialize_hdf5()
                 grp.attrs[key] = value.get_classpath()
 
@@ -41,6 +42,7 @@ class Hdf5Format:
                 example_id,
                 example,
             ) in data.individual.items():
+                self._validate_key(example_id)
                 ex_group = ind_group.create_group(example_id, track_order=True)
                 ex_group.attrs["id"] = example.id
                 ex_group.attrs["name"] = example.name
@@ -52,6 +54,7 @@ class Hdf5Format:
 
                 grp = ex_group.create_group(f"complex", track_order=True)
                 for key, obj in example.data.complex.items():
+                    self._validate_key(key)
                     grp[key] = obj.serialize_hdf5()
                     grp.attrs[key] = obj.get_classpath()
 
@@ -163,6 +166,7 @@ class Hdf5Format:
         self, group: Group, primitive_object: NestedPrimitiveOutput
     ):
         for key, value in primitive_object.items():
+            self._validate_key(key)
             if isinstance(value, dict):
                 subgroup = group.create_group(key, track_order=True)
                 self._update_nested_primitive_object(subgroup, value)
@@ -184,3 +188,7 @@ class Hdf5Format:
                     val = bool(val)
                 primitive_object[key] = val
         return primitive_object
+
+    def _validate_key(self, key: str):
+        if key.find("/") != -1:
+            raise KeyError(f"Cannot have '/' in hdf5 group's item: {key}")

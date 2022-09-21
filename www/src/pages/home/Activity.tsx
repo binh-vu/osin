@@ -5,6 +5,7 @@ import ActivityCalendar from "components/activity-calendar/ActivityCalendar";
 import { blue } from "@ant-design/colors";
 
 const lastYear = new Date();
+const todayStr = lastYear.toISOString().split("T", 1)[0];
 lastYear.setFullYear(lastYear.getFullYear() - 1);
 const lastYearStr = lastYear.toISOString().split("T", 1)[0];
 
@@ -17,8 +18,14 @@ export const Activity = observer(() => {
       activity.sort((a, b) => a.date.localeCompare(b.date));
 
       let data = [];
-      if (activity[0].date !== lastYearStr) {
+      if (activity.length === 0 || activity[0].date !== lastYearStr) {
         data.push({ date: lastYearStr, level: 0 as 0, count: 0 });
+      }
+      if (
+        activity.length === 0 ||
+        activity[activity.length - 1].date !== todayStr
+      ) {
+        data.push({ date: todayStr, level: 0 as 0, count: 0 });
       }
 
       for (const item of activity) {

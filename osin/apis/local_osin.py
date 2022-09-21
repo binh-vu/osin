@@ -4,7 +4,8 @@ import os
 from pathlib import Path
 import shutil
 import socket
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Set, Union
+from loguru import logger
 
 import numpy as np
 import orjson
@@ -22,6 +23,7 @@ from osin.models.exp_data import Record, ExampleData
 class LocalOsin(Osin):
     def __init__(self, osin_dir: Union[Path, str]):
         self.osin_keeper = OsinDataKeeper(osin_dir)
+        self.cleanup_records: Set[int] = set()
         init_db(self.osin_keeper.get_db_file())
 
     def init_exp(
@@ -165,11 +167,34 @@ class LocalOsin(Osin):
             ExpRun.id == exp_run.id
         ).execute()  # type: ignore
 
+        self.cleanup_records.add(exp_run.id)
+
     def _cleanup(self, exp_run: RemoteExpRun):
-        if exp_run.finished_time is None:
-            # the user may forget to call finish_exp_run
-            # we decide that it is still a failure
-            self.finish_exp_run(exp_run, is_successful=False)
+        if exp_run.id not in self.cleanup_records:
+            logger.debug("Cleaning up exp run: {}", exp_run.id)
+            if exp_run.finished_time is None:
+                # the user may forget to call finish_exp_run
+                # we decide that it is still a failure
+                try:
+                    self.finish_exp_run(exp_run, is_successful=False)
+                except:
+                    finished_time = datetime.utcnow()
+                    ExpRun.update(
+                        is_finished=True,
+                        is_successful=False,
+                        finished_time=finished_time,
+                    ).where(
+                        ExpRun.id == exp_run.id
+                    ).execute()  # type: ignore
+
+                    raise
+            else:
+                finished_time = datetime.utcnow()
+                ExpRun.update(
+                    is_finished=True, is_successful=False, finished_time=finished_time
+                ).where(
+                    ExpRun.id == exp_run.id
+                ).execute()  # type: ignore
 
     def update_exp_run_output(
         self,

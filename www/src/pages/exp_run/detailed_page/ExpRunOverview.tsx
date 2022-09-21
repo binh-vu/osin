@@ -1,6 +1,7 @@
 import { makeStyles } from "@mui/styles";
 import { Col, Row, Space, Table, Typography } from "antd";
 import { dtFormatToParts, Render } from "components/TableComponent";
+import { InfoCard } from "components/cards/InfoCard";
 import { ExperimentRun, NestedPrimitiveDataSchema } from "models";
 import { useEffect, useState } from "react";
 import {
@@ -20,6 +21,10 @@ const useStyles = makeStyles({
   borderlessCard: {
     paddingTop: 16,
     paddingBottom: 16,
+  },
+  column2nd: {
+    paddingLeft: 0,
+    paddingRight: 0,
   },
   infoList: {
     "& > i": {
@@ -71,10 +76,9 @@ export const ExpRunOverview = ({ expRun }: { expRun: ExperimentRun }) => {
 
   return (
     <div className="ml-16 mr-16">
-      <Row gutter={16} className="mb-16">
+      <Row gutter={16}>
         <Col className="gutter-row" span={18}>
-          <div className={classes.card}>
-            <Typography.Title level={2}>Run Parameters</Typography.Title>
+          <InfoCard title="Run Parameters">
             <Table
               columns={columns}
               dataSource={params}
@@ -82,11 +86,23 @@ export const ExpRunOverview = ({ expRun }: { expRun: ExperimentRun }) => {
               scroll={{ y: 480 }}
               pagination={false}
             />
-          </div>
+          </InfoCard>
+          <InfoCard title="Metrics">
+            <Table
+              columns={columns}
+              dataSource={metrics}
+              size="middle"
+              scroll={{ y: 480 }}
+              pagination={false}
+            />
+          </InfoCard>
         </Col>
         <Col className="gutter-row" span={6}>
-          <div className={classes.borderlessCard}>
-            <Typography.Title level={2}>Information</Typography.Title>
+          <InfoCard
+            title="Information"
+            className={classes.column2nd}
+            bordered={false}
+          >
             <Space direction="vertical">
               <div className={classes.infoList}>
                 <i>
@@ -107,21 +123,7 @@ export const ExpRunOverview = ({ expRun }: { expRun: ExperimentRun }) => {
                 {duration}
               </div>
             </Space>
-          </div>
-        </Col>
-      </Row>
-      <Row gutter={16} className="mb-16">
-        <Col className="gutter-row" span={18}>
-          <div className={classes.card}>
-            <Typography.Title level={2}>Metrics</Typography.Title>
-            <Table
-              columns={columns}
-              dataSource={metrics}
-              size="middle"
-              scroll={{ y: 480 }}
-              pagination={false}
-            />
-          </div>
+          </InfoCard>
         </Col>
       </Row>
     </div>

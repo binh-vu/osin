@@ -3,7 +3,6 @@ import { NestedPrimitiveData } from "./NestedPrimitiveType";
 
 export interface PyOTable {
   type: "table";
-  columns: string[];
   rows: NestedPrimitiveData[];
 }
 

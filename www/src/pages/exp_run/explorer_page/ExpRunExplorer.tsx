@@ -79,6 +79,9 @@ export const ExperimentRunExplorer = observer(
             title: "Memory Usage",
             dataIndex: ["metadata", "memory_usage"],
             render: ((value: number) => {
+              if (isNaN(value)) {
+                return value.toString();
+              }
               return filesize(value, {
                 base: 2,
                 standard: "jedec",

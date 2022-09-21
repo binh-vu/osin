@@ -1,6 +1,6 @@
 {
   "name": "osin",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "dependencies": {
     "@ant-design/colors": "^6.0.0",
@@ -55,6 +55,7 @@
   },
   "scripts": {
     "start": "BROWSER=none react-scripts start",
+    "start_nonroot": "CHOKIDAR_USEPOLLING=true BROWSER=none react-scripts start",
     "build": "python ./scripts/build.py ../osin/www",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
