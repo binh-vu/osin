@@ -34,7 +34,7 @@ export const ExampleExplorer = observer(
     if (expRun.dataTracker.individual.primitive.keys.length > 0) {
       extraColumns.push(
         data2columns(
-          "Metrics",
+          "Data",
           ["data", "primitive"],
           expRun.data.individual.get(
             expRun.dataTracker.individual.primitive.keys[0]

@@ -13,6 +13,20 @@ PrimitiveValue = Union[str, int, float, bool, None]
 NestedPrimitiveOutput = Dict[str, Union[PrimitiveValue, "NestedPrimitiveOutput"]]
 
 
+class InvalidValueType(Exception):
+    def __init__(self, valid_type: str):
+        super().__init__(self)
+        self.valid_type = valid_type
+        self.trace = []
+
+    def add_trace(self, *parents: str):
+        self.trace.extend(reversed(parents))
+        return self
+
+    def __str__(self):
+        return f"Expect {self.valid_type} but receive value type: {'·'.join(reversed(self.trace))}"
+
+
 @dataclass
 class NestedPrimitiveOutputSchema:
     schema: Dict[str, Union[PyObjectType, NestedPrimitiveOutputSchema]]
@@ -82,3 +96,17 @@ class NestedPrimitiveOutputSchema:
                 output.append(f"{prop}: {prop_schema}")
 
         return "\n".join(output)
+
+
+def validate_primitive_data(data: NestedPrimitiveOutput):
+    for key, value in data.items():
+        if value is not None and not isinstance(value, (str, bool, int, float, dict)):
+            raise InvalidValueType(
+                "Nested Primitive Type (str, int, bool, float, None)"
+            ).add_trace(key, type(value))
+
+        if isinstance(value, dict):
+            try:
+                validate_primitive_data(value)
+            except InvalidValueType as e:
+                raise e.add_trace(key)

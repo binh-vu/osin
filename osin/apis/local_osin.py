@@ -9,6 +9,7 @@ from loguru import logger
 
 import numpy as np
 import orjson
+from osin.types.primitive_type import validate_primitive_data
 import psutil
 from osin.misc import get_caller_python_script
 from osin.types import Parameters, NestedPrimitiveOutputSchema, PyObject, PyObjectType
@@ -203,6 +204,7 @@ class LocalOsin(Osin):
         complex: Optional[Dict[str, PyObject]] = None,
     ):
         if primitive is not None:
+            validate_primitive_data(primitive)
             exp_run.pending_output.aggregated.primitive.update(primitive)
         if complex is not None:
             exp_run.pending_output.aggregated.complex.update(complex)
@@ -215,6 +217,9 @@ class LocalOsin(Osin):
         primitive: Optional[NestedPrimitiveOutput] = None,
         complex: Optional[Dict[str, PyObject]] = None,
     ):
+        if primitive is not None:
+            validate_primitive_data(primitive)
+
         if example_id in exp_run.pending_output.individual:
             exp_run.pending_output.individual[example_id].name = example_name
             exp_run.pending_output.individual[example_id].data.primitive.update(

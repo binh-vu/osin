@@ -63,7 +63,7 @@ export const ExperimentRunExplorer = observer(
 
     let columns = defaultColumns.concat([
       schema2columns(
-        "Metrics",
+        "Data",
         ["data", "aggregated", "primitive"],
         exp.aggregatedPrimitiveOutputs
       ),

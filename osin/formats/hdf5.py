@@ -186,6 +186,8 @@ class Hdf5Format:
                     val = int(val)
                 elif isinstance(val, np.bool_):
                     val = bool(val)
+                elif isinstance(val, bytes):
+                    val = val.decode()
                 primitive_object[key] = val
         return primitive_object
 
