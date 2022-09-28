@@ -5,12 +5,12 @@ from pathlib import Path
 from typing import Any, Dict, List, TYPE_CHECKING, Optional, Union
 from osin.models import ExpRunData
 from osin.types import (
-    Parameters,
     NestedPrimitiveOutputSchema,
     PyObject,
     PyObjectType,
     NestedPrimitiveOutput,
 )
+from osin.graph.params_helper import DataClass
 
 if TYPE_CHECKING:
     from osin.apis.osin import Osin
@@ -25,7 +25,7 @@ class RemoteExp:
     aggregated_primitive_outputs: Optional[NestedPrimitiveOutputSchema]
     osin: Osin
 
-    def new_exp_run(self, params: Union[Parameters, List[Parameters]]) -> RemoteExpRun:
+    def new_exp_run(self, params: Union[DataClass, List[DataClass]]) -> RemoteExpRun:
         return self.osin.new_exp_run(self, params)
 
 

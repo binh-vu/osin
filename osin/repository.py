@@ -7,7 +7,7 @@ from osin.apis.remote_exp import RemoteExp, RemoteExpRun
 from slugify import slugify
 
 
-class OsinDataKeeper:
+class OsinRepository:
     instance = None
 
     def __init__(self, osin_dir: Union[Path, str]):
@@ -15,13 +15,13 @@ class OsinDataKeeper:
         self.osin_dir.mkdir(exist_ok=True, parents=True)
 
     @staticmethod
-    def get_instance(osin_dir: Optional[Union[Path, str]] = None) -> "OsinDataKeeper":
-        if OsinDataKeeper.instance is None:
+    def get_instance(osin_dir: Optional[Union[Path, str]] = None) -> "OsinRepository":
+        if OsinRepository.instance is None:
             assert osin_dir is not None
-            OsinDataKeeper.instance = OsinDataKeeper(osin_dir)
+            OsinRepository.instance = OsinRepository(osin_dir)
         elif osin_dir is not None:
-            assert OsinDataKeeper.instance.osin_dir == Path(osin_dir)
-        return OsinDataKeeper.instance
+            assert OsinRepository.instance.osin_dir == Path(osin_dir)
+        return OsinRepository.instance
 
     def get_db_file(self) -> Path:
         return self.osin_dir / "osin.db"

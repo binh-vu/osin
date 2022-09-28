@@ -11,19 +11,20 @@ import numpy as np
 import orjson
 from osin.types.primitive_type import validate_primitive_data
 import psutil
-from osin.misc import get_caller_python_script
-from osin.types import Parameters, NestedPrimitiveOutputSchema, PyObject, PyObjectType
+from osin.misc import get_caller_python_script, orjson_dumps
+from osin.types import NestedPrimitiveOutputSchema, PyObject, PyObjectType
 from osin.apis.osin import Osin
 from osin.apis.remote_exp import RemoteExp, RemoteExpRun
-from osin.data_keeper import OsinDataKeeper
+from osin.repository import OsinRepository
 from osin.models.base import init_db
 from osin.models.exp import Exp, ExpRun, NestedPrimitiveOutput, RunMetadata
 from osin.models.exp_data import Record, ExampleData
+from osin.graph.params_helper import DataClass, get_param_types, param_as_dict
 
 
 class LocalOsin(Osin):
     def __init__(self, osin_dir: Union[Path, str]):
-        self.osin_keeper = OsinDataKeeper(osin_dir)
+        self.osin_keeper = OsinRepository(osin_dir)
         self.cleanup_records: Set[int] = set()
         init_db(self.osin_keeper.get_db_file())
 
@@ -33,7 +34,7 @@ class LocalOsin(Osin):
         version: int,
         description: Optional[str] = None,
         program: Optional[str] = None,
-        params: Optional[Union[Parameters, List[Parameters]]] = None,
+        params: Optional[Union[DataClass, List[DataClass]]] = None,
         aggregated_primitive_outputs: Optional[NestedPrimitiveOutputSchema] = None,
     ) -> RemoteExp:
         exps = (
@@ -49,7 +50,7 @@ class LocalOsin(Osin):
                 description=description,
                 version=version,
                 program=program or get_caller_python_script(),
-                params=Parameters.get_param_types(params),
+                params=get_param_types(params),
                 aggregated_primitive_outputs=aggregated_primitive_outputs,
             )
         else:
@@ -67,7 +68,7 @@ class LocalOsin(Osin):
                     description=description,
                     version=version,
                     program=program or get_caller_python_script(),
-                    params=Parameters.get_param_types(params),
+                    params=get_param_types(params),
                     aggregated_primitive_outputs=aggregated_primitive_outputs,
                 )
 
@@ -81,13 +82,13 @@ class LocalOsin(Osin):
         )
 
     def new_exp_run(
-        self, exp: RemoteExp, params: Union[Parameters, List[Parameters]]
+        self, exp: RemoteExp, params: Union[DataClass, List[DataClass]]
     ) -> RemoteExpRun:
         db_exp: Exp = Exp.get_by_id(exp.id)
 
         output = {}
         for param in params if isinstance(params, list) else [params]:
-            output.update(param.as_dict())
+            output.update(param_as_dict(param))
         exp_run = ExpRun.create(exp=db_exp, params=output)
 
         rundir = self.osin_keeper.get_exp_run_dir(db_exp, exp_run)
@@ -96,7 +97,7 @@ class LocalOsin(Osin):
         rundir.mkdir(parents=True)
 
         with open(rundir / "params.json", "wb") as f:
-            f.write(orjson.dumps(output, option=orjson.OPT_INDENT_2))
+            f.write(orjson_dumps(output, option=orjson.OPT_INDENT_2))
 
         remote_exp_run = RemoteExpRun(
             id=exp_run.id,
@@ -124,7 +125,7 @@ class LocalOsin(Osin):
         metadata = RunMetadata.auto()
         # save metadata
         self.osin_keeper.get_exp_run_metadata_file(exp_run.exp, exp_run).write_bytes(
-            orjson.dumps(
+            orjson_dumps(
                 {
                     "created_time": exp_run.created_time.isoformat(),
                     "finished_time": exp_run.finished_time.isoformat(),

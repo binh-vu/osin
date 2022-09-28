@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Dict,
-    Union,
-)
+from typing import Any, Dict, Mapping, Union, MutableMapping
 from osin.types.pyobject_type import PRIMITIVE_TYPES, Number, PyObjectType
 
 
 PrimitiveValue = Union[str, int, float, bool, None]
-NestedPrimitiveOutput = Dict[str, Union[PrimitiveValue, "NestedPrimitiveOutput"]]
+NestedPrimitiveOutput = Mapping[str, Union[PrimitiveValue, "NestedPrimitiveOutput"]]
 
 
 class InvalidValueType(Exception):
@@ -43,7 +39,7 @@ class NestedPrimitiveOutputSchema:
 
     @staticmethod
     def infer_from_data(
-        data: Dict[str, Any], use_number_type: bool = True
+        data: Mapping[str, Any], use_number_type: bool = True
     ) -> NestedPrimitiveOutputSchema:
         schema = {}
         for key, value in data.items():
@@ -70,7 +66,7 @@ class NestedPrimitiveOutputSchema:
 
         return NestedPrimitiveOutputSchema(schema=schema)
 
-    def does_data_match(self, data: Dict[str, Any]) -> bool:
+    def does_data_match(self, data: Mapping[str, Any]) -> bool:
         if set(self.schema.keys()) != set(data.keys()):
             return False
 
@@ -103,7 +99,7 @@ def validate_primitive_data(data: NestedPrimitiveOutput):
         if value is not None and not isinstance(value, (str, bool, int, float, dict)):
             raise InvalidValueType(
                 "Nested Primitive Type (str, int, bool, float, None)"
-            ).add_trace(key, type(value))
+            ).add_trace(key, str(type(value)))
 
         if isinstance(value, dict):
             try:

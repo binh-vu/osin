@@ -7,6 +7,7 @@ from typing import (
     List,
     Union,
     get_args,
+    get_origin,
 )
 import typing
 
@@ -51,9 +52,14 @@ class PyObjectType:
             else:
                 raise NotImplementedError(hint)
 
-        return PyObjectType(
-            path, args=[PyObjectType.from_type_hint(arg) for arg in get_args(hint)]
-        )
+        if path != "typing.Literal":
+            args = [PyObjectType.from_type_hint(arg) for arg in get_args(hint)]
+        else:
+            args = [
+                PyObjectType(encode_literal_value(arg), []) for arg in get_args(hint)
+            ]
+
+        return PyObjectType(path, args=args)
 
     def is_instance(self, value: Any):
         global INSTANCE_OF
@@ -73,3 +79,9 @@ class PyObjectType:
 
 for type in [str, int, bool, float, Number]:
     PRIMITIVE_TYPES[type] = PyObjectType.from_type_hint(type)
+
+
+def encode_literal_value(value):
+    if isinstance(value, (int, bool, str)):
+        return f"osin.types.str[{value}]"
+    raise ValueError(f"Invalid value {value} for typing.Literal")

@@ -8,14 +8,14 @@ from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 from tornado.wsgi import WSGIContainer
 from osin.models import db as dbconn, init_db, all_tables
-from osin.data_keeper import OsinDataKeeper
+from osin.repository import OsinRepository
 
 
 @click.command()
 @click.option("-d", "--data", required=True, help="data directory of osin")
 def init(data):
     """Init database"""
-    init_db(OsinDataKeeper.get_instance(data).get_db_file())
+    init_db(OsinRepository.get_instance(data).get_db_file())
     dbconn.create_tables(all_tables, safe=True)
 
 
@@ -34,7 +34,7 @@ def start(
     certfile: str,
     keyfile: str,
 ):
-    init_db(OsinDataKeeper.get_instance(data).get_db_file())
+    init_db(OsinRepository.get_instance(data).get_db_file())
 
     if certfile is None or keyfile is None:
         ssl_options = None

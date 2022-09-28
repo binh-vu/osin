@@ -16,6 +16,7 @@ from peewee import (
 from playhouse.sqlite_ext import JSONField
 import psutil
 from osin.models.base import BaseModel
+from osin.misc import json_dumps
 from gena.custom_fields import DictDataClassField, DataClassField
 from osin.types import PyObjectType, NestedPrimitiveOutput, NestedPrimitiveOutputSchema
 
@@ -69,6 +70,6 @@ class ExpRun(BaseModel):
     has_invalid_agg_output_schema: bool = BooleanField(default=False, index=True)  # type: ignore
     created_time: datetime = DateTimeField(default=datetime.utcnow)  # type: ignore
     finished_time: datetime = DateTimeField(null=True)  # type: ignore
-    params: dict = JSONField(default={})  # type: ignore
+    params: dict = JSONField(default={}, json_dumps=json_dumps)  # type: ignore
     metadata: RunMetadata = DataClassField(RunMetadata, null=True)  # type: ignore
-    aggregated_primitive_outputs: NestedPrimitiveOutput = JSONField(default={})  # type: ignore
+    aggregated_primitive_outputs: NestedPrimitiveOutput = JSONField(default={}, json_dumps=json_dumps)  # type: ignore

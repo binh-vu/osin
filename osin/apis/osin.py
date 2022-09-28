@@ -2,9 +2,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union
 from abc import ABC, abstractmethod
 
-import numpy as np
 from osin.models.exp import NestedPrimitiveOutput
-from osin.types import PyObject, NestedPrimitiveOutputSchema, Parameters
+from osin.graph.params_helper import DataClass
+from osin.types import PyObject, NestedPrimitiveOutputSchema
 from osin.apis.remote_exp import RemoteExp, RemoteExpRun
 
 
@@ -24,7 +24,7 @@ class Osin(ABC):
         version: int,
         description: Optional[str] = None,
         program: Optional[str] = None,
-        params: Optional[Union[Parameters, List[Parameters]]] = None,
+        params: Optional[Union[DataClass, List[DataClass]]] = None,
         aggregated_primitive_outputs: Optional[NestedPrimitiveOutputSchema] = None,
     ) -> RemoteExp:
         """Init an experiment in Osin.
@@ -45,7 +45,7 @@ class Osin(ABC):
 
     @abstractmethod
     def new_exp_run(
-        self, exp: RemoteExp, params: Union[Parameters, List[Parameters]]
+        self, exp: RemoteExp, params: Union[DataClass, List[DataClass]]
     ) -> RemoteExpRun:
         """Create a new run for an experiment."""
         pass

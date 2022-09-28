@@ -6,7 +6,7 @@ from dateutil.parser import parse
 from peewee import DoesNotExist, fn
 from osin.models.exp import Exp, ExpRun
 from werkzeug.exceptions import BadRequest, NotFound
-from osin.data_keeper import OsinDataKeeper
+from osin.repository import OsinRepository
 import h5py
 
 exp_bp = generate_api(Exp)
@@ -51,7 +51,7 @@ def fetch_exp_run_data(id: int):
     except DoesNotExist:
         raise NotFound(f"ExpRun with id {id} does not exist")
 
-    osin = OsinDataKeeper.get_instance()
+    osin = OsinRepository.get_instance()
     format = osin.get_exp_run_data_format(exp_run.exp, exp_run)
     h5file = osin.get_exp_run_data_file(exp_run.exp, exp_run)
 
