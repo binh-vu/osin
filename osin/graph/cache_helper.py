@@ -1,16 +1,24 @@
 from __future__ import annotations
+from contextlib import contextmanager
 from functools import partial
-import hashlib
 from dataclasses import dataclass
 import os
 from pathlib import Path
-import shutil
-from typing import Any, Callable, Dict, Generic, List, Optional, Tuple, Type, Union
-from hugedict.hugedict.rocksdb import RocksDBDict
+import pickle
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Type,
+    Union,
+)
+from hugedict.prelude import RocksDBDict, RocksDBOptions
+from loguru import logger
 import orjson
 from osin.misc import Directory, orjson_dumps
 from slugify import slugify
-from osin.graph.params_helper import DataClass, param_as_json, param_as_dict
+from osin.graph.params_helper import DataClass, param_as_dict
 from osin.types.pyobject_type import PyObjectType
 
 
@@ -64,7 +72,7 @@ class CacheRepository:
         self.directory = Directory(self.cache_dir)
 
     @staticmethod
-    def get_instance(cache_dir: Optional[Union[Path, str]] = None) -> CacheRepository:
+    def get_instance() -> CacheRepository:
         if CacheRepository.instance is None:
             raise Exception("CacheRepository must be initialized before using")
         return CacheRepository.instance
@@ -118,78 +126,71 @@ class CacheRepository:
             **extra,
         }
 
-    # def get_cache_directory_v1(self, cache_id: CacheId) -> Path:
-    #     classpath_parts = cache_id.classpath.split(".")
-    #     classpath_dir = self._get_directory(
-    #         self.cache_dir,
-    #         get_dirname=self._update_classpath_dirname,
-    #         dirname_state={"parts": classpath_parts, "i": 0},
-    #         key={"classpath": cache_id.classpath},
-    #     )
-    #     classpath_dir.mkdir(exist_ok=True, parents=True)
 
-    #     version = slugify(cache_id.classversion).replace("-", "_")
-    #     params_dir = self._get_directory(
-    #         classpath_dir,
-    #         get_dirname=self._update_param_dirname,
-    #         dirname_state={"name": version + "__" + cache_id.params_pseudo_key, "i": 0},
-    #         key={"params": cache_id.params},
-    #     )
-    #     params_dir.mkdir(exist_ok=True, parents=True)
+class Cache:
+    """Provide basic caching mechanisms:
+    - key-value store: RocksDB database -- high performance, but
+        not friendly with multiprocessing
+    - file-based store: FileCache -- saving and loading results to files in two
+        steps: the file itself and _SUCCESS to make sure the content is fully written to disk
 
-    #     assert len(cache_id.dependent_ids) == 0
-    #     # names = []
-    #     # for dep_id in cache_id.dependent_ids:
-    #     #     dep_version = slugify(dep_id.classversion).replace("-", "_")
-    #     #     dep_dirname = dep_version + "__" + dep_id.params_pseudo_key
+    """
 
-    #     return params_dir
+    @staticmethod
+    def rocksdb(cache_dir: Path) -> "RocksDBDict[str, Any]":
+        return RocksDBDict(
+            path=str(cache_dir / "cache.db"),
+            options=RocksDBOptions(create_if_missing=True),
+            deser_key=partial(str, encoding="utf-8"),
+            deser_value=pickle.loads,
+            ser_value=pickle.dumps,
+            readonly=False,
+        )
 
-    # def _update_classpath_dirname(self, state: dict):
-    #     i = state["i"]
-    #     if i <= -len(state["parts"]):
-    #         raise Exception("Encounter a bug.")
-    #     i -= 1
-    #     return "__".join(state["parts"][i:]), state
+    @staticmethod
+    def file(cache_dir: Path) -> "FileCache":
+        return FileCache(cache_dir)
 
-    # def _update_param_dirname(self, state: dict):
-    #     if state["i"] == 0:
-    #         state["i"] += 1
-    #         return state["name"], state
 
-    #     state["i"] += 1
-    #     return state["name"] + "_" + str(state["i"]), state
+class FileCache:
+    def __init__(self, root: Path):
+        self.root = root
 
-    # def _get_directory(
-    #     self,
-    #     parent: Path,
-    #     get_dirname: Callable[[Any], Tuple[str, Any]],
-    #     dirname_state: Any,
-    #     key: dict,
-    # ) -> Path:
-    #     """Create a directory inside parent folder. If the key is different,
-    #     try to change dirname.
-    #     """
-    #     # important to convert key to json before comparing because
-    #     # when we reload json, Path object will be converted to string
-    #     ser_key = param_as_json(key)
+    def has_file(self, filename: str):
+        return (self.root / Path(filename).stem / "_SUCCESS").exists()
 
-    #     dirname, dirname_state = get_dirname(dirname_state)
-    #     while True:
-    #         key_file = parent / dirname / "_KEY"
-    #         if (parent / dirname).exists():
-    #             if not key_file.exists():
-    #                 # broken folder, so we clean it
-    #                 shutil.rmtree(parent / dirname)
-    #                 continue
+    @contextmanager
+    def open_file(self, filename: str, mode: str = "rb"):
+        tmp = Path(filename)
+        dpath = self.root / tmp.stem
+        ext = ".".join(tmp.suffixes)
+        with open(dpath / f"dat.{ext}", mode) as f:
+            yield f
 
-    #             if key_file.read_bytes() == ser_key:
-    #                 return parent / dirname
-    #             else:
-    #                 # we have to try a new dirname
-    #                 dirname, dirname_state = get_dirname(dirname_state)
-    #                 continue
-    #         else:
-    #             (parent / dirname).mkdir(parents=True)
-    #             key_file.write_bytes(ser_key)
-    #             return parent / dirname
+        (dpath / "_SUCCESS").touch()
+        self._validate_structure(filename)
+        return (self.root / filename).exists() and (self.root / f"_SUCCESS").exists()
+
+    def get_file(self, filename: str) -> Path:
+        if not self.has_file(filename):
+            raise Exception(f"File {filename} does not exist")
+
+        tmp = Path(filename)
+        dpath = self.root / tmp.stem
+        ext = ".".join(tmp.suffixes)
+        return dpath / f"dat.{ext}"
+
+    def _validate_structure(self, filename: str):
+        dpath = self.root / Path(filename).stem
+        if dpath.exists():
+            c1, c2 = 0, 0
+            for file in dpath.iterdir():
+                if file.name.startswith("_SUCCESS."):
+                    c1 += 1
+                elif file.name.startswith(f"dat."):
+                    c2 += 1
+            if c1 != 1 or c2 != 1:
+                logger.warning(
+                    "This class does not support files with same name but different extensions. Encounter in this folder: {}",
+                    dpath,
+                )

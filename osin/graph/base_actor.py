@@ -1,10 +1,15 @@
 from abc import abstractmethod, ABC
-from functools import partial
 from pathlib import Path
-import pickle
-from typing import List, Optional, Type, TypeVar, Union, Dict, get_type_hints, Generic
+from typing import (
+    Callable,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    Generic,
+)
 
-from hugedict.prelude import RocksDBDict, RocksDBOptions
 from osin.apis.osin import Osin
 from osin.apis.remote_exp import RemoteExpRun
 from osin.graph.cache_helper import CacheId
@@ -15,6 +20,7 @@ E = TypeVar("E")
 P = TypeVar("P")
 CK = TypeVar("CK", bound=Union[str, int])
 CV = TypeVar("CV")
+C = TypeVar("C")
 
 
 class Actor(ABC, Generic[E]):
@@ -65,26 +71,23 @@ class Actor(ABC, Generic[E]):
         pass
 
 
-class BaseActor(Generic[E, P, CK, CV], Actor[E]):
-    def __init__(self, params: P):
-        self._cache: Optional["RocksDBDict[CK, CV]"] = None
+class BaseActor(Generic[E, P, C], Actor[E]):
+    def __init__(self, params: P, cache_factory: Optional[Callable[[Path], C]] = None):
+        self._cache_factory = cache_factory
+        self._cache: Optional[C] = None
         self._exprun: Optional[RemoteExpRun] = None
         self.params = params
 
-    def _get_cache(self) -> "RocksDBDict[CK, CV]":
+    def _get_cache(self) -> C:
         """Get a cache for this actor that can be used to store the results of each example."""
+        if self._cache_factory is None:
+            raise ValueError("Trying to get cache, but cache factory is provided")
+
         if self._cache is None:
             cache_id = self._get_cache_id()
             cache_dir = cache_id.reserve_cache_dir()
             logger.debug("Using cache directory: {}", cache_dir)
-            self._cache = RocksDBDict(
-                path=str(cache_dir / "cache.db"),
-                options=RocksDBOptions(create_if_missing=True),
-                deser_key=partial(str, encoding="utf-8"),
-                deser_value=pickle.loads,
-                ser_value=pickle.dumps,
-                readonly=False,
-            )  # type: ignore
+            self._cache = self._cache_factory(cache_dir)
         return self._cache
 
     @classmethod
