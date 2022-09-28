@@ -73,9 +73,8 @@ class ParamsParser(Generic[ParamType]):
         underscore_to_dash: bool = True,
         type_constructors: Optional[Dict[Type, Callable[[str], Type]]] = None,
         field_constructors: Optional[Dict[str, Callable[[str], Type]]] = None,
-        exit_on_error: bool = True,
     ):
-        self.parser = argparse.ArgumentParser(exit_on_error=exit_on_error)
+        self.parser = argparse.ArgumentParser()
         self.underscore_to_dash = underscore_to_dash
         self.param_types = param_types
         self.type_constructors = type_constructors or {}
