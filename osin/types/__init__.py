@@ -5,4 +5,3 @@ from osin.types.pyobject_type import (
 )
 from osin.types.pyobject import PyObject, OTable, OImage, OAudio
 from osin.types.primitive_type import NestedPrimitiveOutput, NestedPrimitiveOutputSchema
-from osin.types.parameters import Parameters

@@ -1,20 +1,24 @@
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 from osin.apis.osin import Osin
 from osin.models.exp import ExpRun
-from osin.types.parameters import Parameters
+from osin.graph.params_parser import ParamsParser
 from peewee import SqliteDatabase
 from playhouse.shortcuts import model_to_dict
 
 
-class Args(Parameters):
+@dataclass
+class Args:
     dataset: str
     method: str
 
 
 def test_smoke(clean_db: SqliteDatabase, tmp_path: Path):
-    params = Args().parse_args(["--dataset", "iris", "--method", "Nearest Neighbors"])
+    params = ParamsParser(Args).parse_args(
+        ["--dataset", "iris", "--method", "Nearest Neighbors"]
+    )
 
     osin = Osin.local(osin_dir=tmp_path)
     exp = osin.init_exp(

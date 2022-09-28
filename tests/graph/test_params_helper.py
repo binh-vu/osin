@@ -1,35 +1,32 @@
+from dataclasses import dataclass
 from typing import Dict, Union
 
 import orjson
-from osin.types import Parameters, PyObjectType
+from osin.graph.params_helper import get_param_types
+from osin.types import PyObjectType
 
 
-class NormalParams(Parameters):
+@dataclass
+class NormalParams:
     a: str
     b: int
 
 
-class DictParams(Parameters):
+@dataclass
+class DictParams:
     obj: Dict[str, int]
     value: Union[int, float]
 
-    def configure(self) -> None:
-        self.add_argument("--obj", type=orjson.loads)
-        self.add_argument(
-            "--value",
-            type=lambda string: float(string) if "." in string else int(string),
-        )
-
 
 def test_get_param_types():
-    params = NormalParams().from_dict(dict(a="a", b=1))
-    assert Parameters.get_param_types(params) == {
+    params = NormalParams(a="a", b=1)
+    assert get_param_types(params) == {
         "a": PyObjectType(path="str", args=[]),
         "b": PyObjectType(path="int", args=[]),
     }
 
-    params = DictParams().parse_args(["--obj", '{"a": 1}', "--value", "10.4"])
-    assert Parameters.get_param_types(params) == {
+    params = DictParams(obj={"a": 1}, value=10.4)
+    assert get_param_types(params) == {
         "obj": PyObjectType(
             path="dict",
             args=[

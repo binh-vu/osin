@@ -1,8 +1,10 @@
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Tuple, Type
 from flask import Flask
 from flask.testing import FlaskClient
 from gena.serializer import get_peewee_serializer
+from osin.graph.params_parser import ParamsParser
 
 import pytest
 from gena.api_testsuite import APITestSuite
@@ -13,16 +15,17 @@ from osin.models import init_db
 from osin.models.exp import ExpRun
 from peewee import Model, SqliteDatabase
 
-from osin.types.parameters import Parameters
-
 
 @pytest.fixture
 def test_db(clean_db: SqliteDatabase, tmp_path: Path) -> List[RemoteExpRun]:
-    class Args(Parameters):
+    @dataclass
+    class Args:
         dataset: str
         method: str
 
-    params = Args().parse_args(["--dataset", "iris", "--method", "Nearest Neighbors"])
+    params = ParamsParser(Args).parse_args(
+        ["--dataset", "iris", "--method", "Nearest Neighbors"]
+    )
 
     osin = Osin.local(osin_dir=tmp_path)
     exp = osin.init_exp(

@@ -5,8 +5,9 @@ from sklearn.datasets import load_digits, load_iris
 from sklearn.metrics import classification_report
 from sklearn.svm import SVC
 from osin.apis import Osin
-from osin.types import Parameters, OTable
-
+from osin.types import OTable
+from osin.graph.params_parser import ParamsParser
+from dataclasses import dataclass
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -25,12 +26,13 @@ from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from sklearn.inspection import DecisionBoundaryDisplay
 
 
-class Args(Parameters):
+@dataclass
+class Args:
     dataset: str
     method: str
 
 
-args = Args(config_files=[]).parse_args()
+args = ParamParser(Args).parse_args()
 
 osin = Osin.local(
     osin_dir=Path(os.path.abspath(__file__)).parent.parent.parent / "data"
