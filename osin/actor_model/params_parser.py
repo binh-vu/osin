@@ -12,6 +12,7 @@ from typing import (
     NewType,
     Optional,
     Sequence,
+    Tuple,
     Type,
     Union,
     get_args,
@@ -96,13 +97,8 @@ class ParamsParser(Generic[ParamType]):
             for namespace, dtype in param_types.items():
                 self.deser[namespace] = self._add_dataclass_arguments(dtype, namespace)
 
-    def parse_args(
-        self, args: Optional[Sequence[str]] = None, known_only: bool = False
-    ) -> ParamType:
-        if known_only:
-            ns = self.parser.parse_known_args(args)
-        else:
-            ns = self.parser.parse_args(args)
+    def parse_args(self, args: Optional[Sequence[str]] = None) -> ParamType:
+        ns = self.parser.parse_args(args)
 
         if isinstance(self.deser, dict):
             return {k: v.deserialize(ns) for k, v in self.deser.items()}  # type: ignore
@@ -110,6 +106,18 @@ class ParamsParser(Generic[ParamType]):
             return [v.deserialize(ns) for v in self.deser]  # type: ignore
         else:
             return self.deser.deserialize(ns)  # type: ignore
+
+    def parse_known_args(
+        self, args: Optional[Sequence[str]] = None
+    ) -> Tuple[ParamType, List[str]]:
+        ns, remain_args = self.parser.parse_known_args(args)
+
+        if isinstance(self.deser, dict):
+            return {k: v.deserialize(ns) for k, v in self.deser.items()}, remain_args  # type: ignore
+        elif isinstance(self.deser, list):
+            return [v.deserialize(ns) for v in self.deser], remain_args  # type: ignore
+        else:
+            return self.deser.deserialize(ns), remain_args  # type: ignore
 
     def _add_dataclass_arguments(
         self,
@@ -130,16 +138,20 @@ class ParamsParser(Generic[ParamType]):
         """
         type_hints: Dict[str, type] = get_type_hints(dtype)
 
-        deser = DeserMultiFields(
-            cls=dtype, field_names=[], is_nullable=is_nullable, null_argname=namespace
-        )
-
         if default is not MISSING:
             default_instance = default
         elif default_factory is not MISSING:
             default_instance = default_factory()
         else:
             default_instance = None
+
+        deser = DeserMultiFields(
+            cls=dtype,
+            field_names=[],
+            is_default_null=default_instance is None,
+            is_nullable=is_nullable,
+            null_argname=namespace,
+        )
 
         if is_nullable:
             assert namespace != ""
@@ -238,7 +250,7 @@ class ParamsParser(Generic[ParamType]):
                 return self._add_dataclass_arguments(
                     field_type,
                     namespace=argname,
-                    default=field_default,
+                    default=MISSING,
                     is_nullable=is_nullable,
                 )
 
@@ -246,12 +258,12 @@ class ParamsParser(Generic[ParamType]):
             # some classes support this is enum.Enum, pathlib.Path
             self.parser.add_argument(
                 f"--{argname}",
-                default=field_default,
+                default=MISSING,
                 required=field_required,
                 help=annotated_desc,
                 **self._field_type_to_parse_args(argname, field_type, is_nullable),
             )
-            return DeserSingleField(argname)
+            return DeserSingleField(argname, default=field_default)
 
         args = get_args(field_type)
         if origin is list or origin is set:
@@ -259,25 +271,25 @@ class ParamsParser(Generic[ParamType]):
             self.parser.add_argument(
                 f"--{argname}",
                 nargs="*",
-                default=field_default,
+                default=MISSING,
                 required=field_required,
                 help=annotated_desc,
                 **self._field_type_to_parse_args(argname, args[0], is_nullable=False),
             )
             if origin is set:
-                return DeserSingleField(argname, postprocess=set)
-            return DeserSingleField(argname)
+                return DeserSingleField(argname, default=field_default, postprocess=set)
+            return DeserSingleField(argname, default=field_default)
 
         if origin is dict:
             self.parser.add_argument(
                 f"--{argname}",
                 nargs="*",
-                default=field_default,
+                default=MISSING,
                 required=field_required,
                 help=annotated_desc,
                 **self._field_type_to_parse_args(argname, args[0], is_nullable=False),
             )
-            return DeserSingleField(argname)
+            return DeserSingleField(argname, default=field_default)
 
         raise NoDerivedArgParser().add_trace(argname, field_type)
 
@@ -351,39 +363,96 @@ class NSDeser(ABC):
     def deserialize(self, ns: argparse.Namespace):
         pass
 
+    @abstractmethod
+    def is_presented(self, ns: argparse.Namespace):
+        pass
+
 
 @dataclass
 class DeserSingleField(NSDeser):
     field_name: str
+    default: Any
     postprocess: Callable[[Any], Any] = lambda x: x
 
     def deserialize(self, ns: argparse.Namespace):
-        return self.postprocess(getattr(ns, self.field_name.replace("-", "_")))
+        value = getattr(ns, self.field_name.replace("-", "_"))
+        if value is MISSING:
+            value = self.default
+        return self.postprocess(value)
+
+    def is_presented(self, ns: argparse.Namespace):
+        return getattr(ns, self.field_name.replace("-", "_")) is not MISSING
 
 
 @dataclass
 class DeserMultiFields(NSDeser):
     cls: Type
     field_names: List[NSDeser]
-    required: bool = True
-    default: Optional[Any] = None
-    is_nullable: bool = False
-    null_argname: str = ""
+    # required: bool
+    is_default_null: bool
+    is_nullable: bool
+    null_argname: str
 
     def deserialize(self, ns: argparse.Namespace):
-        if (
-            self.is_nullable
-            and getattr(ns, self.null_argname.replace("-", "_")) is None
-        ):
+        """Deserialize a dataclass.
+
+        1. When the dataclass is not nested, we will have:
+            - required = true
+            - is_nullable = False
+            and values of all fields must be present in the namespace unless the field is optional (having a default value not MISSING).
+        2. When the dataclass is nested, we may have:
+            (A) the parent field is X, then is_nullable = False
+                - if it has default value, then required = False, all fields are optional and have a default value be X.default.field
+                - if it doesn't have a default value, then required = True, it is the same as when the dataclass is not nested.
+                Because of the current implementation that the default value of the field is already taken into account the default value of
+                the parent class, we don't need branching in 2.A
+            (B) the parent field has type Optional[X], but have no default value
+                then is_nullable = True, required = True, all fields are optional (because if you require them, you cannot set just null_argname)
+                - if null_argname presents, then it will be None
+                - if null_argname does not present,
+                    + when users provide values of some field, then the value of this class is not None.
+                    + when users do not provide any values for the field, we must check if users provide any value
+                        for the fields of X. If they don't, then the value of this class is None, otherwise it is an instance of X.
+            (C) the parent field has type Optional[X], but have a default value (it will be not None, otherwise it is case B, shown later)
+                then is_nullable = True, required = False, all fields are optional (because if you require them, you cannot set just null_argname)
+                - if null_argname presents, then it will be None
+                - if null_argname does not present,
+                    + when users provide values of some field, then the value of this class is not None.
+                    + when users do not provide any values for the field, then the value of this class is the default value (which is case 2.A). This mean, if the default
+                        value is None, then (B) and (C) are the same, so we assume that the default value is always not None. Which means, this is reduced to 2.A
+
+        Case 1 is equivalent to 2.A. We only need to distinguish between 2.A and 2.B/C, we can do it via `is_nullable`.
+        """
+        if not self.is_nullable:
+            # case 1 or 2.A
+            values = []
+            for f in self.field_names:
+                value = f.deserialize(ns)
+                values.append(value)
+            return self.cls(*values)
+
+        if getattr(ns, self.null_argname.replace("-", "_")) is None:
+            # null_argname is presented, then the value is None
             return None
 
+        # distinguish between 2.B and 2.C
+        if not self.is_default_null:
+            # case 2.C
+            values = []
+            for f in self.field_names:
+                value = f.deserialize(ns)
+                values.append(value)
+            return self.cls(*values)
+
+        # case 2.B
         values = []
+        if all(not f.is_presented(ns) for f in self.field_names):
+            return None
+
         for f in self.field_names:
             value = f.deserialize(ns)
-            if value is MISSING:
-                assert isinstance(f, DeserSingleField)
-                raise argparse.ArgumentTypeError(
-                    f"Missing value for argument {f.field_name}"
-                )
             values.append(value)
         return self.cls(*values)
+
+    def is_presented(self, ns: argparse.Namespace):
+        return any(f.is_presented(ns) for f in self.field_names)

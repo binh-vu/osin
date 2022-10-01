@@ -10,16 +10,19 @@ from loguru import logger
 import numpy as np
 import orjson
 from osin.types.primitive_type import validate_primitive_data
-import psutil
 from osin.misc import get_caller_python_script, orjson_dumps
-from osin.types import NestedPrimitiveOutputSchema, PyObject, PyObjectType
+from osin.types import NestedPrimitiveOutputSchema, PyObject
 from osin.apis.osin import Osin
 from osin.apis.remote_exp import RemoteExp, RemoteExpRun
 from osin.repository import OsinRepository
 from osin.models.base import init_db
 from osin.models.exp import Exp, ExpRun, NestedPrimitiveOutput, RunMetadata
 from osin.models.exp_data import Record, ExampleData
-from osin.graph.params_helper import DataClass, get_param_types, param_as_dict
+from osin.actor_model.params_helper import (
+    DataClassInstance,
+    get_param_types,
+    param_as_dict,
+)
 
 
 class LocalOsin(Osin):
@@ -34,7 +37,7 @@ class LocalOsin(Osin):
         version: int,
         description: Optional[str] = None,
         program: Optional[str] = None,
-        params: Optional[Union[DataClass, List[DataClass]]] = None,
+        params: Optional[Union[DataClassInstance, List[DataClassInstance]]] = None,
         aggregated_primitive_outputs: Optional[NestedPrimitiveOutputSchema] = None,
     ) -> RemoteExp:
         exps = (
@@ -82,7 +85,7 @@ class LocalOsin(Osin):
         )
 
     def new_exp_run(
-        self, exp: RemoteExp, params: Union[DataClass, List[DataClass]]
+        self, exp: RemoteExp, params: Union[DataClassInstance, List[DataClassInstance]]
     ) -> RemoteExpRun:
         db_exp: Exp = Exp.get_by_id(exp.id)
 

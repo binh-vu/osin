@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-import pytest
+import pytest, yada
 from osin.apis.osin import Osin
 from osin.models.exp import ExpRun
-from osin.graph.params_parser import ParamsParser
 from peewee import SqliteDatabase
 from playhouse.shortcuts import model_to_dict
 
@@ -16,7 +15,7 @@ class Args:
 
 
 def test_smoke(clean_db: SqliteDatabase, tmp_path: Path):
-    params = ParamsParser(Args).parse_args(
+    params = yada.Parser1(Args).parse_args(
         ["--dataset", "iris", "--method", "Nearest Neighbors"]
     )
 

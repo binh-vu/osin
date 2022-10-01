@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 from typing import Dict, Union
 
-import orjson
-from osin.graph.params_helper import get_param_types
+from osin.actor_model.params_helper import get_param_types
 from osin.types import PyObjectType
 
 

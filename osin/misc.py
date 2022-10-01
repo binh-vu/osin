@@ -36,7 +36,7 @@ class Directory:
 
         if need_init:
             with self.db:
-                self.db.execute("CREATE TABLE files(id , path, diskpath, key)")
+                self.db.execute("CREATE TABLE files(path, diskpath, key)")
 
     def create_directory(self, relpath: str, key: dict) -> Path:
         ser_key = orjson_dumps(key)
@@ -49,6 +49,8 @@ class Directory:
 
             if record is None:
                 last_id = self.db.execute("SELECT MAX(rowid) FROM files").fetchone()[0]
+                if last_id is None:
+                    last_id = 0
                 dirname = f"directory_{last_id + 1}"
                 self.db.execute(
                     "INSERT INTO files VALUES (?, ?, ?)", (relpath, dirname, ser_key)

@@ -1,16 +1,18 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+
+from osin.actor_model.params_helper import DataClassInstance
 from osin.models import ExpRunData
 from osin.types import (
+    NestedPrimitiveOutput,
     NestedPrimitiveOutputSchema,
     PyObject,
     PyObjectType,
-    NestedPrimitiveOutput,
 )
-from osin.graph.params_helper import DataClass
 
 if TYPE_CHECKING:
     from osin.apis.osin import Osin
@@ -25,7 +27,9 @@ class RemoteExp:
     aggregated_primitive_outputs: Optional[NestedPrimitiveOutputSchema]
     osin: Osin
 
-    def new_exp_run(self, params: Union[DataClass, List[DataClass]]) -> RemoteExpRun:
+    def new_exp_run(
+        self, params: Union[DataClassInstance, List[DataClassInstance]]
+    ) -> RemoteExpRun:
         return self.osin.new_exp_run(self, params)
 
 

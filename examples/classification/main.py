@@ -6,7 +6,6 @@ from sklearn.metrics import classification_report
 from sklearn.svm import SVC
 from osin.apis import Osin
 from osin.types import OTable
-from osin.graph.params_parser import ParamsParser
 from dataclasses import dataclass
 import numpy as np
 import matplotlib.pyplot as plt

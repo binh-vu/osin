@@ -1,12 +1,7 @@
-import functools
 from pathlib import Path
-from typing import Mapping, TypeVar, Type, Callable, Any, Union
+from typing import Union
 
-import orjson
 from peewee import SqliteDatabase, Model, Field
-
-from osin.config import CACHE_SIZE
-from osin.graph.params_helper import _orjson_default
 
 
 # TODO: consider moving to APSWDatabase

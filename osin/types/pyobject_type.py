@@ -61,6 +61,29 @@ class PyObjectType:
 
         return PyObjectType(path, args=args)
 
+    @staticmethod
+    def get_classpath(hint) -> str:
+        global TYPE_ALIASES
+
+        if hasattr(hint, "__qualname__"):
+            return hint.__module__ + "." + hint.__qualname__
+
+        if hint.__module__ == "builtins":
+            return hint.__qualname__
+
+        # typically a class from the typing module
+        if hasattr(hint, "_name") and hint._name is not None:
+            path = hint.__module__ + "." + hint._name
+            if path in TYPE_ALIASES:
+                path = TYPE_ALIASES[path]
+            return path
+
+        if hasattr(hint, "__origin__") and hasattr(hint.__origin__, "_name"):
+            # found one case which is typing.Union
+            return hint.__module__ + "." + hint.__origin__._name
+
+        raise NotImplementedError(hint)
+
     def is_instance(self, value: Any):
         global INSTANCE_OF
         return INSTANCE_OF[self.path](self, value)

@@ -1,11 +1,12 @@
-from pathlib import Path
-from typing import Dict, List, Optional, Union
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
-from osin.models.exp import NestedPrimitiveOutput
-from osin.graph.params_helper import DataClass
-from osin.types import PyObject, NestedPrimitiveOutputSchema
 from osin.apis.remote_exp import RemoteExp, RemoteExpRun
+from osin.models.exp import NestedPrimitiveOutput
+from osin.types import NestedPrimitiveOutputSchema, PyObject
+
+from osin.actor_model.params_helper import DataClassInstance
 
 
 class Osin(ABC):
@@ -24,7 +25,7 @@ class Osin(ABC):
         version: int,
         description: Optional[str] = None,
         program: Optional[str] = None,
-        params: Optional[Union[DataClass, List[DataClass]]] = None,
+        params: Optional[Union[DataClassInstance, List[DataClassInstance]]] = None,
         aggregated_primitive_outputs: Optional[NestedPrimitiveOutputSchema] = None,
     ) -> RemoteExp:
         """Init an experiment in Osin.
@@ -45,7 +46,7 @@ class Osin(ABC):
 
     @abstractmethod
     def new_exp_run(
-        self, exp: RemoteExp, params: Union[DataClass, List[DataClass]]
+        self, exp: RemoteExp, params: Union[DataClassInstance, List[DataClassInstance]]
     ) -> RemoteExpRun:
         """Create a new run for an experiment."""
         pass

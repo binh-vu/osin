@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import abstractmethod, ABC
 from pathlib import Path
 from typing import (
@@ -9,11 +10,10 @@ from typing import (
     Union,
     Generic,
 )
+from osin.actor_model.actor_state import ActorState
 
-from osin.apis.osin import Osin
 from osin.apis.remote_exp import RemoteExpRun
-from osin.graph.cache_helper import CacheId
-from osin.graph.params_parser import ParamsParser
+from osin.actor_model.cache_helper import CacheRepository
 from loguru import logger
 
 E = TypeVar("E")
@@ -42,7 +42,7 @@ class Actor(ABC, Generic[E]):
     It can be configured via dataclasses containing parameters.
     However, this comes with a limitation that the parameters should
     be immutable and any changes to the parameters must be done in a new actor.
-    This is undesirable, but necessary to allow this actor thread-safe.
+    This is undesirable, but necessary to make this actor cache friendly.
 
     Commonly, we want to evaluate the actor on different datasets. However, our
     interface is desired to run for each example, which makes it easy to convert
@@ -72,11 +72,25 @@ class Actor(ABC, Generic[E]):
 
 
 class BaseActor(Generic[E, P, C], Actor[E]):
-    def __init__(self, params: P, cache_factory: Optional[Callable[[Path], C]] = None):
+    def __init__(
+        self,
+        params: P,
+        dep_actors: Optional[List[BaseActor]] = None,
+        cache_factory: Optional[Callable[[Path], C]] = None,
+    ):
         self._cache_factory = cache_factory
         self._cache: Optional[C] = None
         self._exprun: Optional[RemoteExpRun] = None
+        self.dep_actors = dep_actors or []
         self.params = params
+
+    def get_actor_state(self) -> ActorState:
+        """Get the state of this actor"""
+        return ActorState.create(
+            self.__class__,
+            self.params,
+            dependencies=[actor.get_actor_state() for actor in self.dep_actors],
+        )
 
     def _get_cache(self) -> C:
         """Get a cache for this actor that can be used to store the results of each example."""
@@ -84,49 +98,34 @@ class BaseActor(Generic[E, P, C], Actor[E]):
             raise ValueError("Trying to get cache, but cache factory is provided")
 
         if self._cache is None:
-            cache_id = self._get_cache_id()
-            cache_dir = cache_id.reserve_cache_dir()
-            logger.debug("Using cache directory: {}", cache_dir)
+            state = self.get_actor_state()
+            cache_dir = CacheRepository.get_instance().reserve_cache_dir(state)
+            logger.debug(
+                "[{}] Using cache directory: {}", self.__class__.__qualname__, cache_dir
+            )
             self._cache = self._cache_factory(cache_dir)
         return self._cache
 
     @classmethod
-    def main(cls, osin_dir: Optional[Union[str, Path]] = None, exp_version: int = 1):
-        """Run the actor independently."""
-        logger.debug("Parsing parameters...")
-        parser = ParamsParser(cls._get_param_cls())
-        params = parser.parse_args()
-
-        instance = cls(params)
-
-        if osin_dir is not None:
-            logger.debug("Setup experiments...")
-            assert cls.__doc__ is not None, "Please add docstring to the class"
-            osin = Osin.local(osin_dir)
-            instance._exprun = osin.init_exp(
-                name=getattr(cls, "NAME", cls.__name__),
-                version=exp_version,
-                description=cls.__doc__,
-                params=params,
-            ).new_exp_run(instance.params)
-
-        logger.debug("Run evaluation...")
-        instance.evaluate(instance._load_examples())
-
-        if osin_dir is not None:
-            logger.debug("Cleaning up the experiments...")
-            assert instance._exprun is not None
-            instance._exprun.finish()
-
-    def _load_examples(self) -> List[E]:
-        """Optional method to load the examples from the dataset. Needed to use `main` method."""
+    @abstractmethod
+    def get_param_cls(cls) -> Type[P]:
+        """Get the parameter class of this actor"""
         raise NotImplementedError()
 
-    @classmethod
-    def _get_param_cls(cls) -> Type[P]:
-        """Optional method to get the parameter class. Needed to use `main` method."""
-        raise NotImplementedError()
 
-    def _get_cache_id(self) -> CacheId:
-        """Optional method to get the cache id. Needed to use `_get_cache` method."""
-        raise NotImplementedError()
+class NoInputActor(Generic[P, C], BaseActor[None, P, C]):
+    def batch_run(self):
+        """Run the actor with a list of examples"""
+        raise ValueError(
+            "This actor does not accept any input. Use `run` method instead"
+        )
+
+    @abstractmethod
+    def run(self):
+        """Run the actor with a single example"""
+        pass
+
+    def evaluate(self):
+        raise ValueError(
+            "This actor does not accept any input, so it's likely that there is no evaluation. Override this method if you need to"
+        )

@@ -4,7 +4,7 @@ from typing import List, Tuple, Type
 from flask import Flask
 from flask.testing import FlaskClient
 from gena.serializer import get_peewee_serializer
-from osin.graph.params_parser import ParamsParser
+import yada
 
 import pytest
 from gena.api_testsuite import APITestSuite
@@ -23,7 +23,7 @@ def test_db(clean_db: SqliteDatabase, tmp_path: Path) -> List[RemoteExpRun]:
         dataset: str
         method: str
 
-    params = ParamsParser(Args).parse_args(
+    params = yada.Parser1(Args).parse_args(
         ["--dataset", "iris", "--method", "Nearest Neighbors"]
     )
 
