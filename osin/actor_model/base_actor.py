@@ -1,5 +1,6 @@
 from __future__ import annotations
 from abc import abstractmethod, ABC
+import os
 from pathlib import Path
 from typing import (
     Callable,
@@ -11,6 +12,7 @@ from typing import (
     Generic,
 )
 from osin.actor_model.actor_state import ActorState
+from osin.actor_model.params_helper import EnumParams
 
 from osin.apis.remote_exp import RemoteExpRun
 from osin.actor_model.cache_helper import CacheRepository
@@ -86,10 +88,22 @@ class BaseActor(Generic[E, P, C], Actor[E]):
 
     def get_actor_state(self) -> ActorState:
         """Get the state of this actor"""
+        deps = [actor.get_actor_state() for actor in self.dep_actors]
+
+        if isinstance(self.params, EnumParams):
+            deps.append(
+                ActorState.create(
+                    self.params.get_method_class(), self.params.get_method_params()
+                )
+            )
+            params = self.params.without_method_args()
+        else:
+            params = self.params
+
         return ActorState.create(
             self.__class__,
-            self.params,
-            dependencies=[actor.get_actor_state() for actor in self.dep_actors],
+            params,
+            dependencies=deps,
         )
 
     def _get_cache(self) -> C:
@@ -111,6 +125,10 @@ class BaseActor(Generic[E, P, C], Actor[E]):
     def get_param_cls(cls) -> Type[P]:
         """Get the parameter class of this actor"""
         raise NotImplementedError()
+
+    def get_verbose_level(self) -> int:
+        """Get the verbose level of this actor from the environment variable"""
+        return int(os.environ.get(self.__class__.__name__.upper() + "_VERBOSE", "0"))
 
 
 class NoInputActor(Generic[P, C], BaseActor[None, P, C]):

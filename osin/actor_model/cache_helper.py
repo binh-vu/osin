@@ -5,7 +5,7 @@ import pickle
 from contextlib import contextmanager
 from functools import partial
 from pathlib import Path
-from typing import Any, Tuple, Union
+from typing import Any, Generator, Optional, Tuple, Union
 
 import orjson
 from hugedict.prelude import RocksDBDict, RocksDBOptions
@@ -13,6 +13,7 @@ from loguru import logger
 from osin.actor_model.actor_state import ActorState
 from osin.misc import Directory, orjson_dumps
 from slugify import slugify
+from filelock import FileLock, Timeout
 
 
 class CacheRepository:
@@ -77,10 +78,29 @@ class Cache:
 class FileCache:
     def __init__(self, root: Path):
         self.root = root
+        self.lock: Optional[FileLock] = None
 
     def has_file(self, filename: str):
         dpath = self.split_filename(filename)[0]
         return (dpath / "_SUCCESS").exists()
+
+    @contextmanager
+    def acquire_write_lock(self):
+        """Acquire a write lock on the cache directory. You should use this before
+        any attempt to write to the cache directory to prevent multiple processes
+        from writing to the same directory at the same time.
+        """
+        self.lock = FileLock(self.root / "_LOCK")
+        logger.info(
+            "[Process {}] Acquiring lock on cache directory: {}", os.getpid(), self.root
+        )
+        with self.lock.acquire(timeout=15):
+            logger.info(
+                "[Process {}] Acquiring lock on cache directory: {}... SUCCESS!",
+                os.getpid(),
+                self.root,
+            )
+            yield
 
     @contextmanager
     def open_file(self, filename: str, mode: str = "rb"):
@@ -93,7 +113,7 @@ class FileCache:
         self._validate_structure(filename)
 
     @contextmanager
-    def open_file_path(self, filename: str):
+    def open_file_path(self, filename: str) -> Generator[Path, None, None]:
         dpath, fpath = self.split_filename(filename)
         dpath.mkdir(exist_ok=True, parents=True)
 

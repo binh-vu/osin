@@ -1,11 +1,74 @@
+from copy import deepcopy
 from pathlib import Path
 import orjson
 from typing import List, Union, Dict, get_type_hints, Type, Any
-from dataclasses import is_dataclass, asdict
+from dataclasses import is_dataclass, asdict, dataclass, fields, Field, replace
 
 from osin.types.pyobject_type import PyObjectType
 
 DataClassInstance = Any
+
+
+@dataclass
+class EnumParams:
+    """For specify different method and its parameters.
+
+    ## Example:
+
+    ```python
+    class Params(EnumParams):
+        method: Literal["method_a", "method_b"] = filed(metadata={
+            "variants": {"method_a": MethodAClass, "method_b": MethodBClass}
+        })
+        method_a: Optional[MethodAParams] = None
+        method_b: Optional[MethodBParams] = None
+    ```
+
+    It needs a field to specified the method to use (in the example, the field is `method`), and
+    other fields named after the method (in the example, the fields are `method_a` and `method_b`).
+
+    The field `method` also needs a metadata `variants` to specify the method's class.
+
+    At the same time, it should only only parameters of a method. For example, if `method` is `method_a`,
+    then `method_a` is not None and `method_b` is `None`.
+    """
+
+    def __post_init__(self):
+        method_field = self._get_method_field()
+        method = getattr(self, method_field.name)
+        assert hasattr(self, method)
+
+        for name in method_field.metadata["variants"].keys():
+            if name != method:
+                # set params of other methods to None
+                setattr(self, name, None)
+
+    def without_method_args(self):
+        """Return a shallow copy of this object with the method's parameters set to None."""
+        other = replace(self)  # type: ignore -- method in dataclass
+        setattr(other, getattr(self, self._get_method_field().name), None)
+        return other
+
+    def get_method_class(self) -> Type:
+        method_field = self._get_method_field()
+        method = getattr(self, method_field.name)
+        return self._get_method_field().metadata["variants"][method]
+
+    def get_method_params(self) -> DataClassInstance:
+        method_field = self._get_method_field()
+        method = getattr(self, method_field.name)
+        return getattr(self, method)
+
+    def _get_method_field(self) -> Field:
+        if not hasattr(self, "__method_field"):
+            for field in fields(self):
+                if "variants" in field.metadata:
+                    self.__method_field = field
+                    return self.__method_field
+            raise ValueError(
+                f"No method field found in {self.__class__}. The method field is the one has `variants` property (dict type) in its metadata"
+            )
+        return self.__method_field
 
 
 def are_valid_parameters(

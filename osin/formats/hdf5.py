@@ -17,7 +17,7 @@ from typing import (
 from numpy import sort
 from osin.models import ExpRunData, ExampleData, Record
 from osin.types import NestedPrimitiveOutput, PyObject
-from h5py import Group, File
+from h5py import Group, File, Empty
 
 
 class Hdf5Format:
@@ -170,6 +170,8 @@ class Hdf5Format:
             if isinstance(value, dict):
                 subgroup = group.create_group(key, track_order=True)
                 self._update_nested_primitive_object(subgroup, value)
+            elif value is None:
+                group[key] = Empty("f")
             else:
                 group[key] = value
 
@@ -188,6 +190,8 @@ class Hdf5Format:
                     val = bool(val)
                 elif isinstance(val, bytes):
                     val = val.decode()
+                elif isinstance(val, Empty):
+                    val = None
                 primitive_object[key] = val
         return primitive_object
 

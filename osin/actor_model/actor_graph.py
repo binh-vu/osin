@@ -139,7 +139,7 @@ class ActorGraph(RetworkXDiGraph[int, ActorNode, BaseEdge]):
         actor_class: Union[str, Type],
         example_class: Optional[Union[str, Type]] = None,
         osin_dir: Optional[Union[str, Path]] = None,
-        exp_version: int = 1,
+        exp_version: Optional[int] = None,
         args: Optional[Sequence[str]] = None,
     ):
         """Run an actor in evaluation mode.
@@ -152,7 +152,7 @@ class ActorGraph(RetworkXDiGraph[int, ActorNode, BaseEdge]):
                 any examples to run.
             osin_dir: The directory of the osin database. If not provided, it will not
                 save the results to the database.
-            exp_version: The version of the experiment.
+            exp_version: The version of the experiment, default is to obtain it from the actor class.
             args: The arguments to the . If not provided, it will use the arguments from sys.argv
         """
         logger.debug("Determine the actor to run...")
@@ -181,7 +181,9 @@ class ActorGraph(RetworkXDiGraph[int, ActorNode, BaseEdge]):
             osin = Osin.local(osin_dir)
             actor._exprun = osin.init_exp(
                 name=getattr(CLS, "NAME", CLS.__name__),  # type: ignore
-                version=exp_version,
+                version=getattr(CLS, "EXP_VERSION", 1)
+                if exp_version is None
+                else exp_version,
                 description=CLS.__doc__,
                 params=params,
             ).new_exp_run(params)
