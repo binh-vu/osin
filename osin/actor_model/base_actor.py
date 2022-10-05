@@ -109,7 +109,7 @@ class BaseActor(Generic[E, P, C], Actor[E]):
     def _get_cache(self) -> C:
         """Get a cache for this actor that can be used to store the results of each example."""
         if self._cache_factory is None:
-            raise ValueError("Trying to get cache, but cache factory is provided")
+            raise ValueError("Trying to get cache, but cache factory is not provided")
 
         if self._cache is None:
             state = self.get_actor_state()

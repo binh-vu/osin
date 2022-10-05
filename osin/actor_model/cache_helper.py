@@ -84,13 +84,19 @@ class FileCache:
         dpath = self.split_filename(filename)[0]
         return (dpath / "_SUCCESS").exists()
 
+    def has_folder(self, dirname: str):
+        dpath = self.root / dirname
+        return (dpath / "_SUCCESS").exists()
+
     @contextmanager
     def acquire_write_lock(self):
         """Acquire a write lock on the cache directory. You should use this before
         any attempt to write to the cache directory to prevent multiple processes
         from writing to the same directory at the same time.
         """
-        self.lock = FileLock(self.root / "_LOCK")
+        if self.lock is None:
+            self.lock = FileLock(self.root / "_LOCK")
+
         logger.info(
             "[Process {}] Acquiring lock on cache directory: {}", os.getpid(), self.root
         )
@@ -122,16 +128,29 @@ class FileCache:
         (dpath / "_SUCCESS").touch()
         self._validate_structure(filename)
 
+    @contextmanager
+    def open_folder_path(self, dirname: str):
+        dpath = self.root / dirname
+        Path(dpath).mkdir(exist_ok=True, parents=True)
+        yield dpath
+        (dpath / "_SUCCESS").touch()
+
     def get_file(self, filename: str) -> Path:
         if not self.has_file(filename):
             raise Exception(f"File {filename} does not exist")
 
         return self.split_filename(filename)[1]
 
+    def get_folder(self, dirname: str) -> Path:
+        if not self.has_folder(dirname):
+            raise Exception(f"Folder {dirname} does not exist")
+
+        return self.root / dirname
+
     def split_filename(self, filename: str) -> Tuple[Path, Path]:
         ext = "".join(Path(filename).suffixes)
         dirname = filename[: -len(ext)]
-        return self.root / dirname, self.root / dirname / f"dat{ext}"
+        return self.root / dirname, self.root / dirname / f"data{ext}"
 
     def _validate_structure(self, filename: str):
         dpath = self.split_filename(filename)[0]
@@ -140,7 +159,7 @@ class FileCache:
             for file in dpath.iterdir():
                 if file.name.startswith("_SUCCESS"):
                     c1 += 1
-                elif file.name.startswith(f"dat."):
+                elif file.name.startswith(f"data."):
                     c2 += 1
             if c1 != 1 or c2 != 1:
                 logger.warning(
