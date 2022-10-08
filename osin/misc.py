@@ -25,21 +25,28 @@ def _orjson_default(obj):
 
 
 class Directory:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, dirname: str = "directory"):
         self.root = root
         self.root.mkdir(exist_ok=True, parents=True)
         self.dbfile = root / "fs.db"
+        self.dirname = dirname
 
         need_init = not self.dbfile.exists()
-
         self.db = sqlite3.connect(str(self.dbfile))
-
         if need_init:
             with self.db:
                 self.db.execute("CREATE TABLE files(path, diskpath, key)")
 
-    def create_directory(self, relpath: str, key: dict) -> Path:
+    def create_directory(self, relpath: str, key: dict, save_key: bool = False) -> Path:
+        """Create a directory at a virtual relpath with key if not exists. Otherwise, return
+        the existing directory"""
         ser_key = orjson_dumps(key)
+        if save_key:
+            # serialize here to make sure we can dump it first otherwise, we may have create
+            # the directory but fail to dump the key
+            friendly_ser_key = orjson_dumps(key, option=orjson.OPT_INDENT_2)
+        else:
+            friendly_ser_key = b""
 
         with self.db:
             record = self.db.execute(
@@ -51,11 +58,14 @@ class Directory:
                 last_id = self.db.execute("SELECT MAX(rowid) FROM files").fetchone()[0]
                 if last_id is None:
                     last_id = 0
-                dirname = f"directory_{last_id + 1}"
+                dirname = f"{self.dirname}_{last_id + 1:03d}"
                 self.db.execute(
                     "INSERT INTO files VALUES (?, ?, ?)", (relpath, dirname, ser_key)
                 )
                 dpath = self.root / dirname
                 dpath.mkdir(exist_ok=False, parents=True)
+                if save_key:
+                    (dpath / "_KEY").write_bytes(friendly_ser_key)
+
                 return dpath
             return self.root / record[1]

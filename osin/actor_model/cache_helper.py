@@ -39,11 +39,7 @@ class CacheRepository:
             state.classpath, slugify(state.classversion).replace("-", "_")
         )
         key = state.to_dict()
-
-        dir = self.directory.create_directory(relpath, key)
-        if not (dir / "_KEY").exists():
-            (dir / "_KEY").write_bytes(orjson_dumps(key, option=orjson.OPT_INDENT_2))
-        return dir
+        return self.directory.create_directory(relpath, key, save_key=True)
 
 
 class Cache:
@@ -97,11 +93,11 @@ class FileCache:
         if self.lock is None:
             self.lock = FileLock(self.root / "_LOCK")
 
-        logger.info(
+        logger.trace(
             "[Process {}] Acquiring lock on cache directory: {}", os.getpid(), self.root
         )
         with self.lock.acquire(timeout=15):
-            logger.info(
+            logger.trace(
                 "[Process {}] Acquiring lock on cache directory: {}... SUCCESS!",
                 os.getpid(),
                 self.root,
@@ -151,6 +147,38 @@ class FileCache:
         ext = "".join(Path(filename).suffixes)
         dirname = filename[: -len(ext)]
         return self.root / dirname, self.root / dirname / f"data{ext}"
+
+    def get_parameterize_folder(
+        self, relpath: str, dirname: str = "directory"
+    ) -> Directory:
+        return Directory(self.root / relpath, dirname)
+
+    # def get_parameterize_folder(self, dirname: str, params: dict) -> Optional[Path]:
+    #     dpath = self.root / dirname
+    #     if not dpath.exists():
+    #         return None
+
+    #     key = orjson.dumps(params)
+    #     for p in list(dpath.iterdir()):
+    #         if (p / "_KEY").exists():
+    #             if (p / "_KEY").read_bytes() == key:
+    #                 return p
+    #     return None
+
+    # def reserve_parameterize_folder(self, dirname: str, params: dict) -> Path:
+    #     dpath = self.root / dirname
+    #     dpath.mkdir(exist_ok=True, parents=True)
+
+    #     key = orjson.dumps(params)
+    #     subdirs = [d for d in dpath.iterdir() if d.is_dir()]
+    #     for p in subdirs:
+    #         if (p / "_KEY").exists():
+    #             if (p / "_KEY").read_bytes() == key:
+    #                 return p
+    #     newdir = dpath / ("args_" + str(len(subdirs)))
+    #     newdir.mkdir(exist_ok=True, parents=True)
+    #     (newdir / "_KEY").write_bytes(key)
+    #     return newdir
 
     def _validate_structure(self, filename: str):
         dpath = self.split_filename(filename)[0]

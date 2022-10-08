@@ -1,11 +1,14 @@
 from __future__ import annotations
 from abc import abstractmethod, ABC
+import functools
 import os
 from pathlib import Path
 from typing import (
+    Any,
     Callable,
     List,
     Optional,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -15,7 +18,7 @@ from osin.actor_model.actor_state import ActorState
 from osin.actor_model.params_helper import EnumParams
 
 from osin.apis.remote_exp import RemoteExpRun
-from osin.actor_model.cache_helper import CacheRepository
+from osin.actor_model.cache_helper import CacheRepository, FileCache
 from loguru import logger
 
 E = TypeVar("E")
@@ -36,8 +39,9 @@ class Actor(ABC, Generic[E]):
 
     Therefore, it should have two basic methods:
         * run: to run the actor with a given input
-        * evaluate: to evaluate the current code with a list of given inputs, and
-            optionally store some debug information.
+        * evaluate: to evaluate the current actor, and optionally store some debug information.
+            It is recommended to not pass the evaluating datasets to the run function, but rather
+            the examples in the datasets.
 
     ## How to configure this actor?
 
@@ -45,12 +49,6 @@ class Actor(ABC, Generic[E]):
     However, this comes with a limitation that the parameters should
     be immutable and any changes to the parameters must be done in a new actor.
     This is undesirable, but necessary to make this actor cache friendly.
-
-    Commonly, we want to evaluate the actor on different datasets. However, our
-    interface is desired to run for each example, which makes it easy to convert
-    research code to the production code without much changes. Because of this,
-    we cannot pass the dataset as an argument of the method, but has to set the dataset
-    as the actor's parameters.
     """
 
     @abstractmethod
@@ -64,12 +62,9 @@ class Actor(ABC, Generic[E]):
         pass
 
     @abstractmethod
-    def evaluate(self, examples: List[E]):
-        """Evaluate the actor on a list of examples, and return the results as
-        if the function `batch_run` is called.
-
-        The evaluation metrics can be printed to the console, or stored in a temporary variable of this class to access it later.
-        """
+    def evaluate(self, *args: str):
+        """Evaluate the actor. The evaluation metrics can be printed to the console,
+        or stored in a temporary variable of this class to access it later."""
         pass
 
 
@@ -120,6 +115,35 @@ class BaseActor(Generic[E, P, C], Actor[E]):
             self._cache = self._cache_factory(cache_dir)
         return self._cache
 
+    @staticmethod
+    def filecache(
+        filename: Union[str, Callable[..., str]],
+        serialize: Callable[[Any, Path], None],
+        deserialize: Callable[[Path], Any],
+    ) -> Callable:
+        def wrapper_fn(func):
+            @functools.wraps(func)
+            def fn(self, *args, **kwargs):
+                cache: FileCache = self._get_cache()
+                if isinstance(filename, str):
+                    cache_filename = filename
+                else:
+                    cache_filename = filename(*args, **kwargs)
+
+                if not cache.has_file(cache_filename):
+                    with cache.acquire_write_lock():
+                        output = func(self, *args, **kwargs)
+                        with cache.open_file_path(cache_filename) as fpath:
+                            serialize(output, fpath)
+                else:
+                    with cache.open_file_path(cache_filename) as fpath:
+                        output = deserialize(fpath)
+                return output
+
+            return fn
+
+        return wrapper_fn
+
     @classmethod
     @abstractmethod
     def get_param_cls(cls) -> Type[P]:
@@ -142,8 +166,3 @@ class NoInputActor(Generic[P, C], BaseActor[None, P, C]):
     def run(self):
         """Run the actor with a single example"""
         pass
-
-    def evaluate(self):
-        raise ValueError(
-            "This actor does not accept any input, so it's likely that there is no evaluation. Override this method if you need to"
-        )

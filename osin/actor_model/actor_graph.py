@@ -7,22 +7,19 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Generator,
     List,
     Optional,
     Sequence,
     Tuple,
     Type,
     Union,
-    cast,
 )
 
-import retworkx
 import yada
-from graph.interface import BaseEdge, BaseNode, IGraph
+from graph.interface import BaseEdge, BaseNode
 from graph.retworkx.digraph import RetworkXDiGraph
 from loguru import logger
-from osin.actor_model.base_actor import BaseActor, NoInputActor
+from osin.actor_model.base_actor import BaseActor
 from osin.actor_model.params_helper import DataClassInstance
 from osin.apis.osin import Osin
 from osin.types.pyobject_type import PyObjectType
@@ -130,49 +127,38 @@ class ActorGraph(RetworkXDiGraph[int, ActorNode, BaseEdge]):
         parser = constructor.get_params_parser()
         params = parser.parse_args(args)
 
-        logger.debug("Constructing the actors...")
+        logger.debug("Constructing the actor...")
         actor = constructor.create_actor(params)
         return actor
 
     def evaluate(
         self,
         actor_class: Union[str, Type],
-        example_class: Optional[Union[str, Type]] = None,
         osin_dir: Optional[Union[str, Path]] = None,
         exp_version: Optional[int] = None,
         args: Optional[Sequence[str]] = None,
+        eval_args: Optional[Sequence[str]] = None,
     ):
         """Run an actor in evaluation mode.
 
         Args:
             actor_class: The class of the actor to run. If there are multiple actors
                 in the graph having the same name, it will throw an error.
-            example_class: The class of a NoInputActor that will produce the examples
-                to evaluate. If missing, it means the actor_class do not require
-                any examples to run.
             osin_dir: The directory of the osin database. If not provided, it will not
                 save the results to the database.
             exp_version: The version of the experiment, default is to obtain it from the actor class.
-            args: The arguments to the . If not provided, it will use the arguments from sys.argv
+            args: The arguments to the params parser. If not provided, it will use the arguments from sys.argv
+            eval_args: The arguments to the evaluate method.
         """
         logger.debug("Determine the actor to run...")
         actor_node = self.get_actor_by_classname(actor_class)
-        if example_class is not None:
-            example_node = self.get_actor_by_classname(example_class)
-        else:
-            # just to simplify the code, should not use this example_node when example_class is None
-            example_node = actor_node
-
         logger.debug("Initializing argument parser...")
         constructor = self.get_actor_constructor(actor_node)
         parser = constructor.get_params_parser()
         params = parser.parse_args(args)
 
-        logger.debug("Constructing the actors...")
-        actor, example_actor = constructor.create_actors(
-            [actor_node, example_node],
-            params,
-        )
+        logger.debug("Constructing the actor...")
+        actor = constructor.create_actor(params)
 
         CLS = actor.__class__
         if osin_dir is not None:
@@ -189,13 +175,7 @@ class ActorGraph(RetworkXDiGraph[int, ActorNode, BaseEdge]):
             ).new_exp_run(params)
 
         logger.debug("Run evaluation...")
-        if example_class is not None:
-            assert isinstance(example_actor, NoInputActor)
-            examples = cast(list, example_actor.run())
-            actor.evaluate(examples)
-        else:
-            assert isinstance(actor, NoInputActor)
-            actor.evaluate()
+        actor.evaluate(*(eval_args or ()))
 
         if osin_dir is not None:
             logger.debug("Cleaning up the experiments...")
