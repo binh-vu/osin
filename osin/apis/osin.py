@@ -6,7 +6,7 @@ from osin.apis.remote_exp import RemoteExp, RemoteExpRun
 from osin.models.exp import NestedPrimitiveOutput
 from osin.types import NestedPrimitiveOutputSchema, PyObject
 
-from osin.actor_model.params_helper import DataClassInstance
+from osin.params_helper import DataClassInstance
 
 
 class Osin(ABC):

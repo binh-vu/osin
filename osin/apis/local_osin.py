@@ -18,7 +18,7 @@ from osin.repository import OsinRepository
 from osin.models.base import init_db
 from osin.models.exp import Exp, ExpRun, NestedPrimitiveOutput, RunMetadata
 from osin.models.exp_data import Record, ExampleData
-from osin.actor_model.params_helper import (
+from osin.params_helper import (
     DataClassInstance,
     get_param_types,
     param_as_dict,
