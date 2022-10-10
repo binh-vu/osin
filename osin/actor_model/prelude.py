@@ -7,6 +7,7 @@ from osin.actor_model.params_helper import (
 )
 from osin.actor_model.base_actor import Actor, BaseActor, NoInputActor
 from osin.actor_model.actor_graph import ActorGraph, ActorNode
+from osin.actor_model.dataset_helper import DatasetSelection
 
 __all__ = [
     "Actor",
@@ -21,4 +22,5 @@ __all__ = [
     "EnumParams",
     "ActorGraph",
     "ActorNode",
+    "DatasetSelection",
 ]

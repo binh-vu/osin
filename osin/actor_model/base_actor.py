@@ -68,15 +68,13 @@ class Actor(ABC, Generic[E]):
         pass
 
 
-class BaseActor(Generic[E, P, C], Actor[E]):
+class BaseActor(Generic[E, P], Actor[E]):
     def __init__(
         self,
         params: P,
         dep_actors: Optional[List[BaseActor]] = None,
-        cache_factory: Optional[Callable[[Path], C]] = None,
     ):
-        self._cache_factory = cache_factory
-        self._cache: Optional[C] = None
+        self._filecache: Optional[FileCache] = None
         self._exprun: Optional[RemoteExpRun] = None
         self.dep_actors = dep_actors or []
         self.params = params
@@ -101,19 +99,16 @@ class BaseActor(Generic[E, P, C], Actor[E]):
             dependencies=deps,
         )
 
-    def _get_cache(self) -> C:
+    def _get_file_cache(self) -> FileCache:
         """Get a cache for this actor that can be used to store the results of each example."""
-        if self._cache_factory is None:
-            raise ValueError("Trying to get cache, but cache factory is not provided")
-
-        if self._cache is None:
+        if self._filecache is None:
             state = self.get_actor_state()
             cache_dir = CacheRepository.get_instance().reserve_cache_dir(state)
             logger.debug(
                 "[{}] Using cache directory: {}", self.__class__.__qualname__, cache_dir
             )
-            self._cache = self._cache_factory(cache_dir)
-        return self._cache
+            self._filecache = FileCache(cache_dir)
+        return self._filecache
 
     @staticmethod
     def filecache(
