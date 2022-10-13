@@ -3,26 +3,17 @@ from __future__ import annotations
 from dataclasses import dataclass, is_dataclass
 from operator import attrgetter
 from pathlib import Path
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-    Union,
-)
-from ream.helper import _logger_formatter, configure_loguru, get_classpath
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 import yada
 from graph.interface import BaseEdge, BaseNode
 from graph.retworkx.digraph import RetworkXDiGraph
 from loguru import logger
-from ream.actors.base import BaseActor
-from ream.params_helper import DataClassInstance
 from osin.apis.osin import Osin
+
+from ream.actors.base import BaseActor
+from ream.helper import _logger_formatter, get_classpath
+from ream.params_helper import DataClassInstance
 
 
 class ActorNode(BaseNode):
@@ -176,23 +167,15 @@ class ActorGraph(RetworkXDiGraph[int, ActorNode, BaseEdge]):
         if osin_dir is not None:
             logger.debug("Setup experiments...")
             assert CLS.__doc__ is not None, "Please add docstring to the class"
-            osin = Osin.local(osin_dir)
-            actor._exprun = osin.init_exp(
-                name=getattr(CLS, "NAME", CLS.__name__),  # type: ignore
-                version=getattr(CLS, "EXP_VERSION", 1)
-                if exp_version is None
-                else exp_version,
-                description=CLS.__doc__,
-                params=params,
-            ).new_exp_run(params)
+            if not hasattr(CLS, "EXP_VERSION"):
+                setattr(CLS, "EXP_VERSION", exp_version)
+
+            # pass the osin so that actor has control over
+            # the parameters of the experiment
+            actor._osin = Osin.local(osin_dir)
 
         logger.debug("Run evaluation...")
         actor.evaluate(*(eval_args or ()))
-
-        if osin_dir is not None:
-            logger.debug("Cleaning up the experiments...")
-            assert actor._exprun is not None
-            actor._exprun.finish()
 
     def get_actor_constructor(self, actor_node: ActorNode) -> ActorConstructor:
         nodes = {}

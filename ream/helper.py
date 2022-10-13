@@ -1,6 +1,6 @@
 from pathlib import Path
 import sys
-from typing import Optional, Type
+from typing import Type
 from loguru import logger
 import orjson
 
