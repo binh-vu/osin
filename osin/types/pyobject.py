@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from typing import Any, Generic, List, Type, TypeVar
 
 import numpy as np
-import orjson
 from osin.types.primitive_type import NestedPrimitiveOutput
 from osin.types.pyobject_type import PyObjectType
+from osin.misc import orjson_dumps
 
 T = TypeVar("T", np.ndarray, bytes)
 
@@ -40,7 +40,7 @@ class OTable(PyObject[bytes]):
     rows: List[NestedPrimitiveOutput]
 
     def serialize_hdf5(self) -> bytes:
-        return orjson.dumps({"rows": self.rows})
+        return orjson_dumps({"rows": self.rows})
 
     @staticmethod
     def from_hdf5(value: bytes) -> OTable:

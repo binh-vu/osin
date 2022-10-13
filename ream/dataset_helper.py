@@ -122,5 +122,26 @@ class DatasetQuery(Generic[E]):
             },
         )
 
+    def get_query(self, subsets: Optional[str | List[str]]) -> str:
+        if subsets is None:
+            subsets = list(self.subsets.keys())
+        elif isinstance(subsets, str):
+            subsets = [subsets]
+        else:
+            assert all(subset in self.subsets for subset in subsets)
+
+        filters = []
+        for subset in subsets:
+            start, end = self.subsets[subset]
+            sper = "%" if start["is_percentage"] else ""
+            eper = "%" if end["is_percentage"] else ""
+            filters.append(f"{subset}[{start['value']}{sper}:{end['value']}{eper}]")
+
+        filter = "+".join(filters)
+        if len(subsets) > 1 or "" not in subsets:
+            filter = f":{filter}"
+
+        return f"{self.dataset}{filter}{':shuffle' if self.shuffle else ''}{f':{self.seed}' if self.seed is not None else ''}"
+
     def get_subset_disk_names(self) -> Dict[str, str]:
         return {name: "_empty" if name == "" else name for name in self.subsets.keys()}
