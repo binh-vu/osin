@@ -24,6 +24,8 @@ const defaultColumns: ProColumns[] = [
         </InternalLink>
       );
     }) as any,
+    sorter: true,
+    sortOrder: "descend",
   },
   {
     dataIndex: "createdTime",
@@ -34,11 +36,6 @@ const defaultColumns: ProColumns[] = [
     dataIndex: "duration",
     title: "Duration",
     render: Render.duration as any,
-    // render: ((text: any, record: ExperimentRun) => {
-    //   const duration =
-    //     record.finishedTime.getTime() - record.createdTime.getTime();
-    //   return Render.duration(duration);
-    // }) as any,
   },
   {
     dataIndex: "isFinished",
@@ -101,8 +98,25 @@ export const ExperimentRunExplorer = observer(
       <TableComponent
         selectRows={true}
         scroll={{ x: "max-content" }}
-        query={async (limit, offset) => {
-          let res = await expRunStore.fetchByExp(exp, offset, limit);
+        query={async (limit, offset, sort) => {
+          const sortEntries = Object.entries(sort).filter(
+            (entries) => entries[1] !== null
+          );
+
+          let sortedBy:
+            | undefined
+            | { field: keyof ExperimentRun; order: "asc" | "desc" } = undefined;
+
+          if (sortEntries.length > 0) {
+            sortedBy = {
+              field: sortEntries[0][0]
+                .replaceAll(",", ".")
+                .replace("data.", "") as keyof ExperimentRun,
+              order: sortEntries[0][1] === "descend" ? "desc" : "asc",
+            };
+          }
+          console.log("sortedBy", sortedBy, sort, sortEntries);
+          let res = await expRunStore.fetchByExp(exp, offset, limit, sortedBy);
           return res;
         }}
         columns={columns}

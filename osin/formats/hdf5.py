@@ -67,7 +67,7 @@ class Hdf5Format:
         sorted_by: Optional[str] = None,
         sorted_order: Literal["ascending", "descending"] = "ascending",
     ) -> Tuple[ExpRunData, int]:
-        """Load experiment run data from a file"""
+        """Load experiment run data from a file."""
         if fields is None:
             fields = {
                 "aggregated": {"primitive", "complex"},
@@ -104,17 +104,30 @@ class Hdf5Format:
                             break
                         selected_examples.append((key, ex_group))
                 else:
+                    if sorted_by.find("/") == -1:
+                        sorted_by_first, sorted_by_remain = sorted_by, None
+                        assert sorted_by_first in ["id", "name"], sorted_by_first
+                    else:
+                        sorted_by_first, sorted_by_remain = sorted_by.split("/", 1)
+                        assert sorted_by_first == "data", sorted_by_first
+
                     # must sort
                     if limit <= 0:
                         limit = math.inf  # type: ignore
                     selected_examples = []
                     sorted_keys = {}
-                    for key, ex_group in f["individual"].items():
-                        selected_examples.append((key, ex_group))
-                        # this works for nested keys
-                        if sorted_by not in ex_group:
-                            raise KeyError(f"sort by key `{sorted_by}` not found")
-                        sorted_keys[key] = ex_group[sorted_by][()]
+                    if sorted_by_remain is None:
+                        for key, ex_group in f["individual"].items():
+                            selected_examples.append((key, ex_group))
+                            sorted_keys[key] = ex_group.attrs[sorted_by_first]
+                    else:
+                        for key, ex_group in f["individual"].items():
+                            selected_examples.append((key, ex_group))
+                            if sorted_by_remain not in ex_group:
+                                raise KeyError(
+                                    f"sort by key `data.{sorted_by_remain}` not found"
+                                )
+                            sorted_keys[key] = ex_group[sorted_by_remain][()]
 
                     selected_examples.sort(
                         key=lambda x: sorted_keys[x[0]],

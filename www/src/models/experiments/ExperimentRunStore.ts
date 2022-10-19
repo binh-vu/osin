@@ -57,12 +57,32 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
   fetchByExp: (
     exp: Experiment,
     start: number,
-    no: number
+    no: number,
+    sortedBy?:
+      | keyof ExperimentRun
+      | {
+          field: keyof ExperimentRun;
+          order: "desc" | "asc";
+        }
+      | {
+          field: keyof ExperimentRun;
+          order: "desc" | "asc";
+        }[]
   ) => CancellablePromise<FetchResult<ExperimentRun>> = flow(function* (
     this: ExperimentRunStore,
     exp: Experiment,
     start: number,
-    no: number
+    no: number,
+    sortedBy?:
+      | keyof ExperimentRun
+      | {
+          field: keyof ExperimentRun;
+          order: "desc" | "asc";
+        }
+      | {
+          field: keyof ExperimentRun;
+          order: "desc" | "asc";
+        }[]
   ) {
     const index = this.expIndex.index.get(exp.id);
     if (index === undefined || index.size < start + no) {
@@ -70,6 +90,7 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
         limit: no,
         offset: start,
         conditions: { exp: exp.id },
+        sortedBy,
       });
       this.noRunsOfExperiment[exp.id] = result.total;
       return result;
@@ -327,7 +348,9 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
       record.is_finished,
       record.is_successful,
       new Date(record.created_time - this.timezoneOffset),
-      new Date(record.finished_time - this.timezoneOffset),
+      record.finished_time === null
+        ? undefined
+        : new Date(record.finished_time - this.timezoneOffset),
       record.params,
       record.metadata,
       data,

@@ -57,9 +57,7 @@ export const ExampleExplorer = observer(
           let sortedOrder: "desc" | "asc" | undefined = undefined;
 
           if (sortEntries.length > 0) {
-            sortedBy = sortEntries[0][0]
-              .replaceAll(",", ".")
-              .replace("data.", "");
+            sortedBy = sortEntries[0][0].replaceAll(",", ".");
             sortedOrder = sortEntries[0][1] === "descend" ? "desc" : "asc";
           }
 

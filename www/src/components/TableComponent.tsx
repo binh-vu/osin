@@ -1,11 +1,10 @@
-import { SearchOutlined } from "@ant-design/icons";
+import { green, red } from "@ant-design/colors";
+import { CheckCircleFilled, CloseCircleFilled } from "@ant-design/icons";
 import ProTable, { ActionType, ProColumns } from "@ant-design/pro-table";
 import { makeStyles } from "@mui/styles";
-import { Descriptions, Tag, Typography } from "antd";
+import { Tag, Typography } from "antd";
 import { ExpandableConfig, SortOrder } from "antd/lib/table/interface";
-import { ExternalLink } from "gena-app";
 import humanizeDuration from "humanize-duration";
-import { CheckCircleFilled, CloseCircleFilled } from "@ant-design/icons";
 import { observer } from "mobx-react";
 import React, {
   forwardRef,
@@ -13,7 +12,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { green, red } from "@ant-design/colors";
 
 export const useStyles = makeStyles({
   table: {
@@ -154,8 +152,19 @@ const dtFormatter = new Intl.DateTimeFormat("en-US", {
   second: "numeric",
 });
 export const dtFormatToParts = (dt: Date, formatter?: Intl.DateTimeFormat) => {
-  const [month, lit1, day, lit2, year, lit3, hour, lit4, minute, lit5, second] =
-    (formatter || dtFormatter).formatToParts(dt);
+  const [
+    month,
+    _lit1,
+    day,
+    _lit2,
+    year,
+    _lit3,
+    hour,
+    _lit4,
+    minute,
+    _lit5,
+    second,
+  ] = (formatter || dtFormatter).formatToParts(dt);
 
   return {
     month: month.value,
@@ -201,9 +210,9 @@ export const Render = {
     const p = dtFormatToParts(dt);
     return `${p.day} ${p.month} ${p.year}, ${p.hour}:${p.minute}:${p.second}`;
   },
-  duration: (ms: number | undefined | null) => {
-    if (ms === undefined || ms === null) {
-      return "";
+  duration: (ms: number | undefined | null | "-") => {
+    if (ms === undefined || ms === null || ms === "-") {
+      return "-";
     }
     return humanizeDuration(ms);
   },
