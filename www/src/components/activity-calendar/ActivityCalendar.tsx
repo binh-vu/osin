@@ -326,6 +326,7 @@ const ActivityCalendar: FunctionComponent<Props> = ({
                   dangerouslySetInnerHTML={{ __html: getTooltipMessage(day) }}
                 />
               }
+              key={day.date}
             >
               {component}
             </Tooltip>
