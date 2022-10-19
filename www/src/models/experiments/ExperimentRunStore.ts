@@ -59,7 +59,6 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
     start: number,
     no: number,
     sortedBy?:
-      | keyof ExperimentRun
       | {
           field: keyof ExperimentRun;
           order: "desc" | "asc";
@@ -74,7 +73,6 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
     start: number,
     no: number,
     sortedBy?:
-      | keyof ExperimentRun
       | {
           field: keyof ExperimentRun;
           order: "desc" | "asc";
@@ -84,38 +82,19 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
           order: "desc" | "asc";
         }[]
   ) {
-    const index = this.expIndex.index.get(exp.id);
-    if (index === undefined || index.size < start + no) {
-      const result: FetchResult<ExperimentRun> = yield this.fetch({
-        limit: no,
-        offset: start,
-        conditions: { exp: exp.id },
-        sortedBy,
-      });
-      this.noRunsOfExperiment[exp.id] = result.total;
-      return result;
-    }
-
-    const output = [];
-
-    // cause items are in insertion order.
-    const it = index[Symbol.iterator]();
-    for (let i = 0; i < start; i++) {
-      it.next();
-    }
-    for (let i = 0; i < no; i++) {
-      const item = it.next();
-      if (item.done === true) {
-        break;
-      }
-      const runId = item.value;
-      output.push(this.records.get(runId)!);
-    }
-
-    return {
-      records: output,
-      total: this.noRunsOfExperiment[exp.id],
-    };
+    // TODO: caching does not work properly with sorting
+    // so we fetch from the server every time for now
+    // but we can still do better with caching
+    // fix the commented code!
+    // See the original code at: da9e069e2ea4f23291e0dcbb35089b43db905051
+    const result: FetchResult<ExperimentRun> = yield this.fetch({
+      limit: no,
+      offset: start,
+      conditions: { exp: exp.id },
+      sortedBy,
+    });
+    this.noRunsOfExperiment[exp.id] = result.total;
+    return result;
   });
 
   fetchExpRunData: (

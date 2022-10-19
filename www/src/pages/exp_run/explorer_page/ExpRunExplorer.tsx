@@ -25,7 +25,7 @@ const defaultColumns: ProColumns[] = [
       );
     }) as any,
     sorter: true,
-    sortOrder: "descend",
+    defaultSortOrder: "descend",
   },
   {
     dataIndex: "createdTime",
@@ -115,7 +115,6 @@ export const ExperimentRunExplorer = observer(
               order: sortEntries[0][1] === "descend" ? "desc" : "asc",
             };
           }
-          console.log("sortedBy", sortedBy, sort, sortEntries);
           let res = await expRunStore.fetchByExp(exp, offset, limit, sortedBy);
           return res;
         }}
