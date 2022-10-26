@@ -10,7 +10,8 @@ import {
 } from "@ant-design/icons";
 import { SearchOutlined } from "@ant-design/icons";
 import { TableColumn, TableColumnIndex } from "./Columns";
-export const useStyles = makeStyles({
+
+const useStyles = makeStyles({
   root: {
     "& .ant-tree-treenode": {
       width: "100%",

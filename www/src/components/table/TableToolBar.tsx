@@ -5,6 +5,8 @@ import {
   UndoOutlined,
   CloudUploadOutlined,
   CloudDownloadOutlined,
+  DeleteOutlined,
+  RestOutlined,
 } from "@ant-design/icons";
 import { makeStyles } from "@mui/styles";
 import { Button, Dropdown, Menu, Modal, Space } from "antd";
@@ -14,7 +16,7 @@ import { TableColumnManagement } from "./ColumnManagement";
 import { ColumnConfig, TableColumnIndex } from "./Columns";
 import { TableComponentFunc } from "./TableComponent";
 
-export const useStyles = makeStyles({
+const useStyles = makeStyles({
   root: {
     margin: 8,
     "& .ant-btn > .anticon + span": {
@@ -41,16 +43,81 @@ export const useStyles = makeStyles({
 
 export const TableToolbar = <R,>({
   table,
+  selectedRowKeys,
+  setSelectedRowKeys,
   filter = false,
   filterArgs,
 }: {
   table: TableComponentFunc<R>;
   filter?: boolean;
   filterArgs?: FilterFormProps<R>;
+  selectedRowKeys: React.Key[];
+  setSelectedRowKeys: (keys: React.Key[]) => void;
   saveColumnState?: (cfgs: ColumnConfig[]) => void;
 }) => {
   const classes = useStyles();
   const [showColumnModal, setShowColumnModal] = useState(false);
+
+  const selectedActions = [];
+  if (
+    selectedRowKeys.length > 0 &&
+    table.isDeleted !== undefined &&
+    table.removeRecords !== undefined &&
+    table.restoreRecords !== undefined
+  ) {
+    const isDeleted = table.isDeleted;
+    const removeRecords = table.removeRecords;
+    const restoreRecords = table.restoreRecords;
+
+    const records = table.getRecordsByIds(selectedRowKeys as (keyof R)[]);
+    const nDeleted = records
+      .map((r) => (isDeleted(r) ? 1 : 0) as number)
+      .reduce((a, b) => a + b, 0);
+
+    if (nDeleted <= selectedRowKeys.length) {
+      selectedActions.push(
+        <Button
+          key="remove"
+          type="text"
+          size="middle"
+          onClick={() => {
+            removeRecords(records).then(() => {
+              setSelectedRowKeys([]);
+            });
+          }}
+        >
+          <DeleteOutlined />
+          Remove
+        </Button>
+      );
+    }
+
+    if (nDeleted > 0) {
+      selectedActions.push(
+        <Button
+          key="restore"
+          type="text"
+          size="middle"
+          onClick={() => {
+            restoreRecords(records).then(() => {
+              setSelectedRowKeys([]);
+            });
+          }}
+        >
+          <RestOutlined />
+          Restore
+        </Button>
+      );
+    }
+
+    // : (rids: (keyof R)[]) => {
+    //   if (restoreRecords === undefined) {
+    //     return Promise.resolve();
+    //   }
+    //   let id2records = Object.fromEntries(data.map((r) => [r[rowKey], r]));
+    //   return restoreRecords(rids.map((rid) => id2records[rid]));
+    // },
+  }
 
   return (
     <div className={classes.root}>
@@ -94,6 +161,7 @@ export const TableToolbar = <R,>({
           <ReloadOutlined />
           Reload
         </Button>
+        {selectedActions}
       </Space>
       <Modal
         title={"Manage Columns"}

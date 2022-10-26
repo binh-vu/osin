@@ -4,6 +4,7 @@ import orjson
 from gena import generate_api
 from dateutil.parser import parse
 from peewee import DoesNotExist, fn
+from osin.misc import identity
 from osin.models.exp import Exp, ExpRun
 from werkzeug.exceptions import BadRequest, NotFound
 from osin.repository import OsinRepository
@@ -13,10 +14,11 @@ exp_bp = generate_api(Exp)
 exprun_bp = generate_api(
     ExpRun,
     deserializers={
-        "params": orjson.loads,
-        "finished_time": parse,
-        "created_time": parse,
-        "aggregated_primitive_outputs": orjson.loads,
+        "params": identity,
+        # seems that with timezone, peewee cannot parse back to datetime
+        "finished_time": lambda x: parse(x).replace(tzinfo=None),
+        "created_time": lambda x: parse(x).replace(tzinfo=None),
+        "aggregated_primitive_outputs": identity,
     },
 )
 

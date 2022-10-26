@@ -1,4 +1,4 @@
-import { Render, TableComponent } from "components/table/TableComponent";
+import { Render, TableComponent } from "components/table";
 import { PyObject } from "models/experiments/ExperimentRunData";
 
 export const PyObjectTable = ({ object }: { object: PyObject }) => {
@@ -16,18 +16,21 @@ export const PyObjectTable = ({ object }: { object: PyObject }) => {
 
   return (
     <TableComponent
-      query={async (limit, offset) => {
-        return {
-          records: object.rows
-            .slice(offset, offset + limit)
-            .map((row, index) => {
-              return {
-                id: offset + index,
-                row,
-              };
-            }),
-          total: object.rows.length,
-        };
+      rowKey="id"
+      store={{
+        query: async (limit, offset) => {
+          return {
+            records: object.rows
+              .slice(offset, offset + limit)
+              .map((row, index) => {
+                return {
+                  id: offset + index,
+                  row,
+                };
+              }),
+            total: object.rows.length,
+          };
+        },
       }}
       columns={columns}
     />

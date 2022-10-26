@@ -1,9 +1,6 @@
-import { green, red } from "@ant-design/colors";
-import { CheckCircleFilled, CloseCircleFilled } from "@ant-design/icons";
 import { makeStyles } from "@mui/styles";
-import { Skeleton, Table, Tag, Typography } from "antd";
+import { Skeleton, Table, Typography } from "antd";
 import {
-  ColumnGroupType,
   ColumnsType,
   ColumnType,
   ExpandableConfig,
@@ -12,7 +9,6 @@ import {
   TablePaginationConfig,
 } from "antd/lib/table/interface";
 import { QueryConditions } from "gena-app";
-import humanizeDuration from "humanize-duration";
 import { getClassName } from "misc";
 import { observer } from "mobx-react";
 import React, {
@@ -26,7 +22,9 @@ import React, {
 import { ColumnConfig, TableColumn, TableColumnIndex } from "./Columns";
 import { TableToolbar } from "./TableToolBar";
 
-export const useStyles = makeStyles({
+import { VariableSizeGrid as Grid } from "react-window";
+
+const useStyles = makeStyles({
   table: {
     "& .ant-table": {
       // having this issue with PyObjectTable that somehow margin is -8
@@ -48,7 +46,11 @@ export const useStyles = makeStyles({
 });
 
 export interface TableComponentFunc<R> {
-  reload: () => void;
+  reload: () => Promise<void>;
+  getRecordsByIds: (ids: (keyof R)[]) => R[];
+  removeRecords?: (records: R[]) => Promise<void>;
+  restoreRecords?: (records: R[]) => Promise<void>;
+  isDeleted?: (rercord: R) => boolean;
   changeTableSize: (size: "small" | "middle" | "large") => void;
   currentTableSize: () => "small" | "middle" | "large";
   columns: () => ColumnsType<R>;
@@ -60,17 +62,23 @@ export interface TableComponentFunc<R> {
 
 interface TableComponentProps<R> {
   defaultPageSize?: number;
+  rowKey: keyof R;
   defaultShowPageSizeChanger?: boolean;
   defaultTableSize?: "small" | "middle" | "large";
-  query: (
-    limit: number,
-    offset: number,
-    conditions: QueryConditions<R>,
-    sort: {
-      field: keyof R;
-      order: "desc" | "asc";
-    }[]
-  ) => Promise<{ records: R[]; total: number }>;
+  store: {
+    query: (
+      limit: number,
+      offset: number,
+      conditions: QueryConditions<R>,
+      sort: {
+        field: keyof R;
+        order: "desc" | "asc";
+      }[]
+    ) => Promise<{ records: R[]; total: number }>;
+    remove?: (records: R[]) => Promise<void>;
+    restore?: (records: R[]) => Promise<void>;
+    isDeleted?: (record: R) => boolean;
+  };
   toolbar?: React.ReactElement | object;
   showRowIndex?: boolean;
   columns: TableColumn<R>[];
@@ -80,14 +88,16 @@ interface TableComponentProps<R> {
   expandable?: ExpandableConfig<any>;
   saveColumnState?: (cfgs: ColumnConfig[]) => void;
   restoreColumnState?: () => Promise<ColumnConfig[]>;
+  infiniteScroll?: boolean;
 }
 
 export const TableComponent_ = <R extends object>(
   {
     defaultPageSize = 5,
+    rowKey,
     defaultShowPageSizeChanger = true,
     defaultTableSize = "small",
-    query,
+    store,
     toolbar,
     showRowIndex = false,
     selectRows = false,
@@ -97,6 +107,7 @@ export const TableComponent_ = <R extends object>(
     expandable,
     saveColumnState,
     restoreColumnState,
+    infiniteScroll,
   }: TableComponentProps<R>,
   ref: ForwardedRef<TableComponentFunc<R>>
 ) => {
@@ -124,7 +135,7 @@ export const TableComponent_ = <R extends object>(
 
   const func: TableComponentFunc<R> = {
     reload: () => {
-      onRequestData(pagination, filters, sorter);
+      return onRequestData(pagination, filters, sorter);
     },
     changeTableSize: (size: "small" | "middle" | "large") => {
       setTableSize(size);
@@ -136,6 +147,9 @@ export const TableComponent_ = <R extends object>(
         ? TableColumnIndex.fromNestedColumns([])
         : internalColumns,
     setInternalColumns,
+    restoreRecords: store.restore,
+    removeRecords: store.remove,
+    isDeleted: store.isDeleted,
     resetInternalColumns: (fromSaveState: boolean) => {
       let item = TableColumnIndex.fromNestedColumns(columns);
       if (fromSaveState && restoreColumnState !== undefined) {
@@ -153,6 +167,10 @@ export const TableComponent_ = <R extends object>(
       if (internalColumns !== undefined && saveColumnState !== undefined) {
         saveColumnState(internalColumns.getChanges());
       }
+    },
+    getRecordsByIds: (rids: (keyof R)[]) => {
+      let id2records = Object.fromEntries(data.map((r) => [r[rowKey], r]));
+      return rids.map((rid) => id2records[rid]);
     },
   };
 
@@ -200,10 +218,12 @@ export const TableComponent_ = <R extends object>(
       }
     }
 
-    query(limit, offset, conditions, sortedBy).then(({ records, total }) => {
-      setData(records);
-      setPagination({ ...paging, total });
-    });
+    return store
+      .query(limit, offset, conditions, sortedBy)
+      .then(({ records, total }) => {
+        setData(records);
+        setPagination({ ...paging, total });
+      });
   };
   useImperativeHandle(ref, () => func);
 
@@ -230,54 +250,65 @@ export const TableComponent_ = <R extends object>(
 
   let toolbarel;
   if (toolbar !== undefined && !React.isValidElement(toolbar)) {
-    toolbarel = <TableToolbar {...toolbar} table={func} />;
+    toolbarel = (
+      <TableToolbar
+        {...toolbar}
+        table={func}
+        selectedRowKeys={selectedRowKeys}
+        setSelectedRowKeys={setSelectedRowKeys}
+      />
+    );
   } else {
     toolbarel = toolbar;
   }
 
   if (columns_ === undefined) return <Skeleton loading={true} active={true} />;
 
+  let table = (
+    <Table
+      rowSelection={
+        selectRows
+          ? { selectedRowKeys, onChange: setSelectedRowKeys }
+          : undefined
+      }
+      scroll={scroll}
+      className={getClassName(classes.table, [
+        fullWidth,
+        classes.fullWidthTable,
+      ])}
+      size={tableSize}
+      bordered={true}
+      dataSource={data}
+      pagination={pagination}
+      rowKey={rowKey as string}
+      columns={columns_}
+      expandable={expandable}
+      onChange={(
+        antd_paging,
+        antd_filters,
+        antd_sorter: SorterResult<R> | SorterResult<R>[]
+      ) => {
+        if (!Array.isArray(antd_sorter)) {
+          antd_sorter = [antd_sorter];
+        }
+
+        // we have a small issue where if the columns containing the sorters or filters
+        // are hidden, they won't be included in the sorter or filters, so we need to
+        // add them back
+        imputeMissingSorter_(antd_sorter, sorter);
+        imputeMissingFilters_(antd_filters, filters);
+
+        setSorter(antd_sorter);
+        setFilters(antd_filters);
+        onRequestData(antd_paging, antd_filters, antd_sorter);
+      }}
+    />
+  );
+
   return (
     <>
       {toolbarel}
-      <Table
-        rowSelection={
-          selectRows
-            ? { selectedRowKeys, onChange: setSelectedRowKeys }
-            : undefined
-        }
-        scroll={scroll}
-        className={getClassName(classes.table, [
-          fullWidth,
-          classes.fullWidthTable,
-        ])}
-        size={tableSize}
-        bordered={true}
-        dataSource={data}
-        pagination={pagination}
-        rowKey="id"
-        columns={columns_}
-        expandable={expandable}
-        onChange={(
-          antd_paging,
-          antd_filters,
-          antd_sorter: SorterResult<R> | SorterResult<R>[]
-        ) => {
-          if (!Array.isArray(antd_sorter)) {
-            antd_sorter = [antd_sorter];
-          }
-
-          // we have a small issue where if the columns containing the sorters or filters
-          // are hidden, they won't be included in the sorter or filters, so we need to
-          // add them back
-          imputeMissingSorter_(antd_sorter, sorter);
-          imputeMissingFilters_(antd_filters, filters);
-
-          setSorter(antd_sorter);
-          setFilters(antd_filters);
-          onRequestData(antd_paging, antd_filters, antd_sorter);
-        }}
-      />
+      {table}
     </>
   );
 };
@@ -351,94 +382,3 @@ const TableComponentFR_ =
     ref: React.ForwardedRef<TableComponentFunc<R>>
   ) => React.ReactElement) || null;
 export const TableComponent = observer(TableComponentFR_);
-
-const dtFormatter = new Intl.DateTimeFormat("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "numeric",
-  hour12: false,
-  second: "numeric",
-});
-export const dtFormatToParts = (dt: Date, formatter?: Intl.DateTimeFormat) => {
-  const [
-    month,
-    _lit1,
-    day,
-    _lit2,
-    year,
-    _lit3,
-    hour,
-    _lit4,
-    minute,
-    _lit5,
-    second,
-  ] = (formatter || dtFormatter).formatToParts(dt);
-
-  return {
-    month: month.value,
-    day: day.value,
-    year: year.value,
-    hour: hour.value,
-    minute: minute.value,
-    second: second.value,
-  };
-};
-
-export const EmptyToken = "";
-
-export const Render = {
-  str: (text: any) => {
-    if (text === null || text === undefined) {
-      return EmptyToken;
-    }
-    return text.toString();
-  },
-  strMonospace: (text: any) => {
-    if (text === null || text === undefined) {
-      return EmptyToken;
-    }
-    return <Typography.Text code={true}>{text.toString()}</Typography.Text>;
-  },
-  boolFmt1: (value: boolean) =>
-    value ? (
-      <CheckCircleFilled style={{ color: green[6] }} />
-    ) : (
-      <CloseCircleFilled style={{ color: red[6] }} />
-    ),
-  boolFmt2: (value: boolean) =>
-    value ? <Tag color="success">true</Tag> : <Tag color="error">false</Tag>,
-  boolFmt3Reverse: (value: boolean) =>
-    value ? <Tag color="error">yes</Tag> : <Tag color="success">no</Tag>,
-  number: (value: number | null | undefined) => {
-    if (value === undefined || value === null) {
-      return EmptyToken;
-    }
-    return value.toLocaleString(undefined, { minimumFractionDigits: 3 });
-  },
-  datetimeFmt1: (dt: Date) => {
-    // time first
-    const p = dtFormatToParts(dt);
-    return `${p.hour}:${p.minute}:${p.second} · ${p.day} ${p.month}, ${p.year}`;
-  },
-  datetimeFmt2: (dt: Date) => {
-    const p = dtFormatToParts(dt);
-    return `${p.day} ${p.month} ${p.year}, ${p.hour}:${p.minute}:${p.second}`;
-  },
-  duration: (ms: number | undefined | null) => {
-    if (ms === undefined || ms === null) {
-      return EmptyToken;
-    }
-    return humanizeDuration(ms);
-  },
-  auto: (value: any) => {
-    if (typeof value === "number") {
-      return Render.number(value);
-    }
-    if (typeof value === "boolean") {
-      return Render.boolFmt2(value);
-    }
-    return Render.str(value);
-  },
-};

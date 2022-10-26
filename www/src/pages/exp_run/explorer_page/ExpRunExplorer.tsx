@@ -1,12 +1,7 @@
+import { EmptyToken, Render, TableComponent } from "components/table";
 import { TableColumn } from "components/table/Columns";
-import {
-  EmptyToken,
-  Render,
-  TableComponent,
-} from "components/table/TableComponent";
 import filesize from "filesize";
 import { InternalLink } from "gena-app";
-import { toJS } from "mobx";
 import { observer } from "mobx-react";
 import {
   Experiment,
@@ -144,22 +139,44 @@ export const ExperimentRunExplorer = observer(
       <div>
         <TableComponent
           selectRows={true}
+          rowKey="id"
+          infiniteScroll={true}
           toolbar={{
             filter: true,
             filterArgs: {
               value: "isDeleted=false",
             },
           }}
+          defaultPageSize={15}
           scroll={{ x: "max-content" }}
-          query={async (limit, offset, conditions, sortedBy) => {
-            let res = await expRunStore.fetchByExp(
-              exp,
-              offset,
-              limit,
-              conditions,
-              sortedBy
-            );
-            return res;
+          store={{
+            query: async (limit, offset, conditions, sortedBy) => {
+              let res = await expRunStore.fetchByExp(
+                exp,
+                offset,
+                limit,
+                conditions,
+                sortedBy
+              );
+              return res;
+            },
+            remove: async (records) => {
+              await Promise.all(
+                records.map((r) => {
+                  r.isDeleted = true;
+                  expRunStore.update(r);
+                })
+              );
+            },
+            restore: async (records) => {
+              await Promise.all(
+                records.map((r) => {
+                  r.isDeleted = false;
+                  expRunStore.update(r);
+                })
+              );
+            },
+            isDeleted: (record) => record.isDeleted,
           }}
           restoreColumnState={async () => {
             let res = await expRunViewStore.fetchByExp(exp);

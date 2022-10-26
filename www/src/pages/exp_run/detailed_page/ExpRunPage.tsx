@@ -6,7 +6,7 @@ import {
 } from "@ant-design/icons";
 import { makeStyles } from "@mui/styles";
 import { Tabs, Tag, Typography } from "antd";
-import { Render } from "components/table/TableComponent";
+import { Render } from "components/table";
 import { LoadingComponent, NotFoundComponent } from "gena-app";
 import { observer } from "mobx-react";
 import { useEffect } from "react";

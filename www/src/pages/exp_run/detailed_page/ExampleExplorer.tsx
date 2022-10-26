@@ -1,12 +1,11 @@
-import { ProColumns } from "@ant-design/pro-table";
 import { Tabs } from "antd";
-import { Render, TableComponent } from "components/table/TableComponent";
+import { Render, TableComponent } from "components/table";
+import { TableColumn } from "components/table/Columns";
 import { observer } from "mobx-react";
 import { ExperimentRun, useStores } from "models";
 import { NestedPrimitiveData } from "models/experiments";
 import { ExampleData } from "models/experiments/ExperimentRunData";
 import { PyObjectComponent } from "./pyobjects/PyObject";
-import { TableColumn } from "components/table/Columns";
 
 const defaultColumns: TableColumn<ExampleData>[] = [
   {
@@ -50,31 +49,36 @@ export const ExampleExplorer = observer(
     return (
       <TableComponent
         selectRows={false}
+        rowKey="id"
         scroll={{ x: "max-content" }}
-        query={async (limit, offset, conditions, sortedBy) => {
-          await expRunStore.fetchExpRunData(
-            expRun,
-            {
-              aggregated: {},
-              individual: {
-                primitive: true,
-                complex: true,
+        store={{
+          query: async (limit, offset, conditions, sortedBy) => {
+            await expRunStore.fetchExpRunData(
+              expRun,
+              {
+                aggregated: {},
+                individual: {
+                  primitive: true,
+                  complex: true,
+                },
               },
-            },
-            limit,
-            offset,
-            sortedBy.length > 0 ? sortedBy[0] : undefined
-          );
+              limit,
+              offset,
+              sortedBy.length > 0 ? sortedBy[0] : undefined
+            );
 
-          let records: ExampleData[] = [];
-          expRun.dataTracker.individual.primitive.keys.forEach((exampleId) => {
-            records.push(expRun.data.individual.get(exampleId)!);
-          });
+            let records: ExampleData[] = [];
+            expRun.dataTracker.individual.primitive.keys.forEach(
+              (exampleId) => {
+                records.push(expRun.data.individual.get(exampleId)!);
+              }
+            );
 
-          return {
-            records,
-            total: expRun.dataTracker.individual.primitive.total,
-          };
+            return {
+              records,
+              total: expRun.dataTracker.individual.primitive.total,
+            };
+          },
         }}
         columns={columns}
         expandable={{

@@ -1,6 +1,6 @@
 import { makeStyles } from "@mui/styles";
 import { Col, Row, Space, Table, Typography } from "antd";
-import { dtFormatToParts, Render } from "components/table/TableComponent";
+import { dtFormatToParts, Render } from "components/table";
 import { InfoCard } from "components/cards/InfoCard";
 import { ExperimentRun, NestedPrimitiveDataSchema } from "models";
 import { useEffect, useState } from "react";
