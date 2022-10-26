@@ -1,6 +1,6 @@
 {
   "name": "osin",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "private": true,
   "dependencies": {
     "@ant-design/colors": "^6.0.0",
@@ -28,7 +28,7 @@
     "axios": "^0.27.2",
     "filesize": "^9.0.11",
     "fuse.js": "^6.4.6",
-    "gena-app": "^4.0.0",
+    "gena-app": "^4.0.1",
     "humanize-duration": "^3.27.3",
     "hyphenation.en-us": "^0.2.1",
     "lodash": "^4.17.21",
@@ -36,6 +36,8 @@
     "mobx": "^6.3.3",
     "mobx-react": "^7.2.0",
     "react": "^17.0.2",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^17.0.2",
     "react-hotkeys-hook": "^3.4.0",
     "react-router-dom": "^5.3.0",

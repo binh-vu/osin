@@ -11,10 +11,12 @@ import {
   NestedPrimitiveData,
 } from "./experiments";
 import { toJS } from "mobx";
+import { ExpRunView, ExpRunViewStore } from "./views";
 
 export const stores = {
   expStore: new ExperimentStore(),
   expRunStore: new ExperimentRunStore(),
+  expRunViewStore: new ExpRunViewStore(),
 };
 
 registerDefaultAxiosErrorHandler((error) => {
@@ -41,6 +43,8 @@ export {
   ExperimentStore,
   ExperimentRun,
   ExperimentRunStore,
+  ExpRunView,
+  ExpRunViewStore,
   PyObjectType,
   NestedPrimitiveDataSchema,
 };

@@ -10,7 +10,7 @@ from osin.repository import OsinRepository
 import h5py
 
 exp_bp = generate_api(Exp)
-exp_run_bp = generate_api(
+exprun_bp = generate_api(
     ExpRun,
     deserializers={
         "params": orjson.loads,
@@ -21,7 +21,7 @@ exp_run_bp = generate_api(
 )
 
 
-@exp_run_bp.route(f"/{exp_run_bp.name}/activity", methods=["GET"])
+@exprun_bp.route(f"/{exprun_bp.name}/activity", methods=["GET"])
 def run_activity():
     if "since" in request.args:
         try:
@@ -44,7 +44,7 @@ def run_activity():
     return jsonify([{"count": r.n_runs, "date": r.day} for r in query])
 
 
-@exp_run_bp.route(f"/{exp_run_bp.name}/<id>/data", methods=["GET"])
+@exprun_bp.route(f"/{exprun_bp.name}/<id>/data", methods=["GET"])
 def fetch_exp_run_data(id: int):
     try:
         exp_run: ExpRun = ExpRun.get_by_id(id)

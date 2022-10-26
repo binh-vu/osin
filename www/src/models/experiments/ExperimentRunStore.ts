@@ -1,8 +1,13 @@
 import axios from "axios";
-import { FetchResult, SimpleCRUDStore, SingleKeyIndex } from "gena-app";
+import {
+  FetchResult,
+  QueryConditions,
+  SimpleCRUDStore,
+  SingleKeyIndex,
+} from "gena-app";
 import { action, flow, makeObservable, observable } from "mobx";
 import { CancellablePromise } from "mobx/dist/api/flow";
-import { SERVER } from "../../env";
+import { SERVER } from "env";
 import { Experiment } from "./Experiment";
 import { ExperimentRun } from "./ExperimentRun";
 import {
@@ -58,6 +63,7 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
     exp: Experiment,
     start: number,
     no: number,
+    conditions: QueryConditions<ExperimentRun>,
     sortedBy?:
       | {
           field: keyof ExperimentRun;
@@ -72,6 +78,7 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
     exp: Experiment,
     start: number,
     no: number,
+    conditions: QueryConditions<ExperimentRun>,
     sortedBy?:
       | {
           field: keyof ExperimentRun;
@@ -90,7 +97,7 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
     const result: FetchResult<ExperimentRun> = yield this.fetch({
       limit: no,
       offset: start,
-      conditions: { exp: exp.id },
+      conditions: { ...conditions, exp: exp.id },
       sortedBy,
     });
     this.noRunsOfExperiment[exp.id] = result.total;
@@ -105,8 +112,7 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
     },
     limit: number,
     offset: number,
-    sortedBy?: string,
-    sortedOrder?: "asc" | "desc"
+    sortedBy?: { field: string; order: "asc" | "desc" }
   ) => CancellablePromise<void> = flow(function* (
     this: ExperimentRunStore,
     exp: ExperimentRun,
@@ -116,9 +122,12 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
     },
     limit: number,
     offset: number,
-    sortedBy?: string,
-    sortedOrder?: "asc" | "desc"
+    sortedBy?: { field: string; order: "asc" | "desc" }
   ) {
+    let sortedBy_ =
+      sortedBy === undefined
+        ? { field: undefined, order: undefined }
+        : sortedBy;
     let _fields = [];
     if (fields.aggregated.primitive) {
       _fields.push("aggregated.primitive");
@@ -142,10 +151,10 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
           limit,
           offset,
           sorted_by:
-            sortedBy !== undefined
-              ? sortedOrder === "desc"
-                ? "-" + sortedBy
-                : sortedBy
+            sortedBy_.field !== undefined
+              ? sortedBy_.order === "desc"
+                ? "-" + sortedBy_.field
+                : sortedBy_.field
               : undefined,
         },
       });
@@ -177,8 +186,8 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
       }
 
       if (
-        sortedBy === exp.dataTracker.individual.primitive.sortedBy &&
-        sortedOrder === exp.dataTracker.individual.primitive.sortedOrder
+        sortedBy_.field === exp.dataTracker.individual.primitive.sortedBy &&
+        sortedBy_.order === exp.dataTracker.individual.primitive.sortedOrder
       ) {
         // sharing the same sortedBy and sortedOrder
         // we can check if we can extend the range
@@ -224,8 +233,8 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
         // we can't extend the range, and have to reset it
         exp.dataTracker.individual.primitive.start = start;
         exp.dataTracker.individual.primitive.end = end;
-        exp.dataTracker.individual.primitive.sortedBy = sortedBy;
-        exp.dataTracker.individual.primitive.sortedOrder = sortedOrder;
+        exp.dataTracker.individual.primitive.sortedBy = sortedBy_.field;
+        exp.dataTracker.individual.primitive.sortedOrder = sortedBy_.order;
         exp.dataTracker.individual.primitive.keys = resp.data.individual.map(
           (example: ExampleData) => example.id
         );
@@ -246,8 +255,8 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
       }
 
       if (
-        sortedBy === exp.dataTracker.individual.complex.sortedBy &&
-        sortedOrder === exp.dataTracker.individual.complex.sortedOrder
+        sortedBy_.field === exp.dataTracker.individual.complex.sortedBy &&
+        sortedBy_.order === exp.dataTracker.individual.complex.sortedOrder
       ) {
         // sharing the same sortedBy and sortedOrder
         // we can check if we can extend the range
@@ -295,8 +304,8 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
         // we can't extend the range, and have to reset it
         exp.dataTracker.individual.complex.start = start;
         exp.dataTracker.individual.complex.end = end;
-        exp.dataTracker.individual.complex.sortedBy = sortedBy;
-        exp.dataTracker.individual.complex.sortedOrder = sortedOrder;
+        exp.dataTracker.individual.complex.sortedBy = sortedBy_.field;
+        exp.dataTracker.individual.complex.sortedOrder = sortedBy_.order;
         exp.dataTracker.individual.complex.keys = resp.data.individual.map(
           (example: ExampleData) => example.id
         );

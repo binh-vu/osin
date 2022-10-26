@@ -1,15 +1,16 @@
 import { ProColumns } from "@ant-design/pro-table";
 import { Tabs } from "antd";
-import { Render, TableComponent } from "components/TableComponent";
+import { Render, TableComponent } from "components/table/TableComponent";
 import { observer } from "mobx-react";
 import { ExperimentRun, useStores } from "models";
 import { NestedPrimitiveData } from "models/experiments";
 import { ExampleData } from "models/experiments/ExperimentRunData";
 import { PyObjectComponent } from "./pyobjects/PyObject";
-import { toJS } from "mobx";
+import { TableColumn } from "components/table/Columns";
 
-const defaultColumns: ProColumns[] = [
+const defaultColumns: TableColumn<ExampleData>[] = [
   {
+    key: "id",
     dataIndex: "id",
     title: "Example",
     width: "max-content",
@@ -17,6 +18,7 @@ const defaultColumns: ProColumns[] = [
     sorter: true,
   },
   {
+    key: "name",
     dataIndex: "name",
     title: "Name",
     width: "max-content",
@@ -49,18 +51,7 @@ export const ExampleExplorer = observer(
       <TableComponent
         selectRows={false}
         scroll={{ x: "max-content" }}
-        query={async (limit, offset, sort) => {
-          const sortEntries = Object.entries(sort).filter(
-            (entries) => entries[1] !== null
-          );
-          let sortedBy = undefined;
-          let sortedOrder: "desc" | "asc" | undefined = undefined;
-
-          if (sortEntries.length > 0) {
-            sortedBy = sortEntries[0][0].replaceAll(",", ".");
-            sortedOrder = sortEntries[0][1] === "descend" ? "desc" : "asc";
-          }
-
+        query={async (limit, offset, conditions, sortedBy) => {
           await expRunStore.fetchExpRunData(
             expRun,
             {
@@ -72,8 +63,7 @@ export const ExampleExplorer = observer(
             },
             limit,
             offset,
-            sortedBy,
-            sortedOrder
+            sortedBy.length > 0 ? sortedBy[0] : undefined
           );
 
           let records: ExampleData[] = [];
@@ -116,16 +106,19 @@ export const data2columns = (
   title: string,
   path: string[],
   data: NestedPrimitiveData
-) => {
+): TableColumn<ExampleData> => {
   return {
+    key: path.join("."),
     title,
-    children: Object.entries(data).map(([key, value]): any => {
+    children: Object.entries(data).map(([key, value]) => {
+      let childpath = path.concat([key]);
       if (typeof value === "object" && value !== null) {
-        return data2columns(key, path.concat([key]), value);
+        return data2columns(key, childpath, value);
       }
       return {
         title: key,
-        dataIndex: path.concat([key]),
+        key: childpath.join("."),
+        dataIndex: childpath,
         sorter: true,
         render:
           typeof value === "number"

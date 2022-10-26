@@ -1,4 +1,4 @@
-import { Render, TableComponent } from "components/TableComponent";
+import { Render, TableComponent } from "components/table/TableComponent";
 import { PyObject } from "models/experiments/ExperimentRunData";
 
 export const PyObjectTable = ({ object }: { object: PyObject }) => {
@@ -8,6 +8,7 @@ export const PyObjectTable = ({ object }: { object: PyObject }) => {
       : Object.keys(object.rows[0]).map((column) => {
           return {
             title: column,
+            key: `row.${column}`,
             dataIndex: ["row", column],
             render: Render.auto as any,
           };
@@ -15,7 +16,6 @@ export const PyObjectTable = ({ object }: { object: PyObject }) => {
 
   return (
     <TableComponent
-      toolBarRender={false}
       query={async (limit, offset) => {
         return {
           records: object.rows

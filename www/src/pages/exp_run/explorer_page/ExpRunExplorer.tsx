@@ -1,14 +1,26 @@
-import { ProColumns } from "@ant-design/pro-table";
+import { TableColumn } from "components/table/Columns";
+import {
+  EmptyToken,
+  Render,
+  TableComponent,
+} from "components/table/TableComponent";
 import filesize from "filesize";
 import { InternalLink } from "gena-app";
+import { toJS } from "mobx";
 import { observer } from "mobx-react";
-import { TableComponent, Render } from "../../../components/TableComponent";
-import { Experiment, ExperimentRun, useStores } from "../../../models";
-import { NestedPrimitiveDataSchema } from "models";
-import { routes } from "../../../routes";
+import {
+  Experiment,
+  ExperimentRun,
+  ExpRunView,
+  NestedPrimitiveDataSchema,
+  PyObjectType,
+  useStores,
+} from "models";
+import { routes } from "routes";
 
-const defaultColumns: ProColumns[] = [
+const defaultColumns: TableColumn<ExperimentRun>[] = [
   {
+    key: "id",
     dataIndex: "id",
     title: "Name",
     width: "max-content",
@@ -28,54 +40,88 @@ const defaultColumns: ProColumns[] = [
     defaultSortOrder: "descend",
   },
   {
+    key: "createdTime",
     dataIndex: "createdTime",
     title: "Started at",
     render: Render.datetimeFmt1 as any,
   },
   {
+    key: "duration",
     dataIndex: "duration",
     title: "Duration",
     render: Render.duration as any,
   },
   {
+    key: "isFinished",
     dataIndex: "isFinished",
-    title: <abbr title="is finished">F</abbr>,
+    title: <abbr title="Is finished">F</abbr>,
     render: Render.boolFmt1 as any,
+    filters: [
+      { text: "Running", value: false },
+      {
+        text: "Finished",
+        value: true,
+      },
+    ],
   },
   {
+    key: "isSuccessful",
     dataIndex: "isSuccessful",
-    title: <abbr title="is succesful">S</abbr>,
+    title: <abbr title="Is succesful">S</abbr>,
     render: Render.boolFmt1 as any,
+    filters: [
+      { text: "Failed", value: false },
+      {
+        text: "Succeeded",
+        value: true,
+      },
+    ],
   },
   {
+    key: "isDeleted",
     dataIndex: "isDeleted",
-    title: <abbr title="is deleted">D</abbr>,
+    title: <abbr title="Is deleted">D</abbr>,
     render: Render.boolFmt3Reverse as any,
+    filters: [
+      {
+        text: "Not deleted",
+        value: false,
+      },
+      { text: "Deleted", value: true },
+    ],
+    defaultFilteredValue: [false],
   },
 ];
 
 export const ExperimentRunExplorer = observer(
   ({ exp }: { exp: Experiment }) => {
-    const { expRunStore } = useStores();
+    const { expRunStore, expRunViewStore } = useStores();
 
     let columns = defaultColumns.concat([
+      schema2columns("Parameters", ["params"], exp.params),
       schema2columns(
         "Data",
         ["data", "aggregated", "primitive"],
         exp.aggregatedPrimitiveOutputs
       ),
       {
+        key: "metadata",
         title: "System Metrics",
         children: [
           {
+            key: "metadata.n_cpus",
             title: "CPUs",
             dataIndex: ["metadata", "n_cpus"],
             render: Render.str,
           },
           {
+            key: "metadata.memory_usage",
             title: "Memory Usage",
             dataIndex: ["metadata", "memory_usage"],
-            render: ((value: number) => {
+            render: ((value: number | null) => {
+              if (value === null) {
+                return EmptyToken;
+              }
               if (isNaN(value)) {
                 return value.toString();
               }
@@ -86,6 +132,7 @@ export const ExperimentRunExplorer = observer(
             }) as any,
           },
           {
+            key: "metadata.hostname",
             title: "Hostname",
             dataIndex: ["metadata", "hostname"],
             render: Render.str,
@@ -93,33 +140,45 @@ export const ExperimentRunExplorer = observer(
         ],
       },
     ]);
-
     return (
-      <TableComponent
-        selectRows={true}
-        scroll={{ x: "max-content" }}
-        query={async (limit, offset, sort) => {
-          const sortEntries = Object.entries(sort).filter(
-            (entries) => entries[1] !== null
-          );
-
-          let sortedBy:
-            | undefined
-            | { field: keyof ExperimentRun; order: "asc" | "desc" } = undefined;
-
-          if (sortEntries.length > 0) {
-            sortedBy = {
-              field: sortEntries[0][0]
-                .replaceAll(",", ".")
-                .replace("data.", "") as keyof ExperimentRun,
-              order: sortEntries[0][1] === "descend" ? "desc" : "asc",
-            };
-          }
-          let res = await expRunStore.fetchByExp(exp, offset, limit, sortedBy);
-          return res;
-        }}
-        columns={columns}
-      />
+      <div>
+        <TableComponent
+          selectRows={true}
+          toolbar={{
+            filter: true,
+            filterArgs: {
+              value: "isDeleted=false",
+            },
+          }}
+          scroll={{ x: "max-content" }}
+          query={async (limit, offset, conditions, sortedBy) => {
+            let res = await expRunStore.fetchByExp(
+              exp,
+              offset,
+              limit,
+              conditions,
+              sortedBy
+            );
+            return res;
+          }}
+          restoreColumnState={async () => {
+            let res = await expRunViewStore.fetchByExp(exp);
+            return res === undefined ? [] : res.config.columns;
+          }}
+          saveColumnState={async (columns) => {
+            let res = await expRunViewStore.fetchByExp(exp);
+            if (res === undefined) {
+              await expRunViewStore.create(
+                new ExpRunView(-1, exp.id, { columns })
+              );
+            } else {
+              res.config.columns = columns;
+              expRunViewStore.update(res);
+            }
+          }}
+          columns={columns}
+        />
+      </div>
     );
   }
 );
@@ -127,17 +186,28 @@ export const ExperimentRunExplorer = observer(
 export const schema2columns = (
   title: string,
   path: string[],
-  schema: NestedPrimitiveDataSchema
-) => {
+  schema: NestedPrimitiveDataSchema | { [key: string]: PyObjectType }
+): TableColumn<ExperimentRun> => {
+  let childit;
+  if (schema instanceof NestedPrimitiveDataSchema) {
+    childit = Object.entries(schema.schema);
+  } else {
+    childit = Object.entries(schema);
+  }
+
   return {
+    key: path.join("."),
     title,
-    children: Object.entries(schema.schema).map(([key, value]): any => {
+    dataIndex: path,
+    children: childit.map(([key, value]): any => {
+      let childpath = path.concat([key]);
       if (value instanceof NestedPrimitiveDataSchema) {
-        return schema2columns(key, path.concat([key]), value);
+        return schema2columns(key, childpath, value);
       }
       return {
         title: key,
-        dataIndex: path.concat([key]),
+        key: childpath.join("."),
+        dataIndex: childpath,
         render: value.isNumber()
           ? Render.number
           : value.isBoolean()

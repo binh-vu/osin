@@ -2,15 +2,17 @@ import os
 from gena import generate_api, generate_app, generate_readonly_api_4dict
 
 from osin.controllers.dashboard import dashboard_bp
-from osin.controllers.exp import exp_bp, exp_run_bp
+from osin.controllers.exp import exp_bp, exprun_bp
 from osin.controllers.report import report_bp
+from osin.controllers.views import exprunview_bp
 
 app = generate_app(
     [
         dashboard_bp,
         report_bp,
         exp_bp,
-        exp_run_bp,
+        exprun_bp,
+        exprunview_bp,
     ],
     os.path.dirname(__file__),
     log_sql_queries=False,

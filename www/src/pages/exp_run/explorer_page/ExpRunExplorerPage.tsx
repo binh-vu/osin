@@ -1,20 +1,15 @@
-import { ProColumns } from "@ant-design/pro-table";
 import { makeStyles } from "@mui/styles";
-import { Divider, Space, Tag, Typography } from "antd";
+import { Divider, Tag, Typography } from "antd";
 import { InternalLink, LoadingComponent, NotFoundComponent } from "gena-app";
 import { observer } from "mobx-react";
 import { useEffect } from "react";
-import { TableComponent } from "../../../components/TableComponent";
-import { Experiment, ExperimentRun, useStores } from "../../../models";
+import { useStores } from "../../../models";
 import { routes } from "../../../routes";
-import humanizeDuration from "humanize-duration";
-import filesize from "filesize";
-import { NestedPrimitiveDataSchema } from "../../../models/experiments";
 import { ExperimentRunExplorer } from "./ExpRunExplorer";
 
 const useStyles = makeStyles({
   divider: {
-    margin: "12px 0px",
+    margin: "12px 0px 0px",
   },
 });
 
@@ -45,7 +40,7 @@ export const ExpRunExplorerPage = observer(() => {
           path={routes.expSetup}
           urlArgs={{ expId: exp.id }}
           queryArgs={{}}
-          style={{ textTransform: "uppercase", fontWeight: 600 }}
+          style={{ fontWeight: 600 }}
         >
           {exp.name}
         </InternalLink>
