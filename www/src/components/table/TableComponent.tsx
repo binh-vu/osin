@@ -199,8 +199,11 @@ export const TableComponent_ = <R extends object>(
     let sortedBy = [];
     for (const item of sorter) {
       if (item.field !== undefined && item.order !== undefined) {
+        const field = Array.isArray(item.field)
+          ? item.field.join(".")
+          : item.field.toString();
         sortedBy.push({
-          field: item.field as keyof R,
+          field: field as keyof R,
           order: (item.order === "ascend" ? "asc" : "desc") as "asc" | "desc",
         });
       }

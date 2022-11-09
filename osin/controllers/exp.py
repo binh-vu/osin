@@ -48,6 +48,7 @@ def run_activity():
 
 @exprun_bp.route(f"/{exprun_bp.name}/<id>/data", methods=["GET"])
 def fetch_exp_run_data(id: int):
+    """Fetch the experiment run data"""
     try:
         exp_run: ExpRun = ExpRun.get_by_id(id)
     except DoesNotExist:

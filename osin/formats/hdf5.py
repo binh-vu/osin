@@ -67,7 +67,16 @@ class Hdf5Format:
         sorted_by: Optional[str] = None,
         sorted_order: Literal["ascending", "descending"] = "ascending",
     ) -> Tuple[ExpRunData, int]:
-        """Load experiment run data from a file."""
+        """Load experiment run data from a file.
+
+        Args:
+            infile: The file to load from
+            fields: A dictionary of fields to load. If None, load all fields
+            limit: The maximum number of individual records to load. If -1, load all records. Only apply to `individual` property
+            offset: The offset to start loading from. Only apply to `individual` property
+            sorted_by: The field to sort by. Only apply to `individual` property. Support either: id, name, or `data.<nested_field>` where `nested_field` is a field in the primitive or complex object
+            sorted_order: The order to sort by. Only apply to `individual` property
+        """
         if fields is None:
             fields = {
                 "aggregated": {"primitive", "complex"},
