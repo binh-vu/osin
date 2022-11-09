@@ -21,7 +21,7 @@ import React, {
 } from "react";
 import { ColumnConfig, TableColumn, TableColumnIndex } from "./Columns";
 import { TableToolbar } from "./TableToolBar";
-
+import { unstable_batchedUpdates } from "react-dom";
 import { VariableSizeGrid as Grid } from "react-window";
 
 const useStyles = makeStyles({
@@ -224,8 +224,12 @@ export const TableComponent_ = <R extends object>(
     return store
       .query(limit, offset, conditions, sortedBy)
       .then(({ records, total }) => {
-        setData(records);
-        setPagination({ ...paging, total });
+        // to prevent that data and pagination is out-of-sync.
+        // react 18 will fix this issue
+        unstable_batchedUpdates(() => {
+          setData(records);
+          setPagination({ ...paging, total });
+        });
       });
   };
   useImperativeHandle(ref, () => func);
