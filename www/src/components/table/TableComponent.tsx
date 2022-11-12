@@ -19,10 +19,9 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { unstable_batchedUpdates } from "react-dom";
 import { ColumnConfig, TableColumn, TableColumnIndex } from "./Columns";
 import { TableToolbar } from "./TableToolBar";
-import { unstable_batchedUpdates } from "react-dom";
-import { VariableSizeGrid as Grid } from "react-window";
 
 const useStyles = makeStyles({
   table: {

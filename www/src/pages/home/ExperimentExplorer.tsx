@@ -1,10 +1,11 @@
 import { makeStyles } from "@mui/styles";
-import { Card, Col, Row, Tag } from "antd";
+import { Card, Col, Dropdown, Row, Tag } from "antd";
 import { InternalLink } from "gena-app";
 import { observer } from "mobx-react";
 import { useEffect, useState } from "react";
-import { useStores } from "../../models";
-import { routes } from "../../routes";
+import { Experiment, useStores } from "models";
+import { routes } from "routes";
+import { unstable_batchedUpdates } from "react-dom";
 
 const useStyles = makeStyles({
   card: {
@@ -23,25 +24,83 @@ const useStyles = makeStyles({
       borderRight: "1px solid #ddd",
     },
   },
+  row: {
+    marginBottom: 16,
+  },
 });
 
 export const ExperimentExplorer = observer(
   ({ setNoExps }: { setNoExps: (n: number) => void }) => {
     const classes = useStyles();
     const { expStore } = useStores();
+    const [groupedExps, setGroupedExps] = useState<{
+      [name: string]: Experiment[];
+    }>({});
+    const [selectedVersion, setSelectedVersion] = useState<{
+      [name: string]: number;
+    }>({});
 
     useEffect(() => {
-      expStore.fetch({ limit: 1000, offset: 0 }).then((res) => {
-        setNoExps(res.total);
-      });
+      expStore
+        .fetch({ limit: 1000, offset: 0, groupBy: ["name"] })
+        .then((res) => {
+          setNoExps(res.total);
+          let exps: { [name: string]: Experiment[] } = {};
+          res.records.forEach((exp) => {
+            if (exps[exp.name] === undefined) {
+              exps[exp.name] = [];
+            }
+            exps[exp.name].push(exp);
+          });
+
+          Object.values(exps).forEach((records) => {
+            records.sort((a, b) => b.version - a.version);
+          });
+
+          unstable_batchedUpdates(() => {
+            setGroupedExps(exps);
+            setSelectedVersion(
+              Object.fromEntries(
+                Object.values(exps).map((e) => {
+                  return [e[0].name, e[0].version];
+                })
+              )
+            );
+          });
+        });
     }, [expStore]);
 
     let grid: JSX.Element[] = [];
     let row: JSX.Element[] = [];
     const nColumns = 4;
 
-    expStore.records.forEach((exp) => {
-      if (exp === null) return;
+    Object.values(groupedExps).forEach((exps) => {
+      let version = selectedVersion[exps[0].name];
+      let exp = exps.filter((e) => e.version === version)[0];
+      let versions;
+
+      if (exps.length > 1) {
+        versions = (
+          <Dropdown
+            menu={{
+              items: exps.map((e) => ({
+                label: `VERSION ${e.version}`,
+                key: `${e.id}`,
+              })),
+              onClick: (e) => {
+                let version = expStore.get(parseInt(e.key))!.version;
+                setSelectedVersion(
+                  Object.assign({}, selectedVersion, { [exp.name]: version })
+                );
+              },
+            }}
+          >
+            <Tag color="blue">VERSION {version}</Tag>
+          </Dropdown>
+        );
+      } else {
+        versions = <Tag color="blue">VERSION {version}</Tag>;
+      }
 
       row.push(
         <Col className="gutter-row" span={6} key={exp.id}>
@@ -63,7 +122,7 @@ export const ExperimentExplorer = observer(
                 View runs
               </InternalLink>,
             ]}
-            extra={<Tag color="blue">VERSION {exp.version}</Tag>}
+            extra={versions}
             title={exp.name}
             size="small"
           >
@@ -74,7 +133,7 @@ export const ExperimentExplorer = observer(
 
       if (row.length === nColumns) {
         grid.push(
-          <Row gutter={16} key={grid.length}>
+          <Row gutter={16} key={grid.length} className={classes.row}>
             {row}
           </Row>
         );

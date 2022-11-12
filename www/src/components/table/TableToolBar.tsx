@@ -1,19 +1,19 @@
 import {
+  CloudDownloadOutlined,
+  CloudUploadOutlined,
   ColumnHeightOutlined,
   DeleteColumnOutlined,
-  ReloadOutlined,
-  UndoOutlined,
-  CloudUploadOutlined,
-  CloudDownloadOutlined,
   DeleteOutlined,
+  ReloadOutlined,
   RestOutlined,
+  UndoOutlined,
 } from "@ant-design/icons";
 import { makeStyles } from "@mui/styles";
-import { Button, Dropdown, Menu, Modal, Space } from "antd";
+import { Button, Dropdown, Modal, Space } from "antd";
 import { useState } from "react";
 import { FilterForm, FilterFormProps } from "../FilterForm";
 import { TableColumnManagement } from "./ColumnManagement";
-import { ColumnConfig, TableColumnIndex } from "./Columns";
+import { ColumnConfig } from "./Columns";
 import { TableComponentFunc } from "./TableComponent";
 
 const useStyles = makeStyles({
@@ -136,21 +136,19 @@ export const TableToolbar = <R,>({
           <DeleteColumnOutlined /> Manage Columns
         </Button>
         <Dropdown
-          overlay={
-            <Menu
-              items={[
-                { key: "small", label: "Small" },
-                { key: "middle", label: "Middle" },
-                { key: "large", label: "Large" },
-              ]}
-              selectedKeys={[table.currentTableSize()]}
-              onClick={({ key }) => {
-                table.changeTableSize(
-                  key as unknown as "small" | "middle" | "large"
-                );
-              }}
-            />
-          }
+          menu={{
+            items: [
+              { key: "small", label: "Small" },
+              { key: "middle", label: "Middle" },
+              { key: "large", label: "Large" },
+            ],
+            selectedKeys: [table.currentTableSize()],
+            onClick: ({ key }) => {
+              table.changeTableSize(
+                key as unknown as "small" | "middle" | "large"
+              );
+            },
+          }}
         >
           <Button type="text" size="middle">
             <ColumnHeightOutlined />

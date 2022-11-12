@@ -94,7 +94,7 @@ export class TableColumnIndex<R> {
         throw new Error(`Duplicate column key: ${col.key}`);
       }
       key2column[col.key] = flattenColumns.length;
-      let { children, ...flattenColumn } = col;
+      let { children: _children, ...flattenColumn } = col;
       flattenColumns.push(flattenColumn);
 
       if (col.children !== undefined) {
