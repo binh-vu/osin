@@ -13,6 +13,8 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { ExpRunPage } from "pages/exp_run/detailed_page/ExpRunPage";
 import { ExpRunExplorerPage } from "pages/exp_run/explorer_page/ExpRunExplorerPage";
+import { ReportPage } from "pages/reports/ReportPage";
+import { UpsertReportPage } from "pages/reports/UpsertReportPage";
 
 /*************************************************************************************
  * Layouts of the application
@@ -59,6 +61,8 @@ export const Layout = (
               home: 0,
               expSetup: 1,
               reports: 1,
+              newreport: 1,
+              updatereport: 1,
               runs: 1,
               run: 1,
             }}
@@ -92,9 +96,21 @@ export const routes = {
     exact: true,
   }),
   reports: new NoQueryArgsPathDef({
-    component: None,
+    component: ReportPage,
     urlSchema: { expId: "number" },
-    pathDef: "/exps/:expId/report",
+    pathDef: "/exps/:expId/reports",
+    exact: true,
+  }),
+  newreport: new NoQueryArgsPathDef({
+    component: UpsertReportPage,
+    urlSchema: { expId: "number" },
+    pathDef: "/exps/:expId/new-report",
+    exact: true,
+  }),
+  updatereport: new NoQueryArgsPathDef({
+    component: UpsertReportPage,
+    urlSchema: { reportId: "number", expId: "number" },
+    pathDef: "/exps/:expId/update-report/:reportId",
     exact: true,
   }),
   runs: new NoQueryArgsPathDef({

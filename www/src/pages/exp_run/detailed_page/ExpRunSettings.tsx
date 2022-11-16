@@ -11,7 +11,7 @@ export const ExpRunSettings = ({ expRun }: { expRun: ExperimentRun }) => {
 
   const deleteExpRun = () => {
     expRunStore.delete(expRun.id);
-    routes.runs.path({ expId: expRun.exp }).open();
+    routes.runs.path({ expId: expRun.expId }).open();
   };
 
   return (

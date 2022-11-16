@@ -1,7 +1,8 @@
-import { action, computed, makeObservable, observable } from "mobx";
 import { Record } from "gena-app";
+import { makeObservable, observable } from "mobx";
 import { ExperimentRunData, ExpRunDataTracker } from "./ExperimentRunData";
 import { NestedPrimitiveData } from "./NestedPrimitiveType";
+
 export interface Metadata {
   hostname: string;
   n_cpus: number;
@@ -10,7 +11,7 @@ export interface Metadata {
 
 export class ExperimentRun implements Record<number> {
   id: number;
-  exp: number;
+  expId: number;
   isDeleted: boolean;
   isFinished: boolean;
   isSuccessful: boolean;
@@ -23,7 +24,7 @@ export class ExperimentRun implements Record<number> {
 
   public constructor(
     id: number,
-    exp: number,
+    expId: number,
     isDeleted: boolean,
     isFinished: boolean,
     isFailed: boolean,
@@ -35,7 +36,7 @@ export class ExperimentRun implements Record<number> {
     dataTracker: ExpRunDataTracker
   ) {
     this.id = id;
-    this.exp = exp;
+    this.expId = expId;
     this.isDeleted = isDeleted;
     this.isFinished = isFinished;
     this.isSuccessful = isFailed;
@@ -48,7 +49,7 @@ export class ExperimentRun implements Record<number> {
 
     makeObservable(this, {
       id: observable,
-      exp: observable,
+      expId: observable,
       isDeleted: observable,
       isFinished: observable,
       isSuccessful: observable,

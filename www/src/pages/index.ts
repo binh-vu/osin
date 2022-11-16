@@ -1,2 +1,2 @@
 export * from "./home/HomePage";
-export * from "./SettingPage";
+export * from "./reports/SettingPage";

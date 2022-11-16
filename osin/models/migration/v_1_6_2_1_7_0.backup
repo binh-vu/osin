@@ -1,0 +1,25 @@
+"""Migrating database from version 1.6.2 to 1.7.0"""
+
+from __future__ import annotations
+from pathlib import Path
+from playhouse.migrate import *
+from osin.models.report import Report, ExpReport
+from osin.models.base import init_db, db
+
+
+def run(dbfile: Path | str):
+    init_db(dbfile)
+    migrator = SqliteMigrator(db)
+
+    with db.atomic():
+        migrate(
+            migrator.drop_column(Report._meta.table_name, "exp_id"),
+            migrator.drop_column(Report._meta.table_name, "type"),
+            migrator.drop_column(Report._meta.table_name, "dashboard_id"),
+            migrator.add_column(Report._meta.table_name, "args", Report.args),
+        )
+        db.create_tables([ExpReport])
+
+
+if __name__ == "__main__":
+    run("/Users/rook/workspace/sm-dev/data/home/osin-dev/osin.db")

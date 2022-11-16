@@ -28,9 +28,10 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
         isFinished: "is_finished",
         createdTime: "created_time",
         finishedTime: "finished_time",
+        expId: "exp_id",
       },
       false,
-      [new SingleKeyIndex("exp")]
+      [new SingleKeyIndex("expId")]
     );
 
     makeObservable(this, {
@@ -97,7 +98,7 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
     const result: FetchResult<ExperimentRun> = yield this.fetch({
       limit: no,
       offset: start,
-      conditions: { ...conditions, exp: exp.id },
+      conditions: { ...conditions, expId: exp.id },
       sortedBy,
     });
     this.noRunsOfExperiment[exp.id] = result.total;
@@ -331,7 +332,7 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
 
     return new ExperimentRun(
       record.id,
-      record.exp,
+      record.exp_id,
       record.is_deleted,
       record.is_finished,
       record.is_successful,

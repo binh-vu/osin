@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Mapping, Union, MutableMapping
+from typing import Any, Dict, Union, Mapping
 from osin.types.pyobject_type import PRIMITIVE_TYPES, Number, PyObjectType
 
 
 PrimitiveValue = Union[str, int, float, bool, None]
-NestedPrimitiveOutput = Mapping[str, Union[PrimitiveValue, "NestedPrimitiveOutput"]]
+NestedPrimitiveOutput = dict[str, Union[PrimitiveValue, "NestedPrimitiveOutput"]]
 
 
 class InvalidValueType(Exception):

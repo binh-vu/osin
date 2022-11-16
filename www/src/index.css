@@ -38,6 +38,10 @@ body {
   margin-bottom: 16px;
 }
 
+.mt-16 {
+  margin-top: 16px;
+}
+
 .pl-8 {
   padding-left: 8px;
 }

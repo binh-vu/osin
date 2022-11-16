@@ -2,7 +2,7 @@ import { makeStyles } from "@mui/styles";
 import { Card, Col, Dropdown, Row, Tag } from "antd";
 import { InternalLink } from "gena-app";
 import { observer } from "mobx-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Experiment, useStores } from "models";
 import { routes } from "routes";
 import { unstable_batchedUpdates } from "react-dom";
@@ -10,6 +10,7 @@ import { unstable_batchedUpdates } from "react-dom";
 const useStyles = makeStyles({
   card: {
     border: "1px solid #ddd",
+    borderRadius: 4,
     "& .ant-card-head-title": {
       fontSize: 16,
       fontWeight: 500,
@@ -41,33 +42,20 @@ export const ExperimentExplorer = observer(
     }>({});
 
     useEffect(() => {
-      expStore
-        .fetch({ limit: 1000, offset: 0, groupBy: ["name"] })
-        .then((res) => {
-          setNoExps(res.total);
-          let exps: { [name: string]: Experiment[] } = {};
-          res.records.forEach((exp) => {
-            if (exps[exp.name] === undefined) {
-              exps[exp.name] = [];
-            }
-            exps[exp.name].push(exp);
-          });
-
-          Object.values(exps).forEach((records) => {
-            records.sort((a, b) => b.version - a.version);
-          });
-
-          unstable_batchedUpdates(() => {
-            setGroupedExps(exps);
-            setSelectedVersion(
-              Object.fromEntries(
-                Object.values(exps).map((e) => {
-                  return [e[0].name, e[0].version];
-                })
-              )
-            );
-          });
+      expStore.fetchAllExperiments().then(() => {
+        const groupedExps = expStore.groupExperimentsByName();
+        const selectedVersion = Object.values(
+          expStore.groupExperimentsByName()
+        ).map((e) => {
+          return [e[0].name, e[0].version];
         });
+
+        unstable_batchedUpdates(() => {
+          setNoExps(selectedVersion.length);
+          setSelectedVersion(Object.fromEntries(selectedVersion));
+          setGroupedExps(groupedExps);
+        });
+      });
     }, [expStore]);
 
     let grid: JSX.Element[] = [];

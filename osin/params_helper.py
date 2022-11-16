@@ -26,25 +26,6 @@ def are_valid_parameters(
         assert is_dataclass(params), "Parameters must be an instance of a dataclass"
 
 
-def get_param_types(
-    paramss: Union[DataClassInstance, List[DataClassInstance]]
-) -> Dict[str, PyObjectType]:
-    """Derive parameter types from a dataclass or a list of dataclasses"""
-    if not isinstance(paramss, list):
-        paramss = [paramss]
-
-    output = {}
-    for params in paramss:
-        assert is_dataclass(params), "Parameters must be an instance of a dataclass"
-        type_hints = get_type_hints(params.__class__)
-        for name, hint in type_hints.items():
-            if name in output:
-                raise KeyError("Duplicate parameter name: {}".format(name))
-
-            output[name] = PyObjectType.from_type_hint(hint)
-    return output
-
-
 def param_as_dict(param: DataClassInstance) -> dict:
     """Convert a dataclass to a dictionary"""
     if not is_dataclass(param):

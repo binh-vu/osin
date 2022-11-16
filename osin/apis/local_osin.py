@@ -1,28 +1,21 @@
 import atexit
-from datetime import datetime
-import os
-from pathlib import Path
 import shutil
-import socket
+from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Optional, Set, Union
-from loguru import logger
 
-import numpy as np
 import orjson
-from osin.types.primitive_type import validate_primitive_data
-from osin.misc import get_caller_python_script, orjson_dumps
-from osin.types import NestedPrimitiveOutputSchema, PyObject
+from loguru import logger
 from osin.apis.osin import Osin
 from osin.apis.remote_exp import RemoteExp, RemoteExpRun
-from osin.repository import OsinRepository
+from osin.misc import get_caller_python_script, orjson_dumps
 from osin.models.base import init_db
 from osin.models.exp import Exp, ExpRun, NestedPrimitiveOutput, RunMetadata
-from osin.models.exp_data import Record, ExampleData
-from osin.params_helper import (
-    DataClassInstance,
-    get_param_types,
-    param_as_dict,
-)
+from osin.models.exp_data import ExampleData, Record
+from osin.params_helper import DataClassInstance, param_as_dict
+from osin.repository import OsinRepository
+from osin.types import NestedPrimitiveOutputSchema, ParamSchema, PyObject
+from osin.types.primitive_type import validate_primitive_data
 
 
 class LocalOsin(Osin):
@@ -53,7 +46,10 @@ class LocalOsin(Osin):
                 description=description,
                 version=version,
                 program=program or get_caller_python_script(),
-                params=get_param_types(params),
+                params=[
+                    ParamSchema.get_schema(p)
+                    for p in (params if isinstance(params, list) else [params])
+                ],
                 aggregated_primitive_outputs=aggregated_primitive_outputs,
             )
         else:
@@ -71,7 +67,10 @@ class LocalOsin(Osin):
                     description=description,
                     version=version,
                     program=program or get_caller_python_script(),
-                    params=get_param_types(params),
+                    params=[
+                        ParamSchema.get_schema(p)
+                        for p in (params if isinstance(params, list) else [params])
+                    ],
                     aggregated_primitive_outputs=aggregated_primitive_outputs,
                 )
 

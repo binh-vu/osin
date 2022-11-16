@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from datetime import datetime
 import os
 import socket
-from typing import Union, Dict
 from peewee import (
     CharField,
     ForeignKeyField,
@@ -17,8 +16,12 @@ from playhouse.sqlite_ext import JSONField
 import psutil
 from osin.models.base import BaseModel
 from osin.misc import json_dumps
-from gena.custom_fields import DictDataClassField, DataClassField
-from osin.types import PyObjectType, NestedPrimitiveOutput, NestedPrimitiveOutputSchema
+from gena.custom_fields import DataClassField, ListDataClassField
+from osin.types import (
+    NestedPrimitiveOutput,
+    NestedPrimitiveOutputSchema,
+    ParamSchema,
+)
 
 
 @dataclass
@@ -56,7 +59,7 @@ class Exp(BaseModel):
     version: int = IntegerField(null=False)  # type: ignore
     description: str = TextField()  # type: ignore
     program: str = TextField()  # type: ignore
-    params: Dict[str, PyObjectType] = DictDataClassField(PyObjectType)  # type: ignore
+    params: list[ParamSchema] = ListDataClassField(ParamSchema)  # type: ignore
     aggregated_primitive_outputs: NestedPrimitiveOutputSchema = DataClassField(NestedPrimitiveOutputSchema, null=True)  # type: ignore
 
 
@@ -73,3 +76,5 @@ class ExpRun(BaseModel):
     params: dict = JSONField(default={}, json_dumps=json_dumps)  # type: ignore
     metadata: RunMetadata = DataClassField(RunMetadata, null=True)  # type: ignore
     aggregated_primitive_outputs: NestedPrimitiveOutput = JSONField(default={}, json_dumps=json_dumps)  # type: ignore
+
+    exp_id: int

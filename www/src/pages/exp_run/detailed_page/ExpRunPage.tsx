@@ -40,7 +40,7 @@ export const ExpRunPage = observer(() => {
   useEffect(() => {
     expRunStore.fetchById(runId).then((exprun) => {
       if (exprun !== undefined) {
-        expStore.fetchById(exprun.exp);
+        expStore.fetchById(exprun.expId);
       }
     });
   }, [expStore, expRunStore, runId]);
@@ -52,7 +52,7 @@ export const ExpRunPage = observer(() => {
     return <NotFoundComponent />;
   }
 
-  const exp = expStore.get(exprun.exp);
+  const exp = expStore.get(exprun.expId);
   if (exp === undefined) {
     return <LoadingComponent />;
   } else if (exp === null) {

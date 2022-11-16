@@ -22,6 +22,12 @@ def orjson_dumps(obj, **kwargs):
     return orjson.dumps(obj, default=_orjson_default, **kwargs)
 
 
+def assert_not_null(obj):
+    if obj is None:
+        raise ValueError("expect a not-null object")
+    return obj
+
+
 def _orjson_default(obj):
     if isinstance(obj, Path):
         return str(obj)

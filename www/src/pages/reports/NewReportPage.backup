@@ -1,0 +1,515 @@
+import { makeStyles } from "@mui/styles";
+import {
+  Alert,
+  Button,
+  Col,
+  Divider,
+  Input,
+  InputNumber,
+  Row,
+  Select,
+  Space,
+  Tag,
+  Typography,
+} from "antd";
+import { InternalLink, LoadingComponent, NotFoundComponent } from "gena-app";
+import { observer } from "mobx-react";
+import { Experiment, useStores } from "models";
+import { ParamSchema } from "models/experiments";
+import {
+  Axis,
+  COLUMN_MAX_SIZE,
+  EXPNAME_INDEX_FIELD,
+  Index,
+  IndexProperty,
+} from "models/reports";
+import { useEffect, useMemo, useState } from "react";
+import { routes } from "routes";
+
+const useStyles = makeStyles({
+  form: {},
+  divider: {
+    margin: "12px 0px",
+  },
+  card: {
+    border: "1px solid #ddd",
+    "& .ant-card-head-title": {
+      fontSize: 16,
+      fontWeight: 500,
+    },
+    "& .ant-card-actions": {
+      borderTop: "1px solid #ddd",
+    },
+    "& .ant-card-actions a:not(.ant-btn)": {
+      color: "rgba(0, 0, 0, 0.85)",
+    },
+    "& .ant-card-actions > li:not(:last-child)": {
+      borderRight: "1px solid #ddd",
+    },
+  },
+  errormsg: {
+    border: "none",
+    backgroundColor: "transparent",
+    "& .ant-alert-message": {
+      color: "#ff4d4f",
+    },
+  },
+});
+
+type RawIndex = {
+  // whether this index is ExpIndex or Index
+  isExp: boolean;
+  dim?: string;
+  expdim?: { [expId: number]: string };
+  values?: (string | number | boolean)[];
+};
+type Property = "params" | "aggregated_primitive_outputs";
+type Position = {
+  span: number | null;
+  leftoffset: number | null;
+  rightoffset: number | null;
+};
+
+export const NewReportPage = observer(({ reportId }: { reportId?: number }) => {
+  const classes = useStyles();
+  const expId = routes.newreport.useURLParams()!.expId;
+  const { expStore, reportStore } = useStores();
+  const [exps, setExps] = useState<Experiment[]>([]);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [xdims, setXDims] = useState<RawIndex[]>([{ isExp: false }]);
+  const [ydims, setYDims] = useState<RawIndex[]>([{ isExp: false }]);
+  const [zdims, setZDims] = useState<RawIndex[]>([]);
+  const [pos, setPos] = useState<Position>({
+    span: 24,
+    leftoffset: 0,
+    rightoffset: 0,
+  });
+
+  useEffect(() => {
+    expStore.fetchAllExperiments().then(() => {
+      setExps([expStore.get(expId)!]);
+    });
+  }, [expStore, expId]);
+
+  // options to select experiments
+  const expoptions = useMemo(() => {
+    const options = [];
+    for (const exp of expStore.records.values()) {
+      if (exp === null) continue;
+      options.push({
+        label: `${exp.name} (version ${exp.version})`,
+        value: exp.id,
+      });
+    }
+    options.sort((a, b) => -a.label.localeCompare(b.label));
+    return options;
+  }, [expStore.records.size]);
+
+  // change selected experiments
+  const updateSelectedExperiments = (values: number[]) => {
+    if (values.indexOf(expId) === -1) {
+      values.splice(0, 0, expId);
+    }
+    setExps(values.map((id) => expStore.get(id)!));
+  };
+
+  const onSubmit = () => {
+    if (reportId === undefined) {
+      // create a new report
+      let xaxis = new Axis(
+        xdims
+          .map((dim) => buildIndex(dim, "params")!)
+          .filter((x) => x !== undefined)
+      );
+      let yaxis = new Axis(
+        ydims
+          .map((dim) => buildIndex(dim, "params")!)
+          .filter((x) => x !== undefined)
+      );
+      let zvalues = zdims
+        .map((dim) => buildIndex(dim, "aggregated_primitive_outputs")!)
+        .filter((x) => x !== undefined);
+
+      if (
+        xaxis.indices.length !== xdims.length ||
+        yaxis.indices.length !== ydims.length ||
+        zvalues.length !== zdims.length
+      ) {
+        // invalid index values
+        return;
+      }
+
+      reportStore.create({
+        name,
+        description,
+        args: {
+          type: "table",
+          value: {
+            xaxis,
+            yaxis,
+            zvalues,
+          },
+        },
+      });
+    }
+  };
+
+  // position status
+  let posstatus = "";
+  let posmsg = undefined;
+  if (pos.span === null) {
+    posstatus = "span";
+    posmsg = "span must be an integer between 1 and 24";
+  } else if (pos.leftoffset === null) {
+    posstatus = "leftoffset";
+    posmsg = "left offset must be an integer between 0 and 23";
+  } else if (pos.rightoffset === null) {
+    posstatus = "rightoffset";
+    posmsg = "right offset must be an integer between 0 and 23";
+  } else if (pos.span + pos.leftoffset + pos.rightoffset !== COLUMN_MAX_SIZE) {
+    posstatus = "span";
+    posmsg = `span + left offset + right offset must be equal to ${COLUMN_MAX_SIZE}`;
+  }
+
+  const exp = expStore.get(expId);
+  if (exp === undefined) {
+    return <LoadingComponent />;
+  } else if (exp === null) {
+    return <NotFoundComponent />;
+  }
+
+  return (
+    <div className="mr-16 ml-16">
+      <Typography.Title level={5}>NEW REPORT</Typography.Title>
+      <p>
+        <Tag color="blue">VERSION {exp.version}</Tag>
+        <InternalLink
+          path={routes.expSetup}
+          urlArgs={{ expId: exp.id }}
+          queryArgs={{}}
+          style={{ fontWeight: 600 }}
+        >
+          {exp.name}
+        </InternalLink>
+        : {exp.description}
+      </p>
+      <Divider className={classes.divider} />
+      <Space direction="vertical" style={{ width: "100%" }}>
+        <Row>
+          <Col span={24}>
+            <Typography.Title level={5}>Name</Typography.Title>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="enter the report's name"
+            />
+          </Col>
+        </Row>
+        <Row>
+          <Col span={24}>
+            <Typography.Title level={5}>Description</Typography.Title>
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="enter the report's description"
+            />
+          </Col>
+        </Row>
+        <Row>
+          <Col span={24}>
+            <Typography.Title level={5}>Type</Typography.Title>
+            <Select
+              value={"table"}
+              style={{ width: "100%" }}
+              options={[{ label: "Table", value: "table" }]}
+            />
+          </Col>
+        </Row>
+        <Row>
+          <Col span={24}>
+            <Typography.Title level={5}>Experiments</Typography.Title>
+            <Select
+              mode="multiple"
+              style={{ width: "100%" }}
+              options={expoptions}
+              value={exps.map((e) => e.id)}
+              onChange={updateSelectedExperiments}
+            />
+          </Col>
+        </Row>
+        <Row>
+          <Col span={24}>
+            <Typography.Title level={5}>X Axis</Typography.Title>
+            <AxisBuilder
+              exps={exps}
+              dims={xdims}
+              setDims={setXDims}
+              property="params"
+            />
+          </Col>
+        </Row>
+        <Row>
+          <Col span={24}>
+            <Typography.Title level={5}>Y Axis</Typography.Title>
+            <AxisBuilder
+              exps={exps}
+              dims={ydims}
+              setDims={setYDims}
+              property="params"
+            />
+          </Col>
+        </Row>
+        <Row>
+          <Col span={24}>
+            <Typography.Title level={5}>Z Values</Typography.Title>
+            <AxisBuilder
+              exps={exps}
+              dims={zdims}
+              setDims={setZDims}
+              property="aggregated_primitive_outputs"
+              isZValues={true}
+            />
+          </Col>
+        </Row>
+        <Row>
+          <Col span={24}>
+            <Typography.Title level={5}>
+              <Space direction="horizontal">
+                Positions
+                <InputNumber
+                  addonBefore="span"
+                  min={1}
+                  max={COLUMN_MAX_SIZE}
+                  value={pos.span}
+                  size="large"
+                  status={
+                    posstatus === "span" || posstatus === "all" ? "error" : ""
+                  }
+                  onChange={(value) => setPos({ ...pos, span: value! })}
+                />
+                <InputNumber
+                  addonBefore="Left offset"
+                  min={0}
+                  max={COLUMN_MAX_SIZE - 1}
+                  value={pos.leftoffset}
+                  status={
+                    posstatus === "leftoffset" || posstatus === "all"
+                      ? "error"
+                      : ""
+                  }
+                  size="large"
+                  onChange={(value) => setPos({ ...pos, leftoffset: value! })}
+                />
+                <InputNumber
+                  addonBefore="Right offset"
+                  min={0}
+                  max={COLUMN_MAX_SIZE - 1}
+                  value={pos.rightoffset}
+                  size="large"
+                  onChange={(value) => setPos({ ...pos, rightoffset: value! })}
+                  status={
+                    posstatus === "rightoffset" || posstatus === "all"
+                      ? "error"
+                      : ""
+                  }
+                />
+              </Space>
+            </Typography.Title>
+            {posmsg !== undefined && (
+              <Alert
+                className={classes.errormsg}
+                message={posmsg}
+                type="error"
+                showIcon={true}
+              />
+            )}
+          </Col>
+        </Row>
+        <Row>
+          <Col span={24}>
+            <Button type="primary" onClick={onSubmit}>
+              {reportId === undefined ? "Create" : "Update"}
+            </Button>
+          </Col>
+        </Row>
+      </Space>
+    </div>
+  );
+});
+
+export const AxisBuilder = observer(
+  ({
+    exps,
+    dims,
+    setDims,
+    property,
+    isZValues = false,
+  }: {
+    isZValues?: boolean;
+    exps: Experiment[];
+    dims: RawIndex[];
+    setDims: (dims: RawIndex[]) => void;
+    property: Property;
+  }) => {
+    const { reportStore } = useStores();
+    useEffect(() => {
+      if (property === "aggregated_primitive_outputs") return;
+
+      let newdims: RawIndex[] | undefined = undefined;
+      let expIds: number[] = [];
+      const promises: Promise<void>[] = [];
+
+      dims.forEach((dim, i) => {
+        if (dim.dim !== undefined && dim.values === undefined) {
+          console.log(">>>", dim);
+          if (newdims === undefined) {
+            newdims = dims.slice();
+            expIds = exps.map((e) => e.id);
+          }
+          promises.push(
+            reportStore
+              .fetchIndexValues(dim.dim.split("."), expIds, property)
+              .then((values) => {
+                newdims![i].values = values;
+              })
+          );
+        }
+      });
+
+      Promise.all(promises).then(() => {
+        if (newdims !== undefined) {
+          console.log("update dims", newdims[0]);
+          setDims(newdims);
+        }
+      });
+    }, [dims]);
+
+    // get dimension options
+    const dimoptions = useMemo(() => {
+      const options = exps.flatMap((exp) => {
+        const attrs =
+          property === "params"
+            ? ParamSchema.mergeSchemas(exp.params).leafAttributes()
+            : exp.aggregatedPrimitiveOutputs.leafAttributes();
+        return attrs.map((attrpath) => {
+          const value = attrpath.join(".");
+          return {
+            label: value,
+            value,
+          };
+        });
+      });
+      options.push({
+        label: "Special:Experiment Name",
+        value: EXPNAME_INDEX_FIELD,
+      });
+      return options;
+    }, [exps, property]);
+
+    if (isZValues) {
+      return (
+        <Select
+          style={{ width: "100%" }}
+          mode="multiple"
+          value={dims.map((d) => d.dim!)}
+          options={dimoptions}
+          status={dims.length === 0 ? "error" : ""}
+          onChange={(values: string[]) => {
+            setDims(
+              values.map((dim) => ({
+                dim,
+                isExp: false,
+              }))
+            );
+          }}
+        />
+      );
+    }
+
+    const elements = dims.map((dim, i) => {
+      const removeDim = () => {
+        const newdims = dims.slice();
+        newdims.splice(i, 1);
+        setDims(newdims);
+      };
+      const addDim = () => {
+        const newdims = dims.slice();
+        newdims.splice(i + 1, 0, { isExp: false });
+        setDims(newdims);
+      };
+
+      let selectValues = undefined;
+      if (dim.values !== undefined) {
+        selectValues = (
+          <Col span={12}>
+            <Select
+              mode="multiple"
+              style={{ width: "100%", marginLeft: 8 }}
+              placeholder="set of values to show (optional - empty to show all)"
+              options={dim.values.map((v) => ({
+                label: v.toString(),
+                value: v,
+              }))}
+            />
+          </Col>
+        );
+      }
+
+      return (
+        <Row wrap={false} key={i}>
+          <Col
+            flex="auto"
+            style={selectValues !== undefined ? { paddingRight: 8 } : {}}
+          >
+            <Row>
+              <Col span={selectValues !== undefined ? 12 : 24}>
+                <Select
+                  style={{ width: "100%" }}
+                  value={dim.dim}
+                  options={dimoptions}
+                  status={dim.dim === undefined ? "error" : ""}
+                  onChange={(value) => {
+                    const newdims = dims.slice();
+                    newdims[i].dim = value;
+                    setDims(newdims);
+                  }}
+                />
+              </Col>
+              {selectValues}
+            </Row>
+          </Col>
+
+          <Col flex="none">
+            {dims.length > 1 ? (
+              <Button danger={true} type="link" onClick={removeDim}>
+                Remove
+              </Button>
+            ) : null}
+            <Button type="link" onClick={addDim}>
+              Add
+            </Button>
+          </Col>
+        </Row>
+      );
+    });
+
+    return (
+      <Space direction="vertical" style={{ width: "100%" }}>
+        {elements}
+      </Space>
+    );
+  }
+);
+
+// component that display each index
+export const IndexBuilder = () => {};
+
+function buildIndex(
+  index: RawIndex,
+  property: IndexProperty
+): Index | undefined {
+  if (index.dim === undefined) return undefined;
+
+  return new Index(index.dim.split("."), index.values || null, property);
+}

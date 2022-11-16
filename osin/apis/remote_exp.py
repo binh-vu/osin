@@ -9,6 +9,7 @@ from osin.params_helper import DataClassInstance
 from osin.models import ExpRunData
 from osin.types import (
     NestedPrimitiveOutput,
+    ParamSchema,
     NestedPrimitiveOutputSchema,
     PyObject,
     PyObjectType,
@@ -23,7 +24,7 @@ class RemoteExp:
     id: int
     name: str
     version: int
-    params: Dict[str, PyObjectType]
+    params: List[ParamSchema]
     aggregated_primitive_outputs: Optional[NestedPrimitiveOutputSchema]
     osin: Osin
 

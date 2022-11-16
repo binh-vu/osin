@@ -11,6 +11,8 @@ import {
   PyObjectType,
   useStores,
 } from "models";
+import { ParamSchema } from "models/experiments";
+import { useMemo } from "react";
 import { routes } from "routes";
 
 const defaultColumns: TableColumn<ExperimentRun>[] = [
@@ -24,7 +26,7 @@ const defaultColumns: TableColumn<ExperimentRun>[] = [
       return (
         <InternalLink
           path={routes.run}
-          urlArgs={{ expId: exprun.exp, runId: id }}
+          urlArgs={{ expId: exprun.expId, runId: id }}
           queryArgs={{}}
         >
           Run {id}
@@ -92,49 +94,56 @@ export const ExperimentRunExplorer = observer(
   ({ exp }: { exp: Experiment }) => {
     const { expRunStore, expRunViewStore } = useStores();
 
-    let columns = defaultColumns.concat([
-      schema2columns("Parameters", ["params"], exp.params),
-      schema2columns(
-        "Data",
-        ["data", "aggregated", "primitive"],
-        exp.aggregatedPrimitiveOutputs
-      ),
-      {
-        key: "metadata",
-        title: "System Metrics",
-        children: [
-          {
-            key: "metadata.n_cpus",
-            title: "CPUs",
-            dataIndex: ["metadata", "n_cpus"],
-            render: Render.str,
-          },
-          {
-            key: "metadata.memory_usage",
-            title: "Memory Usage",
-            dataIndex: ["metadata", "memory_usage"],
-            render: ((value: number | null) => {
-              if (value === null) {
-                return EmptyToken;
-              }
-              if (isNaN(value)) {
-                return value.toString();
-              }
-              return filesize(value, {
-                base: 2,
-                standard: "jedec",
-              });
-            }) as any,
-          },
-          {
-            key: "metadata.hostname",
-            title: "Hostname",
-            dataIndex: ["metadata", "hostname"],
-            render: Render.str,
-          },
-        ],
-      },
-    ]);
+    const columns = useMemo(() => {
+      return defaultColumns.concat([
+        schema2columns(
+          "Parameters",
+          ["params"],
+          ParamSchema.mergeSchemas(exp.params)
+        ),
+        schema2columns(
+          "Data",
+          ["data", "aggregated", "primitive"],
+          exp.aggregatedPrimitiveOutputs
+        ),
+        {
+          key: "metadata",
+          title: "System Metrics",
+          children: [
+            {
+              key: "metadata.n_cpus",
+              title: "CPUs",
+              dataIndex: ["metadata", "n_cpus"],
+              render: Render.str,
+            },
+            {
+              key: "metadata.memory_usage",
+              title: "Memory Usage",
+              dataIndex: ["metadata", "memory_usage"],
+              render: ((value: number | null) => {
+                if (value === null) {
+                  return EmptyToken;
+                }
+                if (isNaN(value)) {
+                  return value.toString();
+                }
+                return filesize(value, {
+                  base: 2,
+                  standard: "jedec",
+                });
+              }) as any,
+            },
+            {
+              key: "metadata.hostname",
+              title: "Hostname",
+              dataIndex: ["metadata", "hostname"],
+              render: Render.str,
+            },
+          ],
+        },
+      ]);
+    }, [exp]);
+
     return (
       <div>
         <TableComponent
@@ -203,14 +212,9 @@ export const ExperimentRunExplorer = observer(
 export const schema2columns = (
   title: string,
   path: string[],
-  schema: NestedPrimitiveDataSchema | { [key: string]: PyObjectType }
+  schema: NestedPrimitiveDataSchema | ParamSchema
 ): TableColumn<ExperimentRun> => {
-  let childit;
-  if (schema instanceof NestedPrimitiveDataSchema) {
-    childit = Object.entries(schema.schema);
-  } else {
-    childit = Object.entries(schema);
-  }
+  let childit = Object.entries(schema.schema);
 
   return {
     key: path.join("."),

@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-import numpy as np
 from sklearn.datasets import load_digits, load_iris
 from sklearn.metrics import classification_report
 from sklearn.svm import SVC
@@ -8,11 +7,8 @@ from osin.apis import Osin
 from osin.types import OTable
 from dataclasses import dataclass
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.datasets import make_moons, make_circles, make_classification
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
@@ -22,7 +18,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
-from sklearn.inspection import DecisionBoundaryDisplay
+from yada import Parser1
 
 
 @dataclass
@@ -31,7 +27,8 @@ class Args:
     method: str
 
 
-args = ParamParser(Args).parse_args()
+args = Parser1(Args).parse_args()
+# args = Args("iris", "RBF SVM")
 
 osin = Osin.local(
     osin_dir=Path(os.path.abspath(__file__)).parent.parent.parent / "data"
@@ -87,17 +84,20 @@ for i in range(len(y_test)):
         primitive={
             "label": int(y_test[i]),
             "prediction": int(ytestpred[i]),
-            "correct": y_test[i] == ytestpred[i],
+            "correct": bool(y_test[i] == ytestpred[i]),
         },
         complex={
             "features": OTable(
-                rows=[{
-                    **{
-                        f"feature_{j}": val for j, val in enumerate(X_test[i].tolist()))
-                    },
-                    "label": int(y_test[i]),
-                    "prediction": int(ytestpred[i]),
-                }]
+                rows=[
+                    {
+                        **{
+                            f"feature_{j}": val
+                            for j, val in enumerate(X_test[i].tolist())
+                        },
+                        "label": int(y_test[i]),
+                        "prediction": int(ytestpred[i]),
+                    }
+                ]
             )
         },
     )

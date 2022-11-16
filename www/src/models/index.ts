@@ -12,11 +12,20 @@ import {
 } from "./experiments";
 import { toJS } from "mobx";
 import { ExpRunView, ExpRunViewStore } from "./views";
+import { ReportStore } from "./reports/ReportStore";
+import { Report } from "./reports/Report";
+import { ExpReportStore } from "./reports/ExpReportStore";
+import { ExpReport } from "./reports/ExpReport";
+
+const expStore = new ExperimentStore();
+const reportStore = new ReportStore();
 
 export const stores = {
-  expStore: new ExperimentStore(),
+  expStore,
   expRunStore: new ExperimentRunStore(),
   expRunViewStore: new ExpRunViewStore(),
+  reportStore,
+  expReportStore: new ExpReportStore(expStore, reportStore),
 };
 
 registerDefaultAxiosErrorHandler((error) => {
@@ -45,6 +54,10 @@ export {
   ExperimentRunStore,
   ExpRunView,
   ExpRunViewStore,
+  ReportStore,
+  Report,
+  ExpReportStore,
+  ExpReport,
   PyObjectType,
   NestedPrimitiveDataSchema,
 };

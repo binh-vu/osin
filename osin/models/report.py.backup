@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from itertools import chain, product
-from typing import Any, Literal, Optional, Union
+from itertools import product
+from typing import Literal, Optional, Union
+from typing_extensions import TypeGuard
 from gena.custom_fields import DataClassField
 from peewee import (
     CharField,
@@ -27,7 +28,7 @@ class Index:
 
     @staticmethod
     def from_tuple(obj: tuple):
-        return Index(tuple(obj[0]), obj[1], obj[2])
+        return Index(obj[0], obj[1], obj[2])
 
     def is_expname_index(self):
         return len(self.index) == 1 and self.index[0] == EXPNAME_INDEX_FIELD
@@ -41,13 +42,14 @@ class Index:
             prop = prop[self.index[i]]
         return prop[self.index[-1]]
 
+    def has_values(self):
+        return self.values is not None
+
 
 @dataclass
 class ExpIndex:
     # list of indexes, the index which value is found in the run is used.
-    # we allow mixed index and expname to make it's more flexible
-    indices: dict[int, Union[Index, EXPNAME_INDEX_FIELD_TYPE]]
-    values: Optional[dict[int, list[Union[str, int, bool, None]]]] = None
+    indices: Union[dict[int, Index], dict[int, EXPNAME_INDEX_FIELD_TYPE]]
 
     def get_value(self, run: ExpRun) -> Union[str, int, bool, None]:
         idx = self.indices[run.exp_id]
@@ -55,14 +57,29 @@ class ExpIndex:
             return idx.get_value(run)
         return idx
 
+    def has_values(self):
+        return any(
+            expidx.values is not None
+            for expidx in self.indices.values()
+            if isinstance(expidx, Index)
+        )
+
+    def iter_exp_values(self):
+        if ExpIndex.is_nested_index(self.indices):
+            return ((expid, expidx.values) for expid, expidx in self.indices.items())
+        return self.indices.items()
+
     @staticmethod
     def from_tuple(obj: tuple):
         return ExpIndex(
-            {int(expid): Index.from_tuple(index) for expid, index in obj[0].items()},
-            None
-            if obj[1] is None
-            else {int(expid): expvalue for expid, expvalue in obj[1].items()},
+            {expid: Index.from_tuple(index) for expid, index in obj[0].items()}
         )
+
+    @staticmethod
+    def is_nested_index(
+        indices: Union[dict[int, Index], dict[int, EXPNAME_INDEX_FIELD_TYPE]]
+    ) -> TypeGuard[dict[int, Index]]:
+        return any(isinstance(idx, Index) for idx in indices.values())
 
 
 @dataclass
@@ -75,28 +92,22 @@ class Axis:
     def populate_values(self, runs: list[ExpRun]):
         """Populate the values of the axis"""
         for idx in self.indices:
-            if idx.values is None:
+            if not idx.has_values():
                 if isinstance(idx, Index):
                     idx.values = list({idx.get_value(run) for run in runs})
                 else:
-                    idx.values = {expid: [] for expid in idx.indices}
-                    for run in runs:
-                        expidx = idx.indices[run.exp_id]
-                        idx.values[run.exp_id].append(
-                            expidx.get_value(run)
-                            if isinstance(expidx, Index)
-                            else vffff
-                        )
-                    for expid in idx.values:
-                        idx.values[expid] = list(set(idx.values[expid]))
+                    expindices = idx.indices
+                    if ExpIndex.is_nested_index(expindices):
+                        expvalues = {expid: [] for expid in expindices}
+                        for run in runs:
+                            expidx = expindices[run.exp_id]
+                            expvalues[run.exp_id].append(expidx.get_value(run))
+                        for expid, expidx in idx.indices.items():
+                            if isinstance(expidx, Index):
+                                expidx.values = list(set(expvalues[expid]))
         return self
 
-    def get_values(
-        self,
-    ) -> tuple[
-        list[tuple],
-        list[Union[tuple[str, ...], tuple[int, list[Union[int, str, bool, None]]]]],
-    ]:
+    def get_values(self) -> list[tuple]:
         """Get the items of the axis by generating combinations of values of each index.
 
         Generating the combinations is not longer a simple cross product because of ExpIndex.
@@ -124,31 +135,22 @@ class Axis:
         if len(exp_indices) == 0:
             return list(
                 product(*[assert_not_null(idx.values) for i, idx in non_exp_indices])
-            ), [idx.index for i, idx in non_exp_indices]
+            )
 
         expid2values = {expid: [] for expid in exp_indices[0][1].indices.keys()}
         for i, idx in exp_indices:
-            assert idx.values is not None
-            for expid, expvalues in idx.values.items():
+            for expid, expvalues in idx.iter_exp_values():
                 expid2values[expid].append((i, expvalues))
-
-        output_schema: list[Any] = [None] * len(self.indices)
-        for i, idx in non_exp_indices:
-            output_schema[i] = idx.index
-        for i, idx in exp_indices:
-            assert idx.values is not None
-            output_schema[i] = list(idx.values.items())
 
         output = []
         for expid, expvalues in expid2values.items():
-            iters: list[Any] = [None] * len(self.indices)
+            iters = [None] * len(self.indices)
             for i, idx in non_exp_indices:
-                assert idx.values is not None
                 iters[i] = idx.values
             for i, v in expvalues:
                 iters[i] = v
             output.extend(product(*iters))
-        return output, output_schema
+        return output
 
     @staticmethod
     def from_tuple(obj: tuple):
@@ -172,8 +174,8 @@ class TableReportArgs:
     @staticmethod
     def from_tuple(obj: tuple):
         return TableReportArgs(
-            Axis.from_tuple(obj[0]),
-            Axis.from_tuple(obj[1]),
+            Axis(obj[0]),
+            Axis(obj[1]),
             [
                 ExpIndex.from_tuple(x) if len(x) == 1 else Index.from_tuple(x)
                 for x in obj[2]
@@ -194,44 +196,13 @@ class ReportArgs:
     def from_tuple(obj: tuple):
         return ReportArgs(ReportType(obj[0]), TableReportArgs.from_tuple(obj[1]))
 
-    def get_experiment_ids(self) -> set[int]:
-        if self.type == ReportType.Table:
-            return {
-                expid
-                for index in chain(
-                    self.value.xaxis.indices,
-                    self.value.yaxis.indices,
-                    self.value.zvalues,
-                )
-                if isinstance(index, ExpIndex)
-                for expid in index.indices.keys()
-            }
-        raise NotImplementedError(self.type)
-
-
-@dataclass
-class ReportDisplayPosition:
-    # higher is closer to the top
-    row_order: int
-    # sum of col span & offset must be <= 24
-    col_span: int
-    col_offset: int
-
 
 class Report(BaseModel):
-    id: int
     name = CharField()
     description = TextField()
     args: ReportArgs = DataClassField(ReportArgs, null=True)  # type: ignore
 
 
 class ExpReport(BaseModel):
-    class Meta:
-        indexes = ((("exp", "report"), True),)
-
     exp = ForeignKeyField(Exp, backref="reports", on_delete="CASCADE")
-    exp_id: int
     report = ForeignKeyField(Report, backref="exps", on_delete="CASCADE")
-    report_id: int
-
-    position: ReportDisplayPosition = DataClassField(ReportDisplayPosition, null=True)  # type: ignore
