@@ -1,14 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import (
-    Any,
-    List,
-    Union,
-    get_args,
-)
+from typing import Any, List, Union, get_args
 
 Number = Union[int, float]
+NoneType = type(None)
 TYPE_ALIASES = {"typing.List": "list", "typing.Dict": "dict", "typing.Set": "set"}
 INSTANCE_OF = {
     "str": lambda ptype, x: isinstance(x, str),
@@ -85,6 +81,18 @@ class PyObjectType:
         global INSTANCE_OF
         return INSTANCE_OF[self.path](self, value)
 
+    def make_optional(self):
+        return PyObjectType(
+            path="typing.Union", args=[self, PyObjectType.from_type_hint(NoneType)]
+        )
+
+    def is_optional(self):
+        return (
+            self.path == "typing.Union"
+            and len(self.args) == 2
+            and (self.args[0].path == "NoneType" or self.args[1].path == "NoneType")
+        )
+
     def __repr__(self) -> str:
         if self.path.startswith("typing."):
             path = self.path[7:]
@@ -97,11 +105,15 @@ class PyObjectType:
             return path
 
 
-for type in [str, int, bool, float, Number]:
-    PRIMITIVE_TYPES[type] = PyObjectType.from_type_hint(type)
+for type_ in [str, int, bool, float, Number]:
+    PRIMITIVE_TYPES[type_] = PyObjectType.from_type_hint(type_)
 
 
 def encode_literal_value(value):
-    if isinstance(value, (int, bool, str)):
+    if isinstance(value, str):
         return f"osin.types.str[{value}]"
+    elif isinstance(value, int):
+        return f"osin.types.int[{value}]"
+    elif isinstance(value, bool):
+        return f"osin.types.bool[{value}]"
     raise ValueError(f"Invalid value {value} for typing.Literal")
