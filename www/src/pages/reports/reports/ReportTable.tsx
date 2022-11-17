@@ -103,8 +103,8 @@ interface ReportTableData {
       run_id: number;
     }[];
   }[];
-  xitems: string[][];
-  yitems: string[][];
+  xitems: (string | number | boolean)[][];
+  yitems: (string | number | boolean)[][];
   // schema at each index level
   xitems_schema: IndexSchema[];
   yitems_schema: IndexSchema[];
@@ -429,8 +429,8 @@ class ReportTableBuilder {
       run_id: number;
     }[];
   }[];
-  colIndices: string[][];
-  rowIndices: string[][];
+  colIndices: (string | number | boolean)[][];
+  rowIndices: (string | number | boolean)[][];
   colIndexSchema: IndexSchema[];
   rowIndexSchema: IndexSchema[];
   rowIndexMap: { [key: string]: number };
@@ -559,7 +559,7 @@ class ReportTableBuilder {
           schema.expid,
           this.getHeaderSpan(
             schema.expid,
-            rowFirstExpIndexLocation,
+            rowFirstExpIndexLocation - 1,
             this.rowIndexSchema
           ),
         ])
@@ -584,6 +584,7 @@ class ReportTableBuilder {
           className: this.classes.metaRowHeader,
         };
 
+        let cellRowSpan = 1;
         if (hasRowExpIndices) {
           const { expId, start, end } = this.getRange(j, rowExpIndexRange);
           const span = end - start;
@@ -600,22 +601,31 @@ class ReportTableBuilder {
               table[i][jshift + j * 2].label = rowindexmetadata.index.join(".");
             }
           }
+
+          cellRowSpan = this.getHeaderSpan(expId, j, this.rowIndexSchema);
         } else {
           // render as if there is no exp
-          const span = this.getHeaderSpan(undefined, j, this.rowIndexSchema);
+          const span = this.getHeaderSpan(
+            undefined,
+            j - 1,
+            this.rowIndexSchema
+          );
           if ((i - rowstart) % span === 0) {
             table[i][jshift + j * 2].label = (
               rowindexmetadata as NoneExpIndexSchema
             ).index.join(".");
             table[i][jshift + j * 2].rowspan = span;
           }
+
+          cellRowSpan = this.getHeaderSpan(undefined, j, this.rowIndexSchema);
         }
 
         table[i][jshift + j * 2 + 1] = {
           ...table[i][jshift + j * 2 + 1],
           th: true,
-          label: rowIndices[i - rowstart][j],
+          label: rowIndices[i - rowstart][j].toString(),
           className: this.classes.rowHeader,
+          rowspan: (i - rowstart) % cellRowSpan === 0 ? cellRowSpan : 1,
         };
       }
     }
@@ -659,7 +669,7 @@ class ReportTableBuilder {
             schema.expid,
             this.getHeaderSpan(
               schema.expid,
-              colFirstExpIndexLocation,
+              colFirstExpIndexLocation - 1,
               this.colIndexSchema
             ),
           ];
@@ -685,6 +695,7 @@ class ReportTableBuilder {
           className: this.classes.metaColHeader,
         };
 
+        let cellColspan = 1;
         if (hasColExpIndices) {
           const { expId, start, end } = this.getRange(i, colExpIndexRange);
           const span = end - start;
@@ -701,22 +712,31 @@ class ReportTableBuilder {
               table[ishift + i * 2][j].label = colindexmetadata.index.join(".");
             }
           }
+
+          cellColspan = this.getHeaderSpan(expId, i, this.colIndexSchema);
         } else {
           // render as if there is no exp
-          const span = this.getHeaderSpan(undefined, i, this.colIndexSchema);
+          const span = this.getHeaderSpan(
+            undefined,
+            i - 1,
+            this.colIndexSchema
+          );
           if ((j - colstart) % span === 0) {
             table[ishift + i * 2][j].label = (
               colindexmetadata as NoneExpIndexSchema
             ).index.join(".");
             table[ishift + i * 2][j].colspan = span;
           }
+
+          cellColspan = this.getHeaderSpan(undefined, i, this.colIndexSchema);
         }
 
         table[ishift + i * 2 + 1][j] = {
           ...table[ishift + i * 2 + 1][j],
           th: true,
-          label: colIndices[j - colstart][i],
+          label: colIndices[j - colstart][i].toString(),
           className: this.classes.colHeader,
+          colspan: (j - colstart) % cellColspan === 0 ? cellColspan : 1,
         };
       }
     }
@@ -941,10 +961,7 @@ class ReportTableBuilder {
   }
 
   /**
-   * Get the span (length) at the level. For example, if level is 0 and expId is empty, the span
-   * will be the number of headers at the bottom. So the span is decreasing as the level increases.
-   *
-   * This is ill-defined at the lowest level greater than 0.
+   * Get the span (length) at the level.
    *
    * @param expId
    * @param level
@@ -956,13 +973,8 @@ class ReportTableBuilder {
     level: number,
     schemas: IndexSchema[]
   ) {
-    if (level < 0) {
-      throw new Error("level must be >= 0");
-    }
-    if (level === schemas.length - 1 && level > 0) {
-      throw new Error(
-        "the span is ill-defined at the lowest level greater than 0"
-      );
+    if (level < -1) {
+      throw new Error("level must be >= -1");
     }
 
     const nvalues = schemas.map((schema) => {
@@ -973,7 +985,7 @@ class ReportTableBuilder {
     });
 
     let span = 1;
-    for (let i = level; i < nvalues.length; i++) {
+    for (let i = level + 1; i < nvalues.length; i++) {
       span *= nvalues[i];
     }
     return span;
