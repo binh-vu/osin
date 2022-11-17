@@ -39,6 +39,8 @@ class Index:
         prop = getattr(run, self.property)
         for i in range(len(self.index) - 1):
             prop = prop[self.index[i]]
+            if prop is None:
+                raise KeyError(f"Key {self.index} not found in {self.property}")
         return prop[self.index[-1]]
 
 
@@ -154,7 +156,7 @@ class Axis:
     def from_tuple(obj: tuple):
         return Axis(
             [
-                ExpIndex.from_tuple(x) if len(x) == 1 else Index.from_tuple(x)
+                ExpIndex.from_tuple(x) if len(x) == 2 else Index.from_tuple(x)
                 for x in obj[0]
             ]
         )

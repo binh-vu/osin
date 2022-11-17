@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "osin"
-version = "1.8.1"
+version = "1.8.2"
 description = "Research and Experiments"
 authors = ["Binh Vu <binh@toan2.com>"]
 license = "MIT"
@@ -11,7 +11,7 @@ python = "^3.8"
 Flask = "^2.2.2"
 peewee = "^3.15.2"
 tornado = "^6.2"
-gena = "^1.4.1"
+gena = "^1.5.2"
 loguru = "^0.6.0"
 orjson = "^3.8.0"
 h5py = "^3.7.0"

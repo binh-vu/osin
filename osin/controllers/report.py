@@ -1,28 +1,28 @@
 from __future__ import annotations
 
-from flask import jsonify, request
-from gena.api_generator import APIFuncs
-from gena.serializer import get_peewee_serializer
-from peewee import DoesNotExist
 
-from werkzeug.exceptions import BadRequest, NotFound
+from flask import jsonify, request
 from gena import generate_api
+from gena.api_generator import APIFuncs
 from gena.deserializer import (
     deserialize_int,
     generate_deserializer,
     get_dataclass_deserializer,
     get_deserialize_list,
 )
+from gena.serializer import get_peewee_serializer
+from osin.models.base import db
 from osin.models.exp import Exp, ExpRun
 from osin.models.report import (
     EXPNAME_INDEX_FIELD,
+    ExpReport,
     Index,
     Report,
-    ExpReport,
     ReportDisplayPosition,
     ReportType,
 )
-from osin.models.base import db
+from peewee import DoesNotExist
+from werkzeug.exceptions import BadRequest, NotFound
 
 expreport_bp = generate_api(ExpReport)
 report_bp = generate_api(Report, skip_funcs={APIFuncs.create, APIFuncs.update})
@@ -68,7 +68,14 @@ def get_index_values():
             & (ExpRun.is_successful == True)
         )
     )
-    items = {index.get_value(run) for run in runs}
+
+    items = set()
+    for run in runs:
+        try:
+            item = index.get_value(run)
+        except KeyError:
+            continue
+        items.add(item)
 
     return jsonify({"items": list(items)})
 
@@ -104,7 +111,9 @@ def create_report():
     report = Report(**raw_record)
 
     if report.args.get_experiment_ids().difference(exp_ids):
-        raise BadRequest("The report uses experiments that are not in `exp_ids`")
+        raise BadRequest(
+            f"The report uses experiments that are not in `exps`: {report.args.get_experiment_ids().difference(exp_ids)}"
+        )
 
     with db:
         report.save()
