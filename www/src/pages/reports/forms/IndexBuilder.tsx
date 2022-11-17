@@ -201,8 +201,11 @@ export const ZValuesBuilder = ({
     }
   });
   let rows = undefined;
+
   if (exps.length > 1) {
-    rows = exps.map((exp) => {
+    const col1 = [];
+    const col2 = [];
+    for (const exp of exps) {
       const expoptions = expIndexOptions[exp.id];
       if (showOnlyNumericOptions) {
         expoptions.filter((opt) => {
@@ -215,49 +218,69 @@ export const ZValuesBuilder = ({
         });
       }
 
-      return (
-        <Row wrap={false} key={exp.id}>
-          <Col flex="none">
-            <Button type="link">{exp.name}</Button>
-          </Col>
-          <Col flex="auto">
-            <Select
-              mode="multiple"
-              style={{ width: "100%" }}
-              value={mergedExpIndices[exp.id]}
-              options={expoptions}
-              onChange={(values: string[]) => {
-                const newExpIndices: RawExpIndex[] = expIndices.slice();
-                for (
-                  let i = 0;
-                  i < Math.max(values.length, expIndices.length);
-                  i++
-                ) {
-                  if (i < values.length && i < newExpIndices.length) {
-                    const newExpIndex = newExpIndices[i];
-                    if (newExpIndex.expindex === undefined) {
-                      newExpIndex.expindex = {};
-                    }
-                    newExpIndex.expindex[exp.id] = values[i];
-                  } else if (i >= newExpIndices.length) {
-                    newExpIndices.push({
-                      isExp: true,
-                      expindex: { [exp.id]: values[i] },
-                      expvalues: {},
-                      expvalueOptions: {},
-                    });
+      col1.push(
+        <Button type="link" key={exp.id}>
+          {exp.name}
+        </Button>
+      );
+      col2.push(
+        <Select
+          mode="multiple"
+          key={exp.id}
+          style={{ width: "100%" }}
+          value={mergedExpIndices[exp.id]}
+          options={expoptions}
+          onChange={(values: string[]) => {
+            const newExpIndices: RawExpIndex[] = expIndices.slice();
+            for (
+              let i = 0;
+              i < Math.max(values.length, expIndices.length);
+              i++
+            ) {
+              if (i < values.length && i < newExpIndices.length) {
+                const newExpIndex = newExpIndices[i];
+                if (newExpIndex.expindex === undefined) {
+                  newExpIndex.expindex = {};
+                }
+                newExpIndex.expindex[exp.id] = values[i];
+              } else if (i >= newExpIndices.length) {
+                newExpIndices.push({
+                  isExp: true,
+                  expindex: { [exp.id]: values[i] },
+                  expvalues: {},
+                  expvalueOptions: {},
+                });
+              } else {
+                const newExpIndex = newExpIndices[i];
+                if (newExpIndex.expindex !== undefined) {
+                  delete newExpIndex.expindex[exp.id];
+                  if (Object.keys(newExpIndex.expindex).length === 0) {
+                    delete newExpIndex.expindex;
                   }
                 }
+              }
+            }
 
-                setIndices(
-                  (nonexpIndices as RawAnyIndex[]).concat(newExpIndices)
-                );
-              }}
-            />
-          </Col>
-        </Row>
+            setIndices((nonexpIndices as RawAnyIndex[]).concat(newExpIndices));
+          }}
+        />
       );
-    });
+    }
+
+    rows = (
+      <Row wrap={false}>
+        <Col flex="none">
+          <Space direction="vertical" style={{ width: "100%" }}>
+            {col1}
+          </Space>
+        </Col>
+        <Col flex="auto">
+          <Space direction="vertical" style={{ width: "100%" }}>
+            {col2}
+          </Space>
+        </Col>
+      </Row>
+    );
   }
 
   if (showOnlyNumericOptions) {
@@ -337,6 +360,8 @@ export const IndexBuilder = ({
         <Row>
           <Col span={12}>
             <Select
+              showSearch={true}
+              allowClear={true}
               style={{ width: "100%" }}
               value={index.index}
               options={indexoptions}
@@ -418,17 +443,24 @@ export const ExpIndexBuilder = ({
     );
     col2.push(
       <Select
+        showSearch={true}
+        allowClear={true}
         style={{ width: "100%" }}
         key={exp.id}
         value={expindex[exp.id]}
         options={indexoptions[exp.id]}
-        status={expindex[exp.id] === undefined ? "error" : ""}
-        onChange={(value) => {
+        onChange={(value: string | undefined) => {
           let newindex = Object.assign({}, index);
           if (newindex.expindex === undefined) {
-            newindex.expindex = { [exp.id]: value };
+            if (value !== undefined) {
+              newindex.expindex = { [exp.id]: value };
+            }
           } else {
-            newindex.expindex[exp.id] = value;
+            if (value === undefined) {
+              delete newindex.expindex[exp.id];
+            } else {
+              newindex.expindex[exp.id] = value;
+            }
           }
           updateIndex(order, newindex, indices, setIndices);
         }}
