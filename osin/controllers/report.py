@@ -205,8 +205,8 @@ def get_report_data(id: int):
         yaxis = report.args.value.yaxis
         zvalues = report.args.value.zvalues
 
-        xitems, xitems_schema = xaxis.populate_values(runs).get_values()
-        yitems, yitems_schema = yaxis.populate_values(runs).get_values()
+        xitems, xitems_schema = xaxis.populate_values(runs).get_values(exps)
+        yitems, yitems_schema = yaxis.populate_values(runs).get_values(exps)
 
         yitems_dict = {item: {} for item in yitems}
         data = {item: {item: {} for item in yitems} for item in xitems}

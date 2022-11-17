@@ -1,8 +1,8 @@
-import { ClassNameMap, makeStyles } from "@mui/styles";
+import { makeStyles } from "@mui/styles";
 import { Button, Col, Divider, Row, Space, Tag, Typography } from "antd";
 import { InternalLink, LoadingComponent, NotFoundComponent } from "gena-app";
 import { observer } from "mobx-react";
-import { ExpReportStore, Report, useStores } from "models";
+import { Report, useStores } from "models";
 import { COLUMN_MAX_SIZE, Position } from "models/reports";
 import React, { useEffect } from "react";
 import { routes } from "routes";
@@ -17,7 +17,7 @@ const useStyles = makeStyles({
 export const ReportPage = observer(() => {
   const classes = useStyles();
   const expId = routes.reports.useURLParams()!.expId;
-  const { reportStore, expReportStore, expStore } = useStores();
+  const { expStore } = useStores();
 
   useEffect(() => {
     // find report by experiment ids

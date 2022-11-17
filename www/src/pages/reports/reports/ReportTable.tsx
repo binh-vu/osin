@@ -1,4 +1,4 @@
-import { makeStyles } from "@mui/styles";
+import { ClassNameMap, makeStyles } from "@mui/styles";
 import { Dropdown } from "antd";
 import axios from "axios";
 import { SERVER } from "env";
@@ -13,6 +13,7 @@ import { HighlightFilled, HighlightOutlined } from "@ant-design/icons";
 import Rainbow from "rainbowvis.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHighlighter } from "@fortawesome/free-solid-svg-icons";
+import { Experiment } from "models";
 
 const useStyles = makeStyles({
   root: {},
@@ -56,11 +57,42 @@ const useStyles = makeStyles({
     paddingRight: 4,
     color: "#1890ff",
   },
+  rowHeader: {
+    borderLeft: "none !important",
+  },
+  metaRowHeader: {
+    borderRight: "none !important",
+    transform: "rotate(-180deg) !important",
+    writingMode: "vertical-lr !important" as "vertical-lr",
+    padding: "8px 0 !important",
+    textAlign: "center !important" as "center",
+    fontWeight: 400,
+    fontStyle: "italic",
+  },
+  colHeader: {
+    borderTop: "none !important",
+  },
+  metaColHeader: {
+    borderBottom: "none !important",
+    padding: "0 8px !important",
+    textAlign: "center !important" as "center",
+    fontWeight: 400,
+    fontStyle: "italic",
+  },
 });
 
-type IndexSchema =
-  | string[]
-  | { values: (string | number | boolean | null)[]; expId: number }[];
+type NoneExpIndexSchema = {
+  index: string[];
+  values: (string | number | boolean | null)[];
+};
+// array to maintain expid order
+type ExpIndexSchema = {
+  expid: number;
+  expname: string;
+  index: string[];
+  values: (string | number | boolean | null)[];
+}[];
+type IndexSchema = NoneExpIndexSchema | ExpIndexSchema;
 interface ReportTableData {
   data: {
     x: string[];
@@ -118,27 +150,12 @@ export const ReportTable = ({
 
   useEffect(() => {
     axios.get(`${SERVER}/api/report/${report.id}/data`).then((res) => {
-      const mapfn = (
-        indexschema: string[] | [number, (string | number | boolean | null)[]]
-      ) => {
-        if (Array.isArray(indexschema)) {
-          return indexschema;
-        } else {
-          return {
-            expId: indexschema[0],
-            values: indexschema[1],
-          };
-        }
-      };
-      res.data.xitems_schema = res.data.xitems_schema.map(mapfn);
-      res.data.yitems_schema = res.data.yitems_schema.map(mapfn);
-
       setData(res.data);
     });
   }, []);
 
   let [builder, table] = useMemo(() => {
-    const builder = new ReportTableBuilder(data);
+    const builder = new ReportTableBuilder(data, classes);
     return [builder, builder.build()];
   }, [data]);
 
@@ -301,6 +318,7 @@ const Cell = ({
         rowSpan={cell.rowspan}
         colSpan={cell.colspan}
         onClick={(e) => onClick(cell)}
+        className={cell.className}
       >
         <span>{cell.label}</span>
         {extra}
@@ -312,7 +330,12 @@ const Cell = ({
   }
 
   return (
-    <td style={cell.style} rowSpan={cell.rowspan} colSpan={cell.colspan}>
+    <td
+      style={cell.style}
+      rowSpan={cell.rowspan}
+      colSpan={cell.colspan}
+      className={cell.className}
+    >
       <span>{cell.label}</span>
     </td>
   );
@@ -342,10 +365,20 @@ const CellValue = ({ cell }: { cell: Cell }) => {
   } else if (cell.highlight.mode === "text") {
     style.color = cell.highlight.color;
   }
+
+  const label = Number.isNaN(cell.rawvalue!.mean)
+    ? ""
+    : cell.rawvalue!.mean.toFixed(3);
+
   return (
-    <td style={tdStyle} rowSpan={cell.rowspan} colSpan={cell.colspan}>
+    <td
+      style={tdStyle}
+      rowSpan={cell.rowspan}
+      colSpan={cell.colspan}
+      className={cell.className}
+    >
       {highlightEl}
-      <span style={style}>{cell.rawvalue!.mean.toFixed(3)}</span>
+      <span style={style}>{label}</span>
     </td>
   );
 };
@@ -402,8 +435,9 @@ class ReportTableBuilder {
   rowIndexSchema: IndexSchema[];
   rowIndexMap: { [key: string]: number };
   colIndexMap: { [key: string]: number };
+  classes: ReturnType<typeof useStyles>;
 
-  constructor(data: ReportTableData) {
+  constructor(data: ReportTableData, classes: ReturnType<typeof useStyles>) {
     this.data = [];
     this.colIndices = data.xitems;
     this.rowIndices = data.yitems;
@@ -427,6 +461,7 @@ class ReportTableBuilder {
         })),
       });
     }
+    this.classes = classes;
   }
 
   cloneTable(table: Table): Table {
@@ -438,16 +473,44 @@ class ReportTableBuilder {
   }
 
   /**
-   * Build the table (haven't fixed the spanning for displaying yet as it should only be done
-   * before rendering)
+   * Build the table.
+   *
+   * This most tricky part is to build the multi-level index into table headers. To aid the visual,
+   * we also add a meta header to describe the index.
+   *
+   * For example, a table like this: (:<name> is a meta header, <name> is a normal header)
+   * ---------------------------------------------------------------------------
+   * |                   :exp1                   |         :exp2               |
+   * |                :cgmethod                  |       :crmethod             |
+   * |      pyserini       |       oracle        |  xgboost  |  random-forest  |
+   * |--------------------------------------------                             |
+   * |     :index-type     |     :index-type     |                             |
+   * |  normal   enhanced  |  normal   enhanced  |                             |
+   * ---------------------------------------------------------------------------
+   *
+   * will be built from the following procedure:
+   *
+   * 1. Determine number of cells for storing the headers, if we have exp index, then we need an extra one
+   *    to specify the exp name.
+   * 2. We build the header and meta header first, ignore an extra meta header for the exp name for now as we
+   *    will attach it at the end.
+   * 3. At each level, we need to figure out the span of the header and the meta header. The span of
+   *    the header will be the product of the span of its children. The span of the meta header will be
+   *    the sum of the span of its header. In order to calculate the span for exp, we need to know the
+   *    range of exp before hand, which we can calculate using the same strategy above and knowing that headers of
+   *    the same exp is contiguous.
+   * 4.
    */
   build(): Table {
     const { colIndices, rowIndices } = this;
     const nAddedRows = colIndices.length > 0 ? colIndices[0].length : 0;
     const nAddedColumns = rowIndices.length > 0 ? rowIndices[0].length : 0;
 
-    const rowstart = nAddedRows * 2;
-    const colstart = nAddedColumns * 2;
+    const hasRowExpIndices = this.rowIndexSchema.some(this.isExpIndexSchema);
+    const hasColExpIndices = this.colIndexSchema.some(this.isExpIndexSchema);
+
+    const rowstart = nAddedRows * 2 + (hasColExpIndices ? 1 : 0);
+    const colstart = nAddedColumns * 2 + (hasRowExpIndices ? 1 : 0);
     const nrows = rowIndices.length + rowstart;
     const ncols = colIndices.length + colstart;
 
@@ -469,6 +532,8 @@ class ReportTableBuilder {
       }
       table.push(row);
     }
+
+    // hide borders of useless cells at the top-left corner
     for (let i = 0; i < rowstart; i++) {
       for (let j = 0; j < colstart; j++) {
         table[i][j].style = {
@@ -477,69 +542,208 @@ class ReportTableBuilder {
       }
     }
 
+    // build the multi-level row index
+    const rowExpIndexRange: { expId: number; start: number; end: number }[] =
+      [];
+    // the default value ensure if there is no row exp, the extra col won't be added
+    let rowFirstExpIndexLocation = nAddedColumns;
+    if (hasRowExpIndices) {
+      const rowFirstExpIndexLocation = this.rowIndexSchema.findIndex(
+        this.isExpIndexSchema
+      );
+      const expIndexSchema = this.rowIndexSchema[
+        rowFirstExpIndexLocation
+      ] as ExpIndexSchema;
+      expIndexSchema
+        .map((schema) => [
+          schema.expid,
+          this.getHeaderSpan(
+            schema.expid,
+            rowFirstExpIndexLocation,
+            this.rowIndexSchema
+          ),
+        ])
+        .forEach(([expId, span], i) => {
+          if (i === 0) {
+            rowExpIndexRange.push({ start: 0, end: span, expId });
+          } else {
+            const start = rowExpIndexRange[i - 1].end;
+            rowExpIndexRange.push({ start, end: start + span, expId });
+          }
+        });
+    }
+
     for (let i = rowstart; i < nrows; i++) {
       for (let j = 0; j < nAddedColumns; j++) {
-        const rowindexmedata = this.rowIndexSchema[j];
-        table[i][j * 2] = {
-          ...table[i][j * 2],
+        const rowindexmetadata = this.rowIndexSchema[j];
+        const jshift = j >= rowFirstExpIndexLocation ? 1 : 0;
+        table[i][jshift + j * 2] = {
+          ...table[i][jshift + j * 2],
           th: true,
           metaTh: true,
-          style: {
-            borderRight: "none",
-            transform: "rotate(-180deg)",
-            writingMode: "vertical-lr",
-            padding: "8px 0",
-          },
+          className: this.classes.metaRowHeader,
         };
-        if (Array.isArray(rowindexmedata)) {
-          table[i][j * 2].label = rowindexmedata.join(".");
-          if (i === rowstart) {
-            table[i][j * 2].rowspan = rowIndices.length;
+
+        if (hasRowExpIndices) {
+          const { expId, start, end } = this.getRange(j, rowExpIndexRange);
+          const span = end - start;
+          if ((i - rowstart) % span === 0) {
+            table[i][jshift + j * 2].colspan = span;
+
+            if (this.isExpIndexSchema(rowindexmetadata)) {
+              // TODO: the ! signal an issue that if the nested experiment does not contain the experiment
+              // of the parent, what happens?
+              table[i][jshift + j * 2].label = rowindexmetadata
+                .find((schema) => schema.expid === expId)!
+                .index.join(".");
+            } else {
+              table[i][jshift + j * 2].label = rowindexmetadata.index.join(".");
+            }
           }
         } else {
-          // how about the ExpIndex?
-          throw new Error("not implemented");
+          // render as if there is no exp
+          const span = this.getHeaderSpan(undefined, j, this.rowIndexSchema);
+          if ((i - rowstart) % span === 0) {
+            table[i][jshift + j * 2].label = (
+              rowindexmetadata as NoneExpIndexSchema
+            ).index.join(".");
+            table[i][jshift + j * 2].rowspan = span;
+          }
         }
-        table[i][j * 2 + 1] = {
-          ...table[i][j * 2 + 1],
+
+        table[i][jshift + j * 2 + 1] = {
+          ...table[i][jshift + j * 2 + 1],
           th: true,
           label: rowIndices[i - rowstart][j],
-          style: { borderLeft: "none" },
+          className: this.classes.rowHeader,
         };
       }
     }
+
+    if (hasRowExpIndices) {
+      // add the extra experiment name col
+      const j = rowFirstExpIndexLocation;
+      let i = rowstart;
+      rowExpIndexRange.forEach(({ expId, start, end }, iprime) => {
+        const span = end - start;
+        const cell = table[i][j * 2];
+        table[i][j * 2] = {
+          ...cell,
+          th: true,
+          metaTh: true,
+          className: this.classes.metaRowHeader,
+          label: (
+            this.rowIndexSchema[rowFirstExpIndexLocation] as ExpIndexSchema
+          )[iprime].expname,
+          rowspan: span,
+        };
+        i += span;
+      });
+    }
+
+    // build the multi-level col index
+    const colExpIndexRange: { expId: number; start: number; end: number }[] =
+      [];
+    // the default value ensure if there is no col exp, the extra row won't be added
+    let colFirstExpIndexLocation = nAddedRows;
+    if (hasColExpIndices) {
+      colFirstExpIndexLocation = this.colIndexSchema.findIndex(
+        this.isExpIndexSchema
+      );
+      const expIndexSchema = this.colIndexSchema[
+        colFirstExpIndexLocation
+      ] as ExpIndexSchema;
+      expIndexSchema
+        .map((schema) => {
+          return [
+            schema.expid,
+            this.getHeaderSpan(
+              schema.expid,
+              colFirstExpIndexLocation,
+              this.colIndexSchema
+            ),
+          ];
+        })
+        .forEach(([expId, span], i) => {
+          if (i === 0) {
+            colExpIndexRange.push({ start: 0, end: span, expId });
+          } else {
+            const start = colExpIndexRange[i - 1].end;
+            colExpIndexRange.push({ start, end: start + span, expId });
+          }
+        });
+    }
+
     for (let i = 0; i < nAddedRows; i++) {
       for (let j = colstart; j < ncols; j++) {
         const colindexmetadata = this.colIndexSchema[i];
-        table[i * 2][j] = {
-          ...table[i * 2][j],
+        const ishift = i >= colFirstExpIndexLocation ? 1 : 0;
+        table[ishift + i * 2][j] = {
+          ...table[ishift + i * 2][j],
           th: true,
           metaTh: true,
-          style: { borderBottom: "none", padding: 0 },
+          className: this.classes.metaColHeader,
         };
 
-        if (Array.isArray(colindexmetadata)) {
-          table[i * 2][j].label = colindexmetadata.join(".");
-          if (j === colstart) {
-            // we can set the colspan here so it doesn't repeat for each column
-            table[i * 2][j].colspan = colIndices.length;
+        if (hasColExpIndices) {
+          const { expId, start, end } = this.getRange(i, colExpIndexRange);
+          const span = end - start;
+          if ((j - colstart) % span === 0) {
+            table[ishift + i * 2][j].colspan = span;
+
+            if (this.isExpIndexSchema(colindexmetadata)) {
+              // TODO: the ! signal an issue that if the nested experiment does not contain the experiment
+              // of the parent, what happens?
+              table[ishift + i * 2][j].label = colindexmetadata
+                .find((schema) => schema.expid === expId)!
+                .index.join(".");
+            } else {
+              table[ishift + i * 2][j].label = colindexmetadata.index.join(".");
+            }
           }
         } else {
-          // how about the ExpIndex?
-          throw new Error("not implemented");
+          // render as if there is no exp
+          const span = this.getHeaderSpan(undefined, i, this.colIndexSchema);
+          if ((j - colstart) % span === 0) {
+            table[ishift + i * 2][j].label = (
+              colindexmetadata as NoneExpIndexSchema
+            ).index.join(".");
+            table[ishift + i * 2][j].colspan = span;
+          }
         }
-        table[i * 2 + 1][j] = {
-          ...table[i * 2 + 1][j],
+
+        table[ishift + i * 2 + 1][j] = {
+          ...table[ishift + i * 2 + 1][j],
           th: true,
           label: colIndices[j - colstart][i],
-          style: {
-            borderTop: "none",
-          },
+          className: this.classes.colHeader,
         };
       }
     }
 
+    if (hasColExpIndices) {
+      // add the extra experiment name row
+      const i = colFirstExpIndexLocation;
+      let j = colstart;
+      colExpIndexRange.forEach(({ expId, start, end }, jprime) => {
+        const span = end - start;
+        const cell = table[i * 2][j];
+        table[i * 2][j] = {
+          ...cell,
+          th: true,
+          metaTh: true,
+          className: this.classes.metaColHeader,
+          label: (
+            this.colIndexSchema[colFirstExpIndexLocation] as ExpIndexSchema
+          )[jprime].expname,
+          colspan: span,
+        };
+        j += span;
+      });
+    }
+
     const output = { data: table, nrows, ncols, rowstart, colstart };
+    // this.printTable(output);
     this.addData(output);
     return output;
   }
@@ -733,6 +937,76 @@ class ReportTableBuilder {
         mean: _.mean(justvalues),
         data: values,
       };
+    }
+  }
+
+  /**
+   * Get the span (length) at the level. For example, if level is 0 and expId is empty, the span
+   * will be the number of headers at the bottom. So the span is decreasing as the level increases.
+   *
+   * This is ill-defined at the lowest level greater than 0.
+   *
+   * @param expId
+   * @param level
+   * @param schemas
+   * @returns
+   */
+  protected getHeaderSpan(
+    expId: number | undefined,
+    level: number,
+    schemas: IndexSchema[]
+  ) {
+    if (level < 0) {
+      throw new Error("level must be >= 0");
+    }
+    if (level === schemas.length - 1 && level > 0) {
+      throw new Error(
+        "the span is ill-defined at the lowest level greater than 0"
+      );
+    }
+
+    const nvalues = schemas.map((schema) => {
+      // if we have exp schema, expId must be not undefined
+      return this.isExpIndexSchema(schema)
+        ? schema.filter((item) => item.expid === expId)[0].values.length
+        : schema.values.length;
+    });
+
+    let span = 1;
+    for (let i = level; i < nvalues.length; i++) {
+      span *= nvalues[i];
+    }
+    return span;
+  }
+
+  protected isExpIndexSchema(schema: IndexSchema): schema is ExpIndexSchema {
+    return Array.isArray(schema);
+  }
+
+  protected getRange<R extends { start: number; end: number }>(
+    index: number,
+    range: R[]
+  ): R {
+    for (let i = 0; i < range.length; i++) {
+      if (index >= range[i].start && index < range[i].end) {
+        return range[i];
+      }
+    }
+
+    console.error({ index, range });
+    throw new Error("Unreachable");
+  }
+
+  protected printTable(table: Table) {
+    for (let i = 0; i < table.nrows; i++) {
+      let row = "";
+      for (let j = 0; j < table.ncols; j++) {
+        const cell = table.data[i][j];
+        row += `th:${cell.th ? 1 : 0} - span:${cell.rowspan}:${
+          cell.colspan
+        } - label:${cell.label.padEnd(20)} |  `;
+      }
+      console.log(row);
     }
   }
 }
