@@ -70,11 +70,15 @@ export class ExpReportStore extends CRUDJunctionStore<
   }
 
   public deserialize(record: any) {
-    return new ExpReport(record.id, record.exp_id, record.report_id, {
-      rowOrder: record.position.row_order,
-      colSpan: record.position.col_span,
-      colOffset: record.position.col_offset,
-    });
+    let pos = undefined;
+    if (record.position !== null) {
+      pos = {
+        rowOrder: record.position.row_order,
+        colSpan: record.position.col_span,
+        colOffset: record.position.col_offset,
+      };
+    }
+    return new ExpReport(record.id, record.exp_id, record.report_id, pos);
   }
 
   public serializeCreateDraft(record: Omit<ExpReport, "id">) {

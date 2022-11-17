@@ -22,7 +22,9 @@ const useStyles = makeStyles({
     border: "1px solid #ddd",
     "& td,th": {
       border: "1px solid #ddd",
+      textAlign: "left",
     },
+    minWidth: 640,
   },
   smallTable: {
     "& td,th": {
@@ -272,7 +274,7 @@ const Cell = ({
 }) => {
   if (cell.th) {
     let extra = undefined;
-    if (typeof highlight !== "string") {
+    if (typeof highlight !== "string" && !cell.metaTh) {
       if (
         (highlight.type === "row" && cell.row === highlight.value) ||
         (highlight.type === "col" && cell.col === highlight.value)
@@ -351,6 +353,8 @@ const CellValue = ({ cell }: { cell: Cell }) => {
 interface Cell {
   // whether the cell is a header
   th: boolean;
+  // whether the cell is a header, but for describing the other headers (containing the real index)
+  metaTh: boolean;
   // whether the cell is a data cell and requires custom rendering
   data: boolean;
   label: string;
@@ -453,6 +457,7 @@ class ReportTableBuilder {
       for (let j = 0; j < ncols; j++) {
         row.push({
           th: false,
+          metaTh: false,
           label: "",
           colspan: 1,
           rowspan: 1,
@@ -478,11 +483,12 @@ class ReportTableBuilder {
         table[i][j * 2] = {
           ...table[i][j * 2],
           th: true,
+          metaTh: true,
           style: {
             borderRight: "none",
             transform: "rotate(-180deg)",
             writingMode: "vertical-lr",
-            padding: 0,
+            padding: "8px 0",
           },
         };
         if (Array.isArray(rowindexmedata)) {
@@ -508,6 +514,7 @@ class ReportTableBuilder {
         table[i * 2][j] = {
           ...table[i * 2][j],
           th: true,
+          metaTh: true,
           style: { borderBottom: "none", padding: 0 },
         };
 
@@ -717,7 +724,7 @@ class ReportTableBuilder {
       const { x: col, y: row, z: values } = record;
       const i = this.rowIndexMap[row] + table.rowstart;
       const j = this.colIndexMap[col] + table.colstart;
-      if (new Set(values.map((value) => value.name)).size !== 1) {
+      if (new Set(values.map((value) => value.name)).size > 1) {
         throw new Error("not implemented");
       }
       const justvalues = values.map((v) => v.value);

@@ -8,7 +8,11 @@ import React, { useEffect } from "react";
 import { routes } from "routes";
 import { ReportTable } from "./reports/ReportTable";
 
-const useStyles = makeStyles({});
+const useStyles = makeStyles({
+  divider: {
+    margin: 0,
+  },
+});
 
 export const ReportPage = observer(() => {
   const classes = useStyles();
@@ -34,7 +38,7 @@ export const ReportPage = observer(() => {
 
   return (
     <div className="ml-16 mr-16">
-      <Row>
+      <Row wrap={false}>
         <Col flex="auto">
           <Typography.Title level={5}>DASHBOARD</Typography.Title>
           <p>
@@ -56,6 +60,7 @@ export const ReportPage = observer(() => {
           </Button>
         </Col>
       </Row>
+      <Divider className={classes.divider} />
       <ReportGrids expId={expId} />
     </div>
   );

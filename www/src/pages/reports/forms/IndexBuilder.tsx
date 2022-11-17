@@ -64,7 +64,7 @@ export const MultiLevelIndexBuilder = observer(
           );
         } else if (idx.isExp && idx.expindex !== undefined) {
           for (const expid in idx.expindex) {
-            if (idx.expvalues[expid] === undefined) {
+            if (idx.expvalueOptions[expid] === undefined) {
               // fetch values
               if (newindices === undefined) {
                 newindices = indices.slice();
@@ -406,63 +406,53 @@ export const ExpIndexBuilder = ({
   const index = indices[order] as RawExpIndex;
   const expindex = index.expindex || {};
 
-  const rows = exps.map((exp) => {
-    let selection = undefined;
-    if (index.expvalueOptions[exp.id] !== undefined) {
-      selection = (
-        <Col span={12}>
-          <Select
-            mode="multiple"
-            style={{ width: "100%", marginLeft: 8 }}
-            placeholder="set of values to show (optional - empty to show all)"
-            options={index.expvalueOptions[exp.id].map((v) => ({
-              label: (v || "").toString(),
-              value: v,
-            }))}
-            value={index.expvalues[exp.id] || []}
-            onChange={(values: IndexValue[]) => {
-              let newindex = Object.assign({}, index);
-              newindex.expvalues[exp.id] = values;
-              updateIndex(order, newindex, indices, setIndices);
-            }}
-          />
-        </Col>
-      );
-    }
+  const col1 = [];
+  const col2 = [];
+  const col3 = [];
 
-    return (
-      <Row wrap={false} key={exp.id}>
-        <Col flex="none">
-          <Button type="link">{exp.name}</Button>
-        </Col>
-        <Col
-          flex="auto"
-          style={selection !== undefined ? { paddingRight: 8 } : {}}
-        >
-          <Row wrap={false}>
-            <Col span={selection !== undefined ? 12 : 24}>
-              <Select
-                style={{ width: "100%" }}
-                value={expindex[exp.id]}
-                options={indexoptions[exp.id]}
-                status={expindex[exp.id] === undefined ? "error" : ""}
-                onChange={(value) => {
-                  let newindex = Object.assign({}, index);
-                  if (newindex.expindex === undefined) {
-                    newindex.expindex = { [exp.id]: value };
-                  } else {
-                    newindex.expindex[exp.id] = value;
-                  }
-                  updateIndex(order, newindex, indices, setIndices);
-                }}
-              />
-            </Col>
-            {selection}
-          </Row>
-        </Col>
-      </Row>
+  for (let exp of exps) {
+    col1.push(
+      <Button type="link" key={exp.id}>
+        {exp.name}
+      </Button>
     );
-  });
+    col2.push(
+      <Select
+        style={{ width: "100%" }}
+        key={exp.id}
+        value={expindex[exp.id]}
+        options={indexoptions[exp.id]}
+        status={expindex[exp.id] === undefined ? "error" : ""}
+        onChange={(value) => {
+          let newindex = Object.assign({}, index);
+          if (newindex.expindex === undefined) {
+            newindex.expindex = { [exp.id]: value };
+          } else {
+            newindex.expindex[exp.id] = value;
+          }
+          updateIndex(order, newindex, indices, setIndices);
+        }}
+      />
+    );
+    col3.push(
+      <Select
+        key={exp.id}
+        mode="multiple"
+        style={{ width: "100%" }}
+        placeholder="set of values to show (optional - empty to show all)"
+        options={(index.expvalueOptions[exp.id] || []).map((v) => ({
+          label: (v || "").toString(),
+          value: v,
+        }))}
+        value={index.expvalues[exp.id] || []}
+        onChange={(values: IndexValue[]) => {
+          let newindex = Object.assign({}, index);
+          newindex.expvalues[exp.id] = values;
+          updateIndex(order, newindex, indices, setIndices);
+        }}
+      />
+    );
+  }
 
   return (
     <Row wrap={false}>
@@ -474,7 +464,23 @@ export const ExpIndexBuilder = ({
         />
       </Col>
       <Col flex="auto" style={{ marginLeft: 8 }}>
-        {rows}
+        <Row wrap={false}>
+          <Col flex="none">
+            <Space direction="vertical" style={{ width: "100%" }}>
+              {col1}
+            </Space>
+          </Col>
+          <Col flex="auto" style={{ paddingRight: 8 }}>
+            <Space direction="vertical" style={{ width: "100%" }}>
+              {col2}
+            </Space>
+          </Col>
+          <Col flex="auto">
+            <Space direction="vertical" style={{ width: "100%" }}>
+              {col3}
+            </Space>
+          </Col>
+        </Row>
       </Col>
       <Col flex="none">
         {indices.length > 1 ? (

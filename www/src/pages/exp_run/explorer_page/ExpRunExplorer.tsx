@@ -225,6 +225,9 @@ export const schema2columns = (
       if (value instanceof NestedPrimitiveDataSchema) {
         return schema2columns(key, childpath, value);
       }
+      if (value instanceof ParamSchema) {
+        return schema2columns(key, childpath, value);
+      }
       return {
         title: key,
         key: childpath.join("."),

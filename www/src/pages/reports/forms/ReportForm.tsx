@@ -139,7 +139,11 @@ export const ReportForm = observer(
         exps,
         report,
         reportStore
-      );
+      ).then((resp) => {
+        if (report === undefined && resp !== undefined) {
+          routes.updatereport.path({ expId: expId, reportId: resp.id }).open();
+        }
+      });
     };
 
     const onDelete = () => {
@@ -324,9 +328,9 @@ function upsertReport(
   exps: Experiment[],
   report: Report | undefined,
   reportStore: ReportStore
-) {
+): Promise<Report | undefined> {
   if (pos.rowOrder === null || pos.colSpan === null || pos.colOffset === null) {
-    return;
+    return Promise.resolve(undefined);
   }
 
   let newxaxis = new Axis(
@@ -346,7 +350,7 @@ function upsertReport(
     zvalues.length === 0
   ) {
     // invalid index values
-    return;
+    return Promise.resolve(undefined);
   }
 
   const args = {
@@ -358,7 +362,7 @@ function upsertReport(
     },
   };
   if (report === undefined) {
-    reportStore.create({
+    return reportStore.create({
       name,
       description,
       args,
@@ -367,7 +371,7 @@ function upsertReport(
       position: pos,
     });
   } else {
-    reportStore.update({
+    return reportStore.update({
       id: report.id,
       name,
       description,
