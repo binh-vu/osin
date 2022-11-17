@@ -87,7 +87,7 @@ class Axis:
                         idx.values[run.exp_id].append(
                             expidx.get_value(run)
                             if isinstance(expidx, Index)
-                            else vffff
+                            else run.exp.name  # must not exp.id because the semantic of the field is EXPNAME
                         )
                     for expid in idx.values:
                         idx.values[expid] = list(set(idx.values[expid]))
