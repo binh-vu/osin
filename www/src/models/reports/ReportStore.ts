@@ -9,12 +9,11 @@ import {
 import { action, makeObservable, observable, override } from "mobx";
 import { Position } from "./ExpReport";
 import {
-  Axis,
-  ExpIndex,
-  Index,
   IndexProperty,
   Report,
   ReportTableArgs,
+  IndexSchema,
+  AttrGetter,
 } from "./Report";
 
 export interface DraftCreateReport
@@ -99,9 +98,9 @@ export class ReportStore extends CRUDStore<
       record.name,
       record.description,
       new ReportTableArgs(record.args.type, {
-        xaxis: deserializeAxis(record.args.value.xaxis),
-        yaxis: deserializeAxis(record.args.value.yaxis),
-        zvalues: record.args.value.zvalues.map(deserializeIndex),
+        xaxis: deserializeIndexSchema(record.args.value.x_axis),
+        yaxis: deserializeIndexSchema(record.args.value.y_axis),
+        zvalues: record.args.value.z_values.map(deserializeAttrGetter),
       })
     );
   }
@@ -121,13 +120,14 @@ export class ReportStore extends CRUDStore<
   }
 }
 
-const deserializeIndex = (index: any): Index | ExpIndex => {
-  if (index.indices !== undefined) {
-    return new ExpIndex(index.indices, index.values);
-  }
-  return new Index(index.index, index.values, index.property);
+const deserializeAttrGetter = (obj: any): AttrGetter => {
+  return new AttrGetter(obj.path, obj.values);
 };
 
-const deserializeAxis = (axis: any): Axis => {
-  return new Axis(axis.indices.map(deserializeIndex));
+const deserializeIndexSchema = (obj: any): IndexSchema => {
+  return new IndexSchema(
+    obj.attrs.map(deserializeAttrGetter),
+    obj.index2children,
+    obj.fullyObserverdAttrs
+  );
 };

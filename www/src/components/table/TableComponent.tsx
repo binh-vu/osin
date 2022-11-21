@@ -382,9 +382,7 @@ const imputeMissingFilters_ = <R extends object>(
   }
 };
 
-const TableComponentFR_ =
-  (forwardRef(TableComponent_) as <R>(
-    props: TableComponentProps<R>,
-    ref: React.ForwardedRef<TableComponentFunc<R>>
-  ) => React.ReactElement) || null;
-export const TableComponent = observer(TableComponentFR_);
+const TableComponentFR_ = forwardRef(TableComponent_ as any);
+export const TableComponent = observer(
+  TableComponentFR_
+) as typeof TableComponent_;

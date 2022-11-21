@@ -16,11 +16,8 @@ import { observer } from "mobx-react";
 import { Experiment, Report, ReportStore, useStores } from "models";
 import { ParamSchema } from "models/experiments";
 import {
-  Axis,
   COLUMN_MAX_SIZE,
-  ExpIndex,
   EXPNAME_INDEX_FIELD,
-  Index,
   IndexProperty,
   Position,
 } from "models/reports";
@@ -96,8 +93,8 @@ export const ReportForm = observer(
               }
 
               setExps(exps);
-              setXAxis(getRawIndices(exps, report.args.value.xaxis.indices));
-              setYAxis(getRawIndices(exps, report.args.value.yaxis.indices));
+              // setXAxis(getRawIndices(exps, report.args.value.xaxis.indices));
+              // setYAxis(getRawIndices(exps, report.args.value.yaxis.indices));
               setZValues(getRawIndices(exps, report.args.value.zvalues));
             });
           });
@@ -329,145 +326,144 @@ function upsertReport(
   report: Report | undefined,
   reportStore: ReportStore
 ): Promise<Report | undefined> {
-  if (pos.rowOrder === null || pos.colSpan === null || pos.colOffset === null) {
-    return Promise.resolve(undefined);
-  }
+  // if (pos.rowOrder === null || pos.colSpan === null || pos.colOffset === null) {
+  return Promise.resolve(undefined);
+  // }
 
-  let newxaxis = new Axis(
-    xaxis.map((x) => buildIndex(x, "params", exps)).filter(notUndefined)
-  );
-  let newyaxis = new Axis(
-    yaxis.map((y) => buildIndex(y, "params", exps)).filter(notUndefined)
-  );
-  let newzvalues = zvalues
-    .map((z) => buildIndex(z, "aggregated_primitive_outputs", exps))
-    .filter(notUndefined);
+  // let newxaxis = new Axis(
+  //   xaxis.map((x) => buildIndex(x, "params", exps)).filter(notUndefined)
+  // );
+  // let newyaxis = new Axis(
+  //   yaxis.map((y) => buildIndex(y, "params", exps)).filter(notUndefined)
+  // );
+  // let newzvalues = zvalues
+  //   .map((z) => buildIndex(z, "aggregated_primitive_outputs", exps))
+  //   .filter(notUndefined);
 
-  if (
-    newxaxis.indices.length !== xaxis.length ||
-    newyaxis.indices.length !== yaxis.length ||
-    newzvalues.length !== zvalues.length ||
-    zvalues.length === 0
-  ) {
-    // invalid index values
-    return Promise.resolve(undefined);
-  }
+  // if (
+  //   newxaxis.indices.length !== xaxis.length ||
+  //   newyaxis.indices.length !== yaxis.length ||
+  //   newzvalues.length !== zvalues.length ||
+  //   zvalues.length === 0
+  // ) {
+  //   // invalid index values
+  //   return Promise.resolve(undefined);
+  // }
 
-  const args = {
-    type: "table" as const,
-    value: {
-      xaxis: newxaxis,
-      yaxis: newyaxis,
-      zvalues: newzvalues,
-    },
-  };
-  if (report === undefined) {
-    return reportStore.create({
-      name,
-      description,
-      args,
-      exp: expId,
-      exps: exps.map((e) => e.id),
-      position: pos,
-    });
-  } else {
-    return reportStore.update({
-      id: report.id,
-      name,
-      description,
-      args,
-      exp: expId,
-      exps: exps.map((e) => e.id),
-      position: pos,
-    });
-  }
+  // const args = {
+  //   type: "table" as const,
+  //   value: {
+  //     xaxis: newxaxis,
+  //     yaxis: newyaxis,
+  //     zvalues: newzvalues,
+  //   },
+  // };
+  // if (report === undefined) {
+  //   return reportStore.create({
+  //     name,
+  //     description,
+  //     args,
+  //     exp: expId,
+  //     exps: exps.map((e) => e.id),
+  //     position: pos,
+  //   });
+  // } else {
+  //   return reportStore.update({
+  //     id: report.id,
+  //     name,
+  //     description,
+  //     args,
+  //     exp: expId,
+  //     exps: exps.map((e) => e.id),
+  //     position: pos,
+  //   });
+  // }
 }
 
 function buildIndex(
   index: RawAnyIndex,
   property: IndexProperty,
   exps: Experiment[]
-): Index | ExpIndex | undefined {
-  if (
-    (index.isExp && index.expindex === undefined) ||
-    (!index.isExp && index.index === undefined)
-  ) {
-    return undefined;
-  }
+): any | undefined {
+  return undefined;
+  // if (
+  //   (index.isExp && index.expindex === undefined) ||
+  //   (!index.isExp && index.index === undefined)
+  // ) {
+  //   return undefined;
+  // }
 
-  if (!index.isExp) {
-    if (index.index! === EXPNAME_INDEX_FIELD) {
-      if (index.values !== undefined) {
-        let selectedExpNames = new Set(index.values);
-        exps = exps.filter((e) => selectedExpNames.has(e.name));
-      }
+  // if (!index.isExp) {
+  //   if (index.index! === EXPNAME_INDEX_FIELD) {
+  //     if (index.values !== undefined) {
+  //       let selectedExpNames = new Set(index.values);
+  //       exps = exps.filter((e) => selectedExpNames.has(e.name));
+  //     }
 
-      return new ExpIndex(
-        Object.fromEntries(exps.map((exp) => [exp.id, EXPNAME_INDEX_FIELD])),
-        null
-      );
-    }
-    return new Index(index.index!.split("."), index.values || null, property);
-  }
+  //     return new ExpIndex(
+  //       Object.fromEntries(exps.map((exp) => [exp.id, EXPNAME_INDEX_FIELD])),
+  //       null
+  //     );
+  //   }
+  //   return new Index(index.index!.split("."), index.values || null, property);
+  // }
 
-  return new ExpIndex(
-    Object.fromEntries(
-      Object.entries(index.expindex!).map(([expid, expindex]) => {
-        return [
-          parseInt(expid),
-          new Index(expindex.split("."), null, property),
-        ];
-      })
-    ),
-    Object.keys(index.expvalues).length == 0 ? null : index.expvalues
-  );
+  // return new ExpIndex(
+  //   Object.fromEntries(
+  //     Object.entries(index.expindex!).map(([expid, expindex]) => {
+  //       return [
+  //         parseInt(expid),
+  //         new Index(expindex.split("."), null, property),
+  //       ];
+  //     })
+  //   ),
+  //   Object.keys(index.expvalues).length === 0 ? null : index.expvalues
+  // );
 }
 
-function getRawIndices(
-  exps: Experiment[],
-  indices: (Index | ExpIndex)[]
-): RawAnyIndex[] {
-  return indices.map((index) => {
-    if (index instanceof Index) {
-      return {
-        isExp: false,
-        index: index.index.join("."),
-        values: index.values === null ? undefined : index.values,
-      };
-    } else {
-      const indices = Object.entries(index.indices);
-      const tmp = indices
-        .map(([key, val]) => (val === EXPNAME_INDEX_FIELD ? 1 : 0))
-        .reduce((a: number, b) => a + b, 0);
-      if (tmp > 0) {
-        if (tmp !== indices.length) {
-          throw new Error(
-            "The UI does not support mixed exp index for now. This should not reachable for report created through the UI."
-          );
-        }
+function getRawIndices(exps: Experiment[], indices: any[]): RawAnyIndex[] {
+  return [];
+  // return indices.map((index) => {
+  //   if (index instanceof Index) {
+  //     return {
+  //       isExp: false,
+  //       index: index.index.join("."),
+  //       values: index.values === null ? undefined : index.values,
+  //     };
+  //   } else {
+  //     const indices = Object.entries(index.indices);
+  //     const tmp = indices
+  //       .map(([key, val]) => (val === EXPNAME_INDEX_FIELD ? 1 : 0))
+  //       .reduce((a: number, b) => a + b, 0);
+  //     if (tmp > 0) {
+  //       if (tmp !== indices.length) {
+  //         throw new Error(
+  //           "The UI does not support mixed exp index for now. This should not reachable for report created through the UI."
+  //         );
+  //       }
 
-        // all exp indices are EXPNAME_INDEX_FIELD
-        return {
-          isExp: false,
-          index: EXPNAME_INDEX_FIELD,
-          // use all values if all exp are used
-          values:
-            indices.length === exps.length
-              ? undefined
-              : indices.map(([key, val]) => key),
-        };
-      }
+  //       // all exp indices are EXPNAME_INDEX_FIELD
+  //       return {
+  //         isExp: false,
+  //         index: EXPNAME_INDEX_FIELD,
+  //         // use all values if all exp are used
+  //         values:
+  //           indices.length === exps.length
+  //             ? undefined
+  //             : indices.map(([key, val]) => key),
+  //       };
+  //     }
 
-      return {
-        isExp: true,
-        expindex: Object.fromEntries(
-          indices.map(([key, val]) => [key, (val as Index).index.join(".")])
-        ),
-        expvalues: index.values === null ? {} : index.values,
-        expvalueOptions: {},
-      };
-    }
-  });
+  //     return {
+  //       isExp: true,
+  //       expindex: Object.fromEntries(
+  //         indices.map(([key, val]) => [key, (val as Index).index.join(".")])
+  //       ),
+  //       expvalues: index.values === null ? {} : index.values,
+  //       expvalueOptions: {},
+  //     };
+  //   }
+  // });
 }
 
 function notUndefined<V>(v: V | undefined): v is V {

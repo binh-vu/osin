@@ -7,57 +7,39 @@ export const EXPNAME_INDEX_FIELD = "__exp__";
 export type EXPNAME_INDEX_FIELD_TYPE = "__exp__";
 export type IndexValue = string | number | boolean | null;
 
-export class Index {
-  index: string[];
-  values: null | IndexValue[];
-  property: IndexProperty;
+export class AttrGetter {
+  path: string[];
+  values: IndexValue[];
 
-  public constructor(
-    index: string[],
-    values: null | IndexValue[],
-    property: IndexProperty
-  ) {
-    this.index = index;
-    this.values = values;
-    this.property = property;
-
-    makeObservable(this, {
-      index: observable,
-      values: observable,
-      property: observable,
-    });
-  }
-}
-
-export class ExpIndex {
-  indices: { [expId: number]: Index | EXPNAME_INDEX_FIELD_TYPE };
-  // null when the indices are all EXPNAME_INDEX_FIELD
-  // since there is no values, and the list of experiments are provided
-  // by indices
-  values: null | { [expId: number]: IndexValue[] };
-
-  public constructor(
-    indices: { [expId: number]: Index | EXPNAME_INDEX_FIELD_TYPE },
-    values: null | { [expId: number]: IndexValue[] }
-  ) {
-    this.indices = indices;
+  public constructor(path: string[], values: IndexValue[]) {
+    this.path = path;
     this.values = values;
 
     makeObservable(this, {
-      indices: observable,
+      path: observable,
       values: observable,
     });
   }
 }
 
-export class Axis {
-  indices: (Index | ExpIndex)[];
+export class IndexSchema {
+  attrs: AttrGetter[];
+  index2children: number[][];
+  fullyObserverdAttrs: number[][];
 
-  public constructor(indices: (Index | ExpIndex)[]) {
-    this.indices = indices;
+  public constructor(
+    attrs: AttrGetter[],
+    index2children: number[][],
+    fullyObserverdAttrs: number[][]
+  ) {
+    this.attrs = attrs;
+    this.index2children = index2children;
+    this.fullyObserverdAttrs = fullyObserverdAttrs;
 
     makeObservable(this, {
-      indices: observable,
+      attrs: observable,
+      index2children: observable,
+      fullyObserverdAttrs: observable,
     });
   }
 }
@@ -65,17 +47,17 @@ export class Axis {
 export class ReportTableArgs {
   type: "table";
   value: {
-    xaxis: Axis;
-    yaxis: Axis;
-    zvalues: (Index | ExpIndex)[];
+    xaxis: IndexSchema;
+    yaxis: IndexSchema;
+    zvalues: AttrGetter[];
   };
 
   public constructor(
     type: "table",
     value: {
-      xaxis: Axis;
-      yaxis: Axis;
-      zvalues: (Index | ExpIndex)[];
+      xaxis: IndexSchema;
+      yaxis: IndexSchema;
+      zvalues: AttrGetter[];
     }
   ) {
     this.type = type;

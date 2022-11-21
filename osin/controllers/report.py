@@ -16,16 +16,24 @@ from osin.models.exp import Exp, ExpRun
 from osin.models.report import (
     EXPNAME_INDEX_FIELD,
     ExpReport,
-    Index,
     Report,
     ReportDisplayPosition,
-    ReportType,
 )
+from osin.models.report.index_schema import AttrGetter, Index
 from peewee import DoesNotExist
 from werkzeug.exceptions import BadRequest, NotFound
 
 expreport_bp = generate_api(ExpReport)
-report_bp = generate_api(Report, skip_funcs={APIFuncs.create, APIFuncs.update})
+report_bp = generate_api(
+    Report,
+    skip_funcs={APIFuncs.create, APIFuncs.update},
+    known_type_serializer={
+        AttrGetter: lambda x: {
+            "path": x.path,
+            "values": list(x.values.keys()) if x.values is not None else None,
+        }
+    },
+)
 report_deserializers = generate_deserializer(Report)
 report_serializer = get_peewee_serializer(Report)
 exp_ids_deser = get_deserialize_list(deserialize_int)
@@ -109,11 +117,6 @@ def create_report():
             except ValueError as e:
                 raise ValueError(f"Field `{name}` {str(e)}")
     report = Report(**raw_record)
-
-    if report.args.get_experiment_ids().difference(exp_ids):
-        raise BadRequest(
-            f"The report uses experiments that are not in `exps`: {report.args.get_experiment_ids().difference(exp_ids)}"
-        )
 
     with db:
         report.save()
@@ -199,68 +202,23 @@ def get_report_data(id: int):
     for run in runs:
         run.exp = exps[run.exp_id]
 
-    # group runs by the index
-    if report.args.type == ReportType.Table:
-        xaxis = report.args.value.xaxis
-        yaxis = report.args.value.yaxis
-        zvalues = report.args.value.zvalues
+    data = report.args.value.get_data(runs)
+    return jsonify(
+        {
+            "type": report.args.type,
+            "data": {
+                "data": data.data,
+                "xindex": serialize_index(data.xindex),
+                "yindex": serialize_index(data.yindex),
+            },
+        }
+    )
 
-        xitems, xitems_schema = xaxis.populate_values(runs).get_values(exps)
-        yitems, yitems_schema = yaxis.populate_values(runs).get_values(exps)
 
-        yitems_dict = {item: {} for item in yitems}
-        data = {item: {item: {} for item in yitems} for item in xitems}
-
-        for run in runs:
-            xitem = xaxis.get_value(run)
-            if xitem not in data:
-                continue
-            yitem = yaxis.get_value(run)
-            if yitem not in yitems_dict:
-                continue
-
-            zitems = data[xitem][yitem]
-            for idx in zvalues:
-                if isinstance(idx, Index):
-                    zitem = idx.index
-                    idxvalue = idx.get_value(run)
-                elif isinstance(idx[run.exp_id], Index):
-                    zitem = idx[run.exp_id].index
-                    idxvalue = idx[run.exp_id].get_value(run)
-                else:
-                    zitem, idxvalue = idx[run.exp_id], idx[run.exp_id]
-                if zitem not in zitems:
-                    zitems[zitem] = []
-                zitems[zitem].append({"value": idxvalue, "run_id": run.id})
-
-        # output as data frame
-        output = []
-        for xitem, yitems_ in data.items():
-            for yitem, zitems in yitems_.items():
-                output.append(
-                    {
-                        "x": xitem,
-                        "y": yitem,
-                        "z": [
-                            {
-                                "name": zitem,
-                                "value": value["value"],
-                                "run_id": value["run_id"],
-                            }
-                            for zitem, values in zitems.items()
-                            for value in values
-                        ],
-                    }
-                )
-
-        return jsonify(
-            {
-                "data": output,
-                "xitems": xitems,
-                "xitems_schema": xitems_schema,
-                "yitems": yitems,
-                "yitems_schema": yitems_schema,
-            }
-        )
-
-    raise Exception("Unsupported report type")
+def serialize_index(index: Index):
+    return {
+        "attr": index.attr,
+        "children": [
+            (v, [serialize_index(c) for c in lst]) for v, lst in index.children.items()
+        ],
+    }
