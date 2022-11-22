@@ -1,11 +1,13 @@
+import AsciiTable from "ascii-table";
 import { ReportData } from "../ReportData";
 import { testcase01 } from "../resources/testcase01";
 import { testcase02 } from "../resources/testcase02";
-import { Cell, Table, TableBuilder, cellFactory } from "./TableBuilder";
-import AsciiTable from "ascii-table";
+import { testcase03 } from "../resources/testcase03";
+import { Cell, cellFactory, Table, TableBuilder } from "./TableBuilder";
 
 describe("test table builder", () => {
   let testcases = [testcase01, testcase02];
+  testcases = [testcase03];
 
   test("construct table header", () => {
     for (const testcase of testcases) {
@@ -13,12 +15,18 @@ describe("test table builder", () => {
         ReportData.deserialize(testcase.reportData.data),
         cellFactory
       );
-      const headers = builder.buildHeader(builder.data.xIndex);
+      const headers = builder.buildHeader(
+        builder.data.xIndex,
+        testcase.colHeaderScale
+      );
       expect(filters.map(filters.filterCell)(headers)).toEqual(
         testcase.rowHeaders
       );
 
-      const headers2 = builder.buildHeader(builder.data.yIndex);
+      const headers2 = builder.buildHeader(
+        builder.data.yIndex,
+        testcase.rowHeaderScale
+      );
       expect(filters.map(filters.filterCell)(headers2)).toEqual(
         testcase.colHeaders
       );
@@ -31,7 +39,12 @@ describe("test table builder", () => {
         ReportData.deserialize(testcase.reportData.data),
         cellFactory
       );
-      const table = builder.build();
+      const table = builder.build(
+        testcase.nExtraRowHeaderCol,
+        testcase.nExtraColHeaderRow,
+        testcase.rowHeaderScale,
+        testcase.colHeaderScale
+      );
       expect(tableToString(table)).toEqual(testcase.tableStructure);
     }
   });
@@ -46,7 +59,12 @@ describe("test table builder", () => {
         ReportData.deserialize(testcase.reportData.data),
         cellFactory
       );
-      const table = builder.build();
+      const table = builder.build(
+        testcase.nExtraRowHeaderCol,
+        testcase.nExtraColHeaderRow,
+        testcase.rowHeaderScale,
+        testcase.colHeaderScale
+      );
       table.fixSpanning();
       expect(filters.map(filters.filterCell)(table.data)).toEqual(
         testcase.spannedCells

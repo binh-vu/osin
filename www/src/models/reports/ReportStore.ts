@@ -14,6 +14,7 @@ import {
   ReportTableArgs,
   IndexSchema,
   AttrGetter,
+  Attribute,
 } from "./Report";
 
 export interface DraftCreateReport
@@ -121,7 +122,7 @@ export class ReportStore extends CRUDStore<
 }
 
 const deserializeAttrGetter = (obj: any): AttrGetter => {
-  return new AttrGetter(obj.path, obj.values);
+  return new AttrGetter(new Attribute(obj.path), obj.values);
 };
 
 const deserializeIndexSchema = (obj: any): IndexSchema => {

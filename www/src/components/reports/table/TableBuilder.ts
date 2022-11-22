@@ -29,19 +29,31 @@ export class Table<C extends Cell> {
   colstart: number;
   nrows: number;
   ncols: number;
+  nExtraRowHeaderCol: number;
+  nExtraColHeaderRow: number;
+  rowHeaderScale: number;
+  colHeaderScale: number;
 
   constructor(
     data: C[][],
     rowstart: number,
     colstart: number,
     nrows: number,
-    ncols: number
+    ncols: number,
+    nExtraRowHeaderCol: number,
+    nExtraColHeaderRow: number,
+    rowHeaderScale: number,
+    colHeaderScale: number
   ) {
     this.data = data;
     this.rowstart = rowstart;
     this.colstart = colstart;
     this.nrows = nrows;
     this.ncols = ncols;
+    this.nExtraRowHeaderCol = nExtraRowHeaderCol;
+    this.nExtraColHeaderRow = nExtraColHeaderRow;
+    this.rowHeaderScale = rowHeaderScale;
+    this.colHeaderScale = colHeaderScale;
   }
 
   clone() {
@@ -50,7 +62,11 @@ export class Table<C extends Cell> {
       this.rowstart,
       this.colstart,
       this.nrows,
-      this.ncols
+      this.ncols,
+      this.nExtraRowHeaderCol,
+      this.nExtraColHeaderRow,
+      this.rowHeaderScale,
+      this.colHeaderScale
     );
   }
 
@@ -111,25 +127,31 @@ export class TableBuilder<C extends Cell> {
     this.cellFactory = cellFactory;
   }
 
-  build(): Table<C> {
-    const rowHeaders = this.buildHeader(this.data.xIndex);
-    const colHeaders = this.transposeHeadersToVertical(
-      this.buildHeader(this.data.yIndex)
+  build(
+    nExtraRowHeaderCol: number = 0,
+    nExtraColHeaderRow: number = 0,
+    rowHeaderScale: number = 1,
+    colHeaderScale: number = 1
+  ): Table<C> {
+    const colHeaders = this.buildHeader(this.data.xIndex, colHeaderScale);
+    const rowHeaders = this.transposeHeadersToVertical(
+      this.buildHeader(this.data.yIndex, rowHeaderScale)
     );
 
-    const rowstart = rowHeaders.length;
-    const colstart = colHeaders.length > 0 ? colHeaders[0].length : 0;
-    const nrows = rowstart + colHeaders.length;
-    const ncols = colstart + (rowHeaders.length > 0 ? rowHeaders[0].length : 0);
+    const rowstart = colHeaders.length + nExtraColHeaderRow;
+    const colstart =
+      (rowHeaders.length > 0 ? rowHeaders[0].length : 0) + nExtraRowHeaderCol;
+    const nrows = rowstart + rowHeaders.length;
+    const ncols = colstart + (colHeaders.length > 0 ? colHeaders[0].length : 0);
 
     const rows: C[][] = [];
     for (let i = 0; i < nrows; i++) {
       const row: C[] = [];
       for (let j = 0; j < ncols; j++) {
-        if (i < rowstart && j >= colstart) {
-          row.push(rowHeaders[i][j - colstart]);
-        } else if (i >= rowstart && j < colstart) {
-          row.push(colHeaders[i - rowstart][j]);
+        if (i < rowstart - nExtraColHeaderRow && j >= colstart) {
+          row.push(colHeaders[i][j - colstart]);
+        } else if (i >= rowstart && j < colstart - nExtraRowHeaderCol) {
+          row.push(rowHeaders[i - rowstart][j]);
         } else {
           row.push({
             ...this.cellFactory(),
@@ -154,23 +176,35 @@ export class TableBuilder<C extends Cell> {
     }
 
     for (const record of this.data.data) {
-      const i = this.yIndexMap.get(record.y.toString())! + rowstart;
-      const j = this.xIndexMap.get(record.x.toString())! + colstart;
+      const i =
+        this.yIndexMap.get(record.y.toString())! * rowHeaderScale + rowstart;
+      const j =
+        this.xIndexMap.get(record.x.toString())! * colHeaderScale + colstart;
       rows[i][j].datapoints.push(record);
     }
 
-    return new Table(rows, rowstart, colstart, nrows, ncols);
+    return new Table(
+      rows,
+      rowstart,
+      colstart,
+      nrows,
+      ncols,
+      nExtraRowHeaderCol,
+      nExtraColHeaderRow,
+      rowHeaderScale,
+      colHeaderScale
+    );
   }
 
   /** Build (meta) headers of the table from an index */
-  buildHeader(index: Index): C[][] {
+  buildHeader(index: Index, scale: number = 1): C[][] {
     const height = index.getMaxLevel();
     const width = index.size();
 
     const headers: C[][] = [];
     for (let i = 0; i < height * 2; i++) {
       const row = [];
-      for (let j = 0; j < width; j++) {
+      for (let j = 0; j < width * scale; j++) {
         row.push({
           ...this.cellFactory(),
           th: true,
@@ -186,7 +220,7 @@ export class TableBuilder<C extends Cell> {
       headers.push(row);
     }
 
-    this.buildHeaderMain(index, 0, 0, headers);
+    this.buildHeaderMain(index, 0, 0, headers, scale);
     return headers;
   }
 
@@ -223,30 +257,36 @@ export class TableBuilder<C extends Cell> {
     index: Index,
     rowoffset: number,
     coloffset: number,
-    headers: C[][]
+    headers: C[][],
+    scale: number = 1
   ) {
     const header = headers[rowoffset][coloffset];
     const height = headers.length;
     header.th = true;
     header.metaTh = true;
     header.label = index.attr.getLabel();
-    header.colspan = index.size();
+    header.colspan = index.size() * scale;
 
     for (const [value, nextValues] of index.children.entries()) {
       headers[rowoffset + 1][coloffset].th = true;
       headers[rowoffset + 1][coloffset].metaTh = false;
       headers[rowoffset + 1][coloffset].label = value;
       if (nextValues.length === 0) {
-        headers[rowoffset + 1][coloffset].colspan = 1;
+        headers[rowoffset + 1][coloffset].colspan = 1 * scale;
         headers[rowoffset + 1][coloffset].rowspan = height - rowoffset - 1;
-        coloffset++;
+        coloffset += scale;
       } else {
-        headers[rowoffset + 1][coloffset].colspan = nextValues
-          .map((nv) => nv.size())
-          .reduce((a, b) => a + b);
+        headers[rowoffset + 1][coloffset].colspan =
+          nextValues.map((nv) => nv.size()).reduce((a, b) => a + b) * scale;
         for (const nextValue of nextValues) {
-          this.buildHeaderMain(nextValue, rowoffset + 2, coloffset, headers);
-          coloffset += nextValue.size();
+          this.buildHeaderMain(
+            nextValue,
+            rowoffset + 2,
+            coloffset,
+            headers,
+            scale
+          );
+          coloffset += nextValue.size() * scale;
         }
       }
     }

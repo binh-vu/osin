@@ -2,6 +2,7 @@ import { makeStyles } from "@mui/styles";
 import { Dropdown } from "antd";
 import { ArgSchema, ArgType, InternalLink, PathDef } from "gena-app";
 import { getClassName } from "misc";
+import { AttrGetter } from "models/reports";
 import { useMemo, useState } from "react";
 import { ReportData } from "../../ReportData";
 import { Cell, Table, TableBuilder } from "../TableBuilder";
@@ -91,6 +92,7 @@ export const TableComponent = <
   editURL,
   reportData,
   defaultHighlightMode = "row-best",
+  zvalues,
 }: {
   title: string | React.ReactElement;
   editURL: {
@@ -100,20 +102,39 @@ export const TableComponent = <
   };
   reportData: ReportData;
   defaultHighlightMode?: HighlightMode;
+  zvalues: AttrGetter[];
 }) => {
   const classes = useStyles();
   const [highlight, setHighlight] =
     useState<HighlightMode>(defaultHighlightMode);
+  const [zvalueStyle, setZValueStyle] = useState<"column" | "embedded">(
+    "column"
+  );
 
   const table1 = useMemo(() => {
-    const table = new TableBuilder(reportData, extraCellFactory).build();
-    for (const row of table.data) {
-      for (const cell of row) {
-        cell.label = precomputeCellLabel(cell);
-      }
+    let nExtraRowHeaderCol = 0;
+    let nExtraColHeaderRow = 0;
+    let rowHeaderScale = 1;
+    let colHeaderScale = 1;
+
+    if (zvalueStyle === "column" && zvalues.length > 1) {
+      nExtraColHeaderRow = 1;
+      colHeaderScale = zvalues.length;
+    } else if (zvalueStyle === "embedded" && zvalues.length > 1) {
+      colHeaderScale = zvalues.length;
+      rowHeaderScale = zvalues.length;
     }
+
+    const table = new TableBuilder(reportData, extraCellFactory).build(
+      nExtraRowHeaderCol,
+      nExtraColHeaderRow,
+      rowHeaderScale,
+      colHeaderScale
+    );
+    precomputeCellLabel(table, zvalues, zvalueStyle);
     return table;
   }, [reportData]);
+
   const table = useMemo(
     () =>
       styleTable(
@@ -122,6 +143,7 @@ export const TableComponent = <
       ).fixSpanning(),
     [table1]
   );
+
   const onCellClick = (cell: ExtraCell) => {
     // do nothing if clicking on empty cells
     if (cell.row < table.rowstart && cell.col < table.colstart) return;
@@ -187,6 +209,7 @@ export const TableComponent = <
             classes={classes}
             highlight={highlight}
             setHighlight={setHighlight}
+            zvalues={zvalues}
           />
         </caption>
       </table>
@@ -230,6 +253,7 @@ export const Footnote = <
   classes,
   highlight,
   setHighlight,
+  zvalues,
 }: {
   editURL: {
     path: PathDef<U, Q>;
@@ -239,9 +263,16 @@ export const Footnote = <
   classes: ReturnType<typeof useStyles>;
   highlight: HighlightMode;
   setHighlight: (highlight: HighlightMode) => void;
+  zvalues: AttrGetter[];
 }) => {
+  let desc = "";
+  if (zvalues.length === 1) {
+    desc = `*each cell shows the average of ${zvalues[0].attr.getLabel()} - `;
+  }
+
   return (
     <>
+      {desc}
       <InternalLink
         path={editURL.path}
         urlArgs={editURL.urlArgs}

@@ -7,16 +7,28 @@ export const EXPNAME_INDEX_FIELD = "__exp__";
 export type EXPNAME_INDEX_FIELD_TYPE = "__exp__";
 export type IndexValue = string | number | boolean | null;
 
-export class AttrGetter {
+export class Attribute {
   path: string[];
+
+  constructor(path: string[]) {
+    this.path = path;
+  }
+
+  getLabel(): string {
+    return this.path.length > 1 ? this.path.slice(1).join(".") : this.path[0];
+  }
+}
+
+export class AttrGetter {
+  attr: Attribute;
   values: IndexValue[];
 
-  public constructor(path: string[], values: IndexValue[]) {
-    this.path = path;
+  public constructor(attr: Attribute, values: IndexValue[]) {
+    this.attr = attr;
     this.values = values;
 
     makeObservable(this, {
-      path: observable,
+      attr: observable,
       values: observable,
     });
   }

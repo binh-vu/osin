@@ -1,3 +1,5 @@
+import { Attribute } from "models/reports";
+
 export type AttrValue = string | number | boolean | null;
 
 export class IndexElement {
@@ -9,18 +11,6 @@ export class IndexElement {
 
   toString(): string {
     return this.element.join(".");
-  }
-}
-
-export class Attribute {
-  path: string[];
-
-  constructor(path: string[]) {
-    this.path = path;
-  }
-
-  getLabel(): string {
-    return this.path.length > 1 ? this.path.slice(1).join(".") : this.path[0];
   }
 }
 

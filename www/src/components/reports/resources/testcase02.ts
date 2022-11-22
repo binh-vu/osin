@@ -203,4 +203,8 @@ export const testcase02 = {
   colHeaders,
   tableStructure,
   spannedCells,
+  nExtraRowHeaderCol: 0,
+  nExtraColHeaderRow: 0,
+  rowHeaderScale: 1,
+  colHeaderScale: 1,
 };

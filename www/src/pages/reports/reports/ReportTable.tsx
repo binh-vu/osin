@@ -38,6 +38,7 @@ export const ReportTable = ({
     <div className={classes.root}>
       <TableComponent
         reportData={data}
+        zvalues={report.args.value.zvalues}
         title={`Table ${report.id}. ${report.name}`}
         editURL={{
           path: routes.updatereport,

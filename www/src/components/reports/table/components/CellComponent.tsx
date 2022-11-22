@@ -1,7 +1,9 @@
 import { gold } from "@ant-design/colors";
 import { faHighlighter } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { AttrValue, ReportDataPoint } from "components/reports/ReportData";
 import _ from "lodash";
+import { AttrGetter } from "models/reports";
 import { Cell, cellFactory, Table } from "../TableBuilder";
 
 export type HighlightMode =
@@ -113,12 +115,6 @@ export const DataCellComponent = ({ cell }: { cell: ExtraCell }) => {
     style.color = cell.highlight.color;
   }
 
-  const label = cell.label;
-
-  // const label = Number.isNaN(cell.rawvalue!.mean)
-  //   ? ""
-  //   : cell.rawvalue!.mean.toFixed(3);
-
   return (
     <td
       style={tdStyle}
@@ -127,16 +123,56 @@ export const DataCellComponent = ({ cell }: { cell: ExtraCell }) => {
       className={cell.className}
     >
       {highlightEl}
-      <span style={style}>{label}</span>
+      <span style={style}>{cell.label}</span>
     </td>
   );
 };
 
-export function precomputeCellLabel(cell: Cell) {
-  if (cell.th) return cell.label;
+export function precomputeCellLabel(
+  table: Table<ExtraCell>,
+  zvalues: AttrGetter[],
+  style: "column" | "embedded"
+) {
+  const zLabels = zvalues.map((attr) => attr.attr.getLabel());
 
-  const mean = _.mean(cell.datapoints.map((dp) => dp.recordValue as number));
-  return mean.toFixed(3);
+  for (let i = table.rowstart; i < table.nrows; i += table.rowHeaderScale) {
+    for (let j = table.colstart; j < table.ncols; j += table.colHeaderScale) {
+      const cell = table.data[i][j];
+      if (cell.datapoints.length === 0) {
+        cell.rowspan = table.rowHeaderScale;
+        cell.colspan = table.colHeaderScale;
+        cell.label = "-";
+        continue;
+      }
+
+      const datapoints: { [zvalue: string]: AttrValue[] } = {};
+      for (const dp of cell.datapoints) {
+        const z = dp.z.getLabel();
+        if (datapoints[z] === undefined) {
+          datapoints[z] = [];
+        }
+        datapoints[z].push(dp.recordValue);
+      }
+
+      if (style === "column") {
+        zLabels.forEach((zLabel, k) => {
+          if (!datapoints[zLabel].some(Number.isNaN)) {
+            table.data[i + k][j].label = _.mean(datapoints[zLabel]).toFixed(3);
+          } else {
+            if (datapoints[zLabel].length === 1) {
+              const zvalue = datapoints[zLabel][0];
+              table.data[i + k][j].label =
+                zvalue === null ? "null" : zvalue.toString();
+            } else {
+              table.data[i + k][j].label = datapoints[zLabel].join(", ");
+            }
+          }
+        });
+      } else {
+        throw new Error("Not implemented");
+      }
+    }
+  }
 }
 
 export function highlightTable(
