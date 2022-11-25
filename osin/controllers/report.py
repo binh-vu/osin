@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 
 
 from flask import jsonify, request
@@ -9,17 +10,18 @@ from gena.deserializer import (
     generate_deserializer,
     get_dataclass_deserializer,
     get_deserialize_list,
+    get_deserializer_from_type,
 )
-from gena.serializer import get_peewee_serializer
+from gena.serializer import get_peewee_serializer, get_dataclass_serializer
 from osin.models.base import db
 from osin.models.exp import Exp, ExpRun
 from osin.models.report import (
-    EXPNAME_INDEX_FIELD,
+    EXP_INDEX_FIELD,
     ExpReport,
     Report,
     ReportDisplayPosition,
 )
-from osin.models.report.index_schema import AttrGetter, Index
+from osin.models.report.index_schema import AttrGetter, AttrValue, Index
 from peewee import DoesNotExist
 from werkzeug.exceptions import BadRequest, NotFound
 
@@ -34,23 +36,41 @@ report_bp = generate_api(
         }
     },
 )
-report_deserializers = generate_deserializer(Report)
-report_serializer = get_peewee_serializer(Report)
+
+AttrGetter_values_deser = get_deserializer_from_type(Optional[list[AttrValue]], {})
+report_deserializers = generate_deserializer(
+    Report,
+    known_type_deserializers={
+        AttrGetter: get_dataclass_deserializer(
+            AttrGetter,
+            known_field_deserializers={
+                "values": lambda x: {v: i for i, v in enumerate(resp)}
+                if (resp := AttrGetter_values_deser(x)) is not None
+                else None
+            },
+        )
+    },
+)
+report_serializer = get_peewee_serializer(
+    Report,
+    known_type_serializer={
+        AttrGetter: get_dataclass_serializer(
+            AttrGetter,
+            known_field_serializer={
+                "values": lambda x: list(x.keys()) if x is not None else None
+            },
+        )
+    },
+)
 exp_ids_deser = get_deserialize_list(deserialize_int)
 pos_deser = get_dataclass_deserializer(
     ReportDisplayPosition, known_type_deserializers={}
 )
 
 
-@report_bp.route(f"/{report_bp.name}/get-index-values", methods=["GET"])
+@report_bp.route(f"/{report_bp.name}/get-attr-values", methods=["GET"])
 def get_index_values():
     """Get possible values of an index"""
-    property = request.args.get("property")
-    if property not in ("params", "aggregated_primitive_outputs"):
-        raise BadRequest(
-            "Invalid property. Must be one of `params` or `aggregated_primitive_outputs`"
-        )
-
     exp_ids = request.args.get("exps")
     if exp_ids is None:
         raise BadRequest("Missing `exps` parameter")
@@ -58,15 +78,15 @@ def get_index_values():
     if not all(x.isdigit() for x in exp_ids):
         raise BadRequest("Invalid `exps` parameter")
 
-    dim = request.args.get("dim")
-    if dim is None:
-        raise BadRequest("Missing `dim` parameter")
+    attr = request.args.get("attr")
+    if attr is None:
+        raise BadRequest("Missing `attr` parameter")
 
-    if dim == EXPNAME_INDEX_FIELD:
+    if attr == EXP_INDEX_FIELD:
         exps = Exp.select(Exp.name).where(Exp.id.in_(exp_ids)).distinct()
         return jsonify({"items": [exp.name for exp in exps]})
 
-    index = Index(index=tuple(dim.split(".")), property=property)
+    attrgetter = AttrGetter(path=tuple(attr.split(".")), values=None)
     runs = list(
         ExpRun.select(
             ExpRun.id, ExpRun.params, ExpRun.aggregated_primitive_outputs
@@ -80,7 +100,7 @@ def get_index_values():
     items = set()
     for run in runs:
         try:
-            item = index.get_value(run)
+            item = attrgetter.get_attribute_value(run)
         except KeyError:
             continue
         items.add(item)
@@ -208,17 +228,26 @@ def get_report_data(id: int):
             "type": report.args.type,
             "data": {
                 "data": data.data,
-                "xindex": serialize_index(data.xindex),
-                "yindex": serialize_index(data.yindex),
+                "xindex": serialize_index(data.xindex, exps),
+                "yindex": serialize_index(data.yindex, exps),
             },
         }
     )
 
 
-def serialize_index(index: Index):
+def serialize_index(index: Index, exps: dict[int, Exp]):
+    if index.attr[0] == EXP_INDEX_FIELD:
+        return {
+            "attr": ("Experiment",),
+            "children": [
+                (exps[eid].name, [serialize_index(c, exps) for c in lst])  # type: ignore
+                for eid, lst in index.children.items()
+            ],
+        }
     return {
         "attr": index.attr,
         "children": [
-            (v, [serialize_index(c) for c in lst]) for v, lst in index.children.items()
+            (v, [serialize_index(c, exps) for c in lst])
+            for v, lst in index.children.items()
         ],
     }

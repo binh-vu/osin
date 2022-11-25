@@ -11,28 +11,29 @@ import {
   Space,
   Typography,
 } from "antd";
-import { LoadingComponent } from "gena-app";
-import { Filter } from "misc";
-import { toJS } from "mobx";
+import {
+  IndexSchemaForm,
+  ZValueForm,
+} from "pages/reports/forms/IndexSchemaForm";
+import { LoadingComponent, NotFoundComponent } from "gena-app";
 import { observer } from "mobx-react";
 import { Experiment, Report, ReportStore, useStores } from "models";
+import { ParamSchema } from "models/experiments";
 import {
   BaseReport,
   COLUMN_MAX_SIZE,
   DraftCreateReport,
   DraftUpdateReport,
+  EXPNAME_INDEX_FIELD,
   IndexProperty,
   IndexSchema,
   Position,
   ReportTableArgs,
 } from "models/reports";
-import {
-  IndexSchemaForm,
-  ZValueForm,
-} from "pages/reports/forms/IndexSchemaForm";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { unstable_batchedUpdates } from "react-dom";
 import { routes } from "routes";
-import { RawAnyIndex } from "./IndexBuilder";
+import { MultiLevelIndexBuilder, RawAnyIndex } from "./IndexBuilder";
 
 const useStyles = makeStyles({
   form: {},
@@ -65,6 +66,7 @@ export const ReportForm = observer(
   ({ report, expId }: { report?: Report; expId: number }) => {
     const classes = useStyles();
     const { expStore, reportStore, expReportStore } = useStores();
+    const [exps, setExps] = useState<Experiment[]>([]);
 
     const draftReport: DraftCreateReport | DraftUpdateReport = useMemo(() => {
       if (report === undefined) {
@@ -113,7 +115,9 @@ export const ReportForm = observer(
     useEffect(() => {
       // fetch all experiments cause we haven't implement the search by name yet
       expStore.fetchAllExperiments().then(() => {
-        if (report !== undefined) {
+        if (report === undefined) {
+          setExps([expStore.get(expId)!]);
+        } else {
           expReportStore.fetchByReportId(report.id, 1000, 0).then(() => {
             const lst = expReportStore.getExperimentsByReportId(report.id);
             const exps = lst.map(([_expreport, exp]) => exp);
@@ -128,6 +132,7 @@ export const ReportForm = observer(
               draftReport.position = expreports[0][0].position;
             }
             draftReport.exps = exps.map((exp) => exp.id);
+            setExps(exps);
           });
         }
       });
@@ -152,15 +157,17 @@ export const ReportForm = observer(
       return options;
     }, [expStore.records.size]);
 
-    // do in a memo to avoid creating new exps array everytime that will trigger re-rendering
-    const exps = useMemo(() => {
-      return draftReport.exps
-        .map((expId) => expStore.get(expId))
-        .filter(Filter.notNullOrUndefined);
-    }, [expStore.records.size, draftReport.exps.join(",")]);
     if (exps.length === 0) {
       return <LoadingComponent />;
     }
+
+    // change selected experiments
+    const updateSelectedExperiments = (values: number[]) => {
+      if (values.indexOf(expId) === -1) {
+        values.splice(0, 0, expId);
+      }
+      setExps(values.map((id) => expStore.get(id)!));
+    };
 
     const onSubmit = () => {
       if (report === undefined) {
@@ -236,13 +243,8 @@ export const ReportForm = observer(
               mode="multiple"
               style={{ width: "100%" }}
               options={expoptions}
-              value={draftReport.exps}
-              onChange={(values) => {
-                if (values.every((eid) => eid !== draftReport.exp)) {
-                  values.push(draftReport.exp);
-                }
-                draftReport.exps = values;
-              }}
+              value={exps.map((e) => e.id)}
+              onChange={updateSelectedExperiments}
             />
           </Col>
         </Row>

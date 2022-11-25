@@ -1,7 +1,8 @@
 import { makeStyles } from "@mui/styles";
 import { Dropdown } from "antd";
 import { ArgSchema, ArgType, InternalLink, PathDef } from "gena-app";
-import { getClassName } from "misc";
+import _ from "lodash";
+import { ArrayHelper, getClassName } from "misc";
 import { AttrGetter } from "models/reports";
 import { useMemo, useState } from "react";
 import { ReportData } from "../../ReportData";
@@ -102,7 +103,7 @@ export const TableComponent = <
   };
   reportData: ReportData;
   defaultHighlightMode?: HighlightMode;
-  zvalues: AttrGetter[];
+  zvalues: [number | null, AttrGetter[]][];
 }) => {
   const classes = useStyles();
   const [highlight, setHighlight] =
@@ -117,12 +118,14 @@ export const TableComponent = <
     let rowHeaderScale = 1;
     let colHeaderScale = 1;
 
-    if (zvalueStyle === "column" && zvalues.length > 1) {
+    const nZValues = _.sum(zvalues.map(([_, a]) => a.length));
+    if (zvalueStyle === "column" && nZValues > 1) {
       nExtraColHeaderRow = 1;
-      colHeaderScale = zvalues.length;
-    } else if (zvalueStyle === "embedded" && zvalues.length > 1) {
-      colHeaderScale = zvalues.length;
-      rowHeaderScale = zvalues.length;
+      colHeaderScale = nZValues;
+    } else if (zvalueStyle === "embedded" && nZValues > 1) {
+      const x = Math.ceil(Math.sqrt(nZValues));
+      colHeaderScale = x;
+      rowHeaderScale = x;
     }
 
     const table = new TableBuilder(reportData, extraCellFactory).build(
@@ -263,11 +266,11 @@ export const Footnote = <
   classes: ReturnType<typeof useStyles>;
   highlight: HighlightMode;
   setHighlight: (highlight: HighlightMode) => void;
-  zvalues: AttrGetter[];
+  zvalues: [number | null, AttrGetter[]][];
 }) => {
   let desc = "";
-  if (zvalues.length === 1) {
-    desc = `*each cell shows the average of ${zvalues[0].attr.getLabel()} - `;
+  if (zvalues.length === 1 && zvalues[0][1].length === 1) {
+    desc = `*each cell shows the average of ${zvalues[0][1][0].attr.getLabel()} - `;
   }
 
   return (

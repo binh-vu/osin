@@ -130,10 +130,12 @@ export const DataCellComponent = ({ cell }: { cell: ExtraCell }) => {
 
 export function precomputeCellLabel(
   table: Table<ExtraCell>,
-  zvalues: AttrGetter[],
+  zvalues: [number | null, AttrGetter[]][],
   style: "column" | "embedded"
 ) {
-  const zLabels = zvalues.map((attr) => attr.attr.getLabel());
+  const zLabels = zvalues.flatMap(([_, attrs]) =>
+    attrs.map((attr) => attr.attr.getLabel())
+  );
 
   for (let i = table.rowstart; i < table.nrows; i += table.rowHeaderScale) {
     for (let j = table.colstart; j < table.ncols; j += table.colHeaderScale) {

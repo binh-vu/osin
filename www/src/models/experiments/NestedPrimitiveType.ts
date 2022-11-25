@@ -1,3 +1,4 @@
+import { Attribute } from "components/reports";
 import { makeObservable, observable } from "mobx";
 
 export class PyObjectType {
@@ -92,19 +93,20 @@ export class NestedPrimitiveDataSchema {
    *
    * A leave attribute is the attribute has type PyObjectType, not NestedPrimitiveDataSchema.
    */
-  public leafAttributes(): string[][] {
-    let leaves: string[][] = [];
+  public leafAttributes(): Attribute[] {
+    let leaves: Attribute[] = [];
     for (const key in this.schema) {
       const type = this.schema[key];
       if (type instanceof NestedPrimitiveDataSchema) {
         leaves = leaves.concat(
-          type.leafAttributes().map((path) => {
+          type.leafAttributes().map((attr) => {
+            const path = attr.path.slice();
             path.splice(0, 0, key);
-            return path;
+            return new Attribute(path);
           })
         );
       } else {
-        leaves.push([key]);
+        leaves.push(new Attribute([key]));
       }
     }
     return leaves;
@@ -172,19 +174,20 @@ export class ParamSchema {
    *
    * A leave attribute is the attribute has type PyObjectType, not NestedPrimitiveDataSchema.
    */
-  public leafAttributes(): string[][] {
-    let leaves: string[][] = [];
+  public leafAttributes(): Attribute[] {
+    let leaves: Attribute[] = [];
     for (const key in this.schema) {
       const type = this.schema[key];
       if (type instanceof ParamSchema) {
         leaves = leaves.concat(
-          type.leafAttributes().map((path) => {
+          type.leafAttributes().map((attr) => {
+            const path = attr.path.slice();
             path.splice(0, 0, key);
-            return path;
+            return new Attribute(path);
           })
         );
       } else {
-        leaves.push([key]);
+        leaves.push(new Attribute([key]));
       }
     }
     return leaves;

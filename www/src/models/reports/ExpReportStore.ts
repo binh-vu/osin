@@ -19,6 +19,14 @@ export class ExpReportStore extends CRUDJunctionStore<
 > {
   constructor(expStore: ExperimentStore, reportStore: ReportStore) {
     super(expStore, reportStore, `${SERVER}/api/expreport`, "exp", "report");
+
+    this.storeB.addOnDeleteListener((report) =>
+      this.onDeleteCascadeTableB(report.id)
+    );
+    // TODO: make me more efficient, don't have to delete to refetch
+    this.storeB.addOnUpdateListener((draft, report) =>
+      this.onDeleteCascadeTableB(report.id)
+    );
   }
 
   async fetchByExpId(

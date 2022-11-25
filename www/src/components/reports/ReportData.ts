@@ -1,6 +1,38 @@
-import { Attribute } from "models/reports";
-
 export type AttrValue = string | number | boolean | null;
+
+export class Attribute {
+  readonly path: ReadonlyArray<string>;
+  private value: string;
+
+  constructor(path: string[]) {
+    this.path = path;
+    this.value = this.path.join(".");
+  }
+
+  asString(): string {
+    return this.value;
+  }
+
+  static fromString(str: string): Attribute {
+    return new Attribute(str.split("."));
+  }
+
+  prepend(name: string) {
+    this.value = this.path.length > 0 ? name + "." + this.value : name;
+    (this.path as string[]).splice(0, 0, name);
+    return this;
+  }
+
+  append(name: string) {
+    this.value = this.path.length > 0 ? this.value + "." + name : name;
+    (this.path as string[]).push(name);
+    return this;
+  }
+
+  getLabel(): string {
+    return this.path.length > 1 ? this.path.slice(1).join(".") : this.path[0];
+  }
+}
 
 export class IndexElement {
   element: AttrValue[];

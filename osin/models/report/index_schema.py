@@ -9,7 +9,7 @@ from osin.models.exp import ExpRun
 from osin.types.pyobject_type import NoneType
 
 
-EXPNAME_INDEX_FIELD = "__exp__"
+EXP_INDEX_FIELD = "__exp__"
 EXPNAME_INDEX_FIELD_TYPE = Literal["__exp__"]
 
 # Representing a record of a data source
@@ -33,13 +33,14 @@ class AttrGetter:
     def get_attribute_value(self, record: Record) -> AttrValue | _MISSING_TYPE:
         """Get attribute value. If the filtered values are specified, if the value is not in the filtered values, return MISSING"""
         value = self._get_value(record)
+        if value is MISSING:
+            return value
         if isinstance(value, list) and all(
             isinstance(x, (str, int, bool, NoneType)) for x in value
         ):
             # support parameters that are a list of enumerated options
             value = ",".join(str(x) for x in sorted(value))
-        if value is MISSING or (self.values is not None and value not in self.values):
-            return MISSING
+            return value
         if isinstance(value, (str, int, bool, NoneType)):
             return value
         raise ValueError(f"Invalid value: {value}")
@@ -53,7 +54,9 @@ class AttrGetter:
         return value
 
     def _get_value(self, record: Record) -> Any | _MISSING_TYPE:
-        if self.path[0] == EXPNAME_INDEX_FIELD:
+        if self.path[0] == EXP_INDEX_FIELD:
+            if self.values is not None and record.exp_id not in self.values:
+                return MISSING
             return record.exp.name
 
         if self.path[0] == "params":
@@ -71,7 +74,14 @@ class AttrGetter:
                 return MISSING
             props = tmp
 
-        return props.get(self.path[-1], MISSING)
+        value = props.get(self.path[-1], MISSING)
+        try:
+            if self.values is not None and value not in self.values:
+                return MISSING
+        except TypeError:
+            # value is not hashable
+            raise ValueError(f"Invalid value: {value}")
+        return value
 
     def to_tuple(self):
         return self.path, list(self.values.keys()) if self.values is not None else None
@@ -216,6 +226,7 @@ class IndexSchema:
                 raise ValueError(
                     "The order in the observed combinations is not consistent with the index"
                 )
+
         return index
 
     def get_index_element(self, record: Record) -> Optional[IndexElement]:
@@ -305,20 +316,6 @@ class IndexSchema:
                     combinations.add(elem)
             observed_combinations.append((observed_attrs, combinations))
         return observed_combinations
-
-    # def _build_index_from_path(
-    #     self,
-    #     path: list[AttrGetter],
-    #     fully_observed_combinations: list[tuple[list[AttrGetter], list[IndexElement]]],
-    # ) -> Index:
-    #     # path is always has length >= 1
-    #     index = self._build_index_from_path_recur(path)
-    #     for attrs, combinations in fully_observed_combinations:
-    #         if not index.trim_unobserved_combinations(attrs, combinations):
-    #             raise ValueError(
-    #                 "The order in the observed combinations is not consistent with the index"
-    #             )
-    #     return index
 
     def _build_index_from_path(self, path: list[AttrGetter]) -> Index:
         if len(path) == 0:

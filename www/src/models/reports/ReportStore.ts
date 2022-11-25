@@ -1,4 +1,5 @@
 import axios from "axios";
+import { Attribute, AttrValue } from "components/reports";
 import { SERVER } from "env";
 import {
   SimpleCRUDStore,
@@ -14,7 +15,8 @@ import {
   ReportTableArgs,
   IndexSchema,
   AttrGetter,
-  Attribute,
+  DraftUpdateReport,
+  BaseReport,
 } from "./Report";
 
 export interface DraftCreateReport
@@ -22,15 +24,7 @@ export interface DraftCreateReport
     Omit<Report, "id"> {
   exp: number;
   exps: number[];
-  position: Position | null;
-}
-
-export interface DraftUpdateReport
-  extends DraftUpdateRecord<number, Report>,
-    Report {
-  exp: number;
-  exps: number[];
-  position: Position | null;
+  position: Position;
 }
 
 export class ReportStore extends CRUDStore<
@@ -47,7 +41,7 @@ export class ReportStore extends CRUDStore<
 
     makeObservable(this, {
       cacheQueryDimensionValues: observable,
-      fetchIndexValues: action,
+      fetchAttrValues: action,
       create: override,
       update: override,
     });
@@ -72,19 +66,17 @@ export class ReportStore extends CRUDStore<
     );
   }
 
-  async fetchIndexValues(
-    dims: string[],
-    experimentIds: number[],
-    property: IndexProperty
-  ): Promise<(string | number | boolean)[]> {
+  async fetchAttrValues(
+    attr: Attribute,
+    experimentIds: number[]
+  ): Promise<AttrValue[]> {
     const params = {
       exps: experimentIds.join(","),
-      dim: dims.join("."),
-      property,
+      attr: attr.path.join("."),
     };
-    const key = JSON.stringify([params.dim, params.property, params.exps]);
+    const key = JSON.stringify([params.attr, params.exps]);
     if (!this.cacheQueryDimensionValues.has(key)) {
-      const resp = await axios.get(`${SERVER}/api/report/get-index-values`, {
+      const resp = await axios.get(`${SERVER}/api/report/get-attr-values`, {
         params,
       });
       this.cacheQueryDimensionValues.set(key, resp.data.items);
@@ -98,11 +90,14 @@ export class ReportStore extends CRUDStore<
       record.id,
       record.name,
       record.description,
-      new ReportTableArgs(record.args.type, {
-        xaxis: deserializeIndexSchema(record.args.value.x_axis),
-        yaxis: deserializeIndexSchema(record.args.value.y_axis),
-        zvalues: record.args.value.z_values.map(deserializeAttrGetter),
-      })
+      new ReportTableArgs(
+        record.args.type,
+        new BaseReport(
+          deserializeIndexSchema(record.args.value.x_axis),
+          deserializeIndexSchema(record.args.value.y_axis),
+          deserializeZValues(record.args.value.z_values)
+        )
+      )
     );
   }
 
@@ -110,25 +105,59 @@ export class ReportStore extends CRUDStore<
     record: DraftCreateReport | DraftUpdateReport
   ): object {
     const r = super.serializeRecord(record) as any;
-    if (r.position !== null) {
-      r.position = {
-        row_order: r.position.rowOrder,
-        col_span: r.position.colSpan,
-        col_offset: r.position.colOffset,
-      };
-    }
+    r.args = {
+      type: record.args.type,
+      value: {
+        x_axis: serializeIndexSchema(record.args.value.xaxis),
+        y_axis: serializeIndexSchema(record.args.value.yaxis),
+        z_values: record.args.value.zvalues.map(([expid, attrs]) => [
+          expid,
+          attrs.map(serializeAttrGetter),
+        ]),
+      },
+    };
+    r.position = {
+      row_order: r.position.rowOrder,
+      col_span: r.position.colSpan,
+      col_offset: r.position.colOffset,
+    };
+
     return r;
   }
 }
 
 const deserializeAttrGetter = (obj: any): AttrGetter => {
-  return new AttrGetter(new Attribute(obj.path), obj.values);
+  return new AttrGetter(
+    new Attribute(obj.path),
+    obj.values === null ? undefined : obj.values
+  );
+};
+
+const serializeAttrGetter = (getter: AttrGetter): any => {
+  return {
+    path: getter.attr.path,
+    values: getter.values,
+  };
 };
 
 const deserializeIndexSchema = (obj: any): IndexSchema => {
   return new IndexSchema(
     obj.attrs.map(deserializeAttrGetter),
     obj.index2children,
-    obj.fullyObserverdAttrs
+    obj.fully_observed_attrs
   );
+};
+
+const serializeIndexSchema = (schema: IndexSchema): any => {
+  return {
+    attrs: schema.attrs.map(serializeAttrGetter),
+    index2children: schema.index2children,
+    fully_observed_attrs: schema.fullyObserverdAttrs,
+  };
+};
+
+const deserializeZValues = (obj: any): [number | null, AttrGetter[]][] => {
+  return obj.map(([expid, vs]: any) => {
+    return [expid, vs.map(deserializeAttrGetter)];
+  });
 };

@@ -43,7 +43,12 @@ export const UpsertReportPage = observer(() => {
   }
   let report = undefined;
   if (reportId !== undefined) {
-    report = reportStore.get(reportId) || undefined;
+    report = reportStore.get(reportId);
+    if (report === undefined) {
+      return <LoadingComponent />;
+    } else if (report === null) {
+      return <NotFoundComponent />;
+    }
   }
 
   return (

@@ -1,23 +1,24 @@
 import { Button, Col, Radio, Row, Select, Space, Typography } from "antd";
+import { AttrValue } from "components/reports";
 import _, { values } from "lodash";
 import { observer } from "mobx-react";
 import { Experiment, useStores } from "models";
 import { ParamSchema } from "models/experiments";
-import { EXPNAME_INDEX_FIELD, IndexProperty, IndexValue } from "models/reports";
+import { EXPNAME_INDEX_FIELD, IndexProperty } from "models/reports";
 import { useEffect, useMemo } from "react";
 
 export interface RawIndex {
   isExp: false;
   index?: string;
-  values?: IndexValue[];
-  valueOptions?: IndexValue[];
+  values?: AttrValue[];
+  valueOptions?: AttrValue[];
 }
 
 export interface RawExpIndex {
   isExp: true;
   expindex?: { [expId: number]: string };
-  expvalues: { [expId: number]: IndexValue[] };
-  expvalueOptions: { [expId: number]: IndexValue[] };
+  expvalues: { [expId: number]: AttrValue[] };
+  expvalueOptions: { [expId: number]: AttrValue[] };
 }
 
 export type RawAnyIndex = RawIndex | RawExpIndex;
@@ -45,48 +46,48 @@ export const MultiLevelIndexBuilder = observer(
       let expIds: number[] = [];
       const promises: Promise<void>[] = [];
 
-      indices.forEach((idx, i) => {
-        if (
-          !idx.isExp &&
-          idx.index !== undefined &&
-          idx.valueOptions === undefined
-        ) {
-          if (newindices === undefined) {
-            newindices = indices.slice();
-            expIds = exps.map((e) => e.id);
-          }
-          promises.push(
-            reportStore
-              .fetchIndexValues(idx.index.split("."), expIds, property)
-              .then((values) => {
-                (newindices![i] as RawIndex).valueOptions = values;
-              })
-          );
-        } else if (idx.isExp && idx.expindex !== undefined) {
-          for (const expid in idx.expindex) {
-            if (idx.expvalueOptions[expid] === undefined) {
-              // fetch values
-              if (newindices === undefined) {
-                newindices = indices.slice();
-                expIds = exps.map((e) => e.id);
-              }
+      // indices.forEach((idx, i) => {
+      //   if (
+      //     !idx.isExp &&
+      //     idx.index !== undefined &&
+      //     idx.valueOptions === undefined
+      //   ) {
+      //     if (newindices === undefined) {
+      //       newindices = indices.slice();
+      //       expIds = exps.map((e) => e.id);
+      //     }
+      //     promises.push(
+      //       reportStore
+      //         .fetchAttrValues(idx.index.split("."), expIds, property)
+      //         .then((values) => {
+      //           (newindices![i] as RawIndex).valueOptions = values;
+      //         })
+      //     );
+      //   } else if (idx.isExp && idx.expindex !== undefined) {
+      //     for (const expid in idx.expindex) {
+      //       if (idx.expvalueOptions[expid] === undefined) {
+      //         // fetch values
+      //         if (newindices === undefined) {
+      //           newindices = indices.slice();
+      //           expIds = exps.map((e) => e.id);
+      //         }
 
-              promises.push(
-                reportStore
-                  .fetchIndexValues(
-                    idx.expindex[expid].split("."),
-                    [parseInt(expid)],
-                    property
-                  )
-                  .then((values) => {
-                    (newindices![i] as RawExpIndex).expvalueOptions[expid] =
-                      values;
-                  })
-              );
-            }
-          }
-        }
-      });
+      //         promises.push(
+      //           reportStore
+      //             .fetchAttrValues(
+      //               idx.expindex[expid].split("."),
+      //               [parseInt(expid)],
+      //               property
+      //             )
+      //             .then((values) => {
+      //               (newindices![i] as RawExpIndex).expvalueOptions[expid] =
+      //                 values;
+      //             })
+      //         );
+      //       }
+      //     }
+      //   }
+      // });
 
       Promise.all(promises).then(() => {
         if (newindices !== undefined) {
@@ -102,7 +103,7 @@ export const MultiLevelIndexBuilder = observer(
           property === "params"
             ? ParamSchema.mergeSchemas(exp.params).leafAttributes()
             : exp.aggregatedPrimitiveOutputs.leafAttributes();
-        return [exp.id, attrs.map((attrpath) => attrpath.join("."))];
+        return [exp.id, attrs.map((attrpath) => attrpath.asString())];
       });
       const commonOptions = _.intersection(...expOptions.map((lst) => lst[1]));
 
@@ -477,7 +478,7 @@ export const ExpIndexBuilder = ({
           value: v,
         }))}
         value={index.expvalues[exp.id] || []}
-        onChange={(values: IndexValue[]) => {
+        onChange={(values: AttrValue[]) => {
           let newindex = Object.assign({}, index);
           newindex.expvalues[exp.id] = values;
           updateIndex(order, newindex, indices, setIndices);

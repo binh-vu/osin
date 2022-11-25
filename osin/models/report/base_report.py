@@ -1,5 +1,6 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import MISSING, dataclass
+from typing import Optional
 from osin.models.report.index_schema import (
     AttrGetter,
     AttrValue,
@@ -15,7 +16,7 @@ from osin.models.report.index_schema import (
 class BaseReport:
     x_axis: IndexSchema
     y_axis: IndexSchema
-    z_values: list[AttrGetter]
+    z_values: list[tuple[Optional[int], list[AttrGetter]]]
 
     def get_data(self, records: list[Record]):
         """Get the report data"""
@@ -36,15 +37,22 @@ class BaseReport:
                 data[xelem][yelem] = {}
 
             data_items = data[xelem][yelem]
-            for zvalue in self.z_values:
-                if zvalue.path not in data_items:
-                    data_items[zvalue.path] = []
-                data_items[zvalue.path].append(
-                    {
-                        "value": zvalue.get_value(record),
-                        "record_id": record.id,
-                    }
-                )
+            for expid, zvalues in self.z_values:
+                if expid is not None and record.exp_id != expid:
+                    continue
+                for zvalue in zvalues:
+                    zval = zvalue.get_value(record)
+                    if zval is MISSING:
+                        continue
+                    key = zvalue.path
+                    if key not in data_items:
+                        data_items[key] = []
+                    data_items[key].append(
+                        {
+                            "value": zval,
+                            "record_id": record.id,
+                        }
+                    )
 
         datapoints = []
         for xitem, yitems_ in data.items():
@@ -67,14 +75,23 @@ class BaseReport:
         return BaseReport(
             IndexSchema.from_tuple(obj[0]),
             IndexSchema.from_tuple(obj[1]),
-            [AttrGetter.from_tuple(o) for o in obj[2]],
+            [
+                (
+                    expid if expid is not None else None,
+                    [AttrGetter.from_tuple(o) for o in lst],
+                )
+                for expid, lst in obj[2]
+            ],
         )
 
     def to_tuple(self):
         return (
             self.x_axis.to_tuple(),
             self.y_axis.to_tuple(),
-            [zval.to_tuple() for zval in self.z_values],
+            [
+                (expid, [zval.to_tuple() for zval in zvals])
+                for expid, zvals in self.z_values
+            ],
         )
 
 
