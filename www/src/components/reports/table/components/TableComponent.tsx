@@ -11,7 +11,7 @@ import {
   CellComponent,
   ExtraCell,
   extraCellFactory,
-  precomputeCellLabel,
+  imputeCellData,
   HighlightMode,
   highlightModes,
   highlightTable,
@@ -72,6 +72,7 @@ const useStyles = makeStyles({
   },
   colHeader: {
     borderTop: "none !important",
+    textAlign: "center !important" as "center",
   },
   metaColHeader: {
     borderBottom: "none !important",
@@ -79,6 +80,10 @@ const useStyles = makeStyles({
     textAlign: "center !important" as "center",
     fontWeight: 400,
     fontStyle: "italic",
+  },
+  lastColHeader: {
+    borderTop: "none !important",
+    textAlign: "left !important" as "left",
   },
   metaUselessHeader: {
     border: "none !important",
@@ -94,6 +99,7 @@ export const TableComponent = <
   reportData,
   defaultHighlightMode = "row-best",
   zvalues,
+  onReload,
 }: {
   title: string | React.ReactElement;
   editURL: {
@@ -104,6 +110,7 @@ export const TableComponent = <
   reportData: ReportData;
   defaultHighlightMode?: HighlightMode;
   zvalues: [number | null, AttrGetter[]][];
+  onReload?: () => void;
 }) => {
   const classes = useStyles();
   const [highlight, setHighlight] =
@@ -134,17 +141,17 @@ export const TableComponent = <
       rowHeaderScale,
       colHeaderScale
     );
-    precomputeCellLabel(table, zvalues, zvalueStyle);
+    imputeCellData(table, zvalues, zvalueStyle);
     return table;
   }, [reportData]);
 
   const table = useMemo(
     () =>
       styleTable(
-        highlightTable(table1.clone(), highlight),
+        highlightTable(table1.clone(), highlight, zvalues, zvalueStyle),
         classes
       ).fixSpanning(),
-    [table1]
+    [table1, highlight]
   );
 
   const onCellClick = (cell: ExtraCell) => {
@@ -154,7 +161,7 @@ export const TableComponent = <
     // TODO: handle if click on z-value headers
     if (
       cell.th &&
-      (cell.row === table.rowstart - 1 || cell.col === table.colstart)
+      (cell.row === table.rowstart - 1 || cell.col === table.colstart - 1)
     ) {
       // toggle highlight a column/row in a matrix
       if (cell.row < table.rowstart) {
@@ -213,6 +220,7 @@ export const TableComponent = <
             highlight={highlight}
             setHighlight={setHighlight}
             zvalues={zvalues}
+            onReload={onReload}
           />
         </caption>
       </table>
@@ -232,7 +240,10 @@ function styleTable<C extends Cell>(
         if (cell.metaTh) {
           cell.className = classes.metaColHeader;
         } else {
-          cell.className = classes.colHeader;
+          cell.className =
+            i === table.rowstart - 1
+              ? classes.lastColHeader
+              : classes.colHeader;
         }
       } else if (i >= table.rowstart && j < table.colstart) {
         if (cell.metaTh) {
@@ -257,6 +268,7 @@ export const Footnote = <
   highlight,
   setHighlight,
   zvalues,
+  onReload,
 }: {
   editURL: {
     path: PathDef<U, Q>;
@@ -267,6 +279,7 @@ export const Footnote = <
   highlight: HighlightMode;
   setHighlight: (highlight: HighlightMode) => void;
   zvalues: [number | null, AttrGetter[]][];
+  onReload?: () => void;
 }) => {
   let desc = "";
   if (zvalues.length === 1 && zvalues[0][1].length === 1) {
@@ -296,6 +309,12 @@ export const Footnote = <
       >
         <a>highlight</a>
       </Dropdown>
+      {onReload !== undefined ? (
+        <>
+          <span className={classes.actionSep}>&#183;</span>
+          <a onClick={onReload}>reload</a>
+        </>
+      ) : undefined}
     </>
   );
 };

@@ -46,6 +46,13 @@ describe("test table builder", () => {
         testcase.colHeaderScale
       );
       expect(tableToString(table)).toEqual(testcase.tableStructure);
+      for (let i = 0; i < table.nrows; i++) {
+        for (let j = 0; j < table.ncols; j++) {
+          const cell = table.data[i][j];
+          expect(cell.row).toEqual(i);
+          expect(cell.col).toEqual(j);
+        }
+      }
     }
   });
 

@@ -1,11 +1,12 @@
-import { gold } from "@ant-design/colors";
+import { blue, gold, green, red, yellow } from "@ant-design/colors";
 import { faHighlighter } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { AttrValue, ReportDataPoint } from "components/reports/ReportData";
 import _ from "lodash";
 import { AttrGetter } from "models/reports";
 import { Cell, cellFactory, Table } from "../TableBuilder";
-
+import Rainbow from "rainbowvis.js";
+import { Filter } from "misc";
 export type HighlightMode =
   | "none"
   | "row"
@@ -31,6 +32,8 @@ export interface ExtraCell extends Cell {
     color?: string;
     bold?: boolean;
   };
+  // the value that is used to highlight
+  highlightValue?: number;
 }
 
 export const extraCellFactory: () => ExtraCell = () => {
@@ -54,8 +57,12 @@ export const CellComponent = ({
     let extra = undefined;
     if (typeof highlight !== "string" && !cell.metaTh) {
       if (
-        (highlight.type === "row" && cell.row === highlight.value) ||
-        (highlight.type === "col" && cell.col === highlight.value)
+        (highlight.type === "row" &&
+          cell.row === highlight.value &&
+          cell.col === table.colstart - 1) ||
+        (highlight.type === "col" &&
+          cell.col === highlight.value &&
+          cell.row === table.rowstart - 1)
       ) {
         extra = (
           <span
@@ -128,7 +135,7 @@ export const DataCellComponent = ({ cell }: { cell: ExtraCell }) => {
   );
 };
 
-export function precomputeCellLabel(
+export function imputeCellData(
   table: Table<ExtraCell>,
   zvalues: [number | null, AttrGetter[]][],
   style: "column" | "embedded"
@@ -136,6 +143,15 @@ export function precomputeCellLabel(
   const zLabels = zvalues.flatMap(([_, attrs]) =>
     attrs.map((attr) => attr.attr.getLabel())
   );
+
+  if (style === "column" && zLabels.length > 1) {
+    // add z labels to the last extra column header row
+    for (let j = table.colstart; j < table.ncols; j += table.colHeaderScale) {
+      for (let k = 0; k < zLabels.length; k++) {
+        table.data[table.rowstart - 1][j + k].label = zLabels[k];
+      }
+    }
+  }
 
   for (let i = table.rowstart; i < table.nrows; i += table.rowHeaderScale) {
     for (let j = table.colstart; j < table.ncols; j += table.colHeaderScale) {
@@ -159,14 +175,16 @@ export function precomputeCellLabel(
       if (style === "column") {
         zLabels.forEach((zLabel, k) => {
           if (!datapoints[zLabel].some(Number.isNaN)) {
-            table.data[i + k][j].label = _.mean(datapoints[zLabel]).toFixed(3);
+            const mean = _.mean(datapoints[zLabel]);
+            table.data[i][j + k].highlightValue = mean;
+            table.data[i][j + k].label = mean.toFixed(3);
           } else {
             if (datapoints[zLabel].length === 1) {
               const zvalue = datapoints[zLabel][0];
-              table.data[i + k][j].label =
+              table.data[i][j + k].label =
                 zvalue === null ? "null" : zvalue.toString();
             } else {
-              table.data[i + k][j].label = datapoints[zLabel].join(", ");
+              table.data[i][j + k].label = datapoints[zLabel].join(", ");
             }
           }
         });
@@ -179,7 +197,202 @@ export function precomputeCellLabel(
 
 export function highlightTable(
   table: Table<ExtraCell>,
-  highlight: HighlightMode
+  highlight: HighlightMode,
+  zvalues: [number | null, AttrGetter[]][],
+  zstyle: "column" | "embedded"
 ): Table<ExtraCell> {
+  if (
+    highlight === "none" ||
+    table.ncols - table.colstart === 0 ||
+    table.nrows - table.rowstart === 0
+  ) {
+    return table;
+  }
+
+  const rainbow = new Rainbow();
+  rainbow.setSpectrum("#b7eb8f", "#237804");
+  rainbow.setNumberRange(0, 1000);
+
+  const zLabels = zvalues.flatMap(([_, attrs]) =>
+    attrs.map((attr) => attr.attr.getLabel())
+  );
+
+  for (let i = table.rowstart; i < table.nrows; i++) {
+    for (let j = table.colstart; j < table.ncols; j++) {
+      table.data[i][j].highlight = {};
+    }
+  }
+
+  // treat each row indepedently, compare the values in the same row
+  if (highlight === "row" || highlight === "row-best") {
+    if (zstyle !== "column") {
+      throw new Error("Not implemented");
+    }
+
+    const nGroups = zLabels.length;
+    for (let i = table.rowstart; i < table.nrows; i++) {
+      for (let k = 0; k < nGroups; k++) {
+        const values = [];
+        for (let j = table.colstart + k; j < table.ncols; j += nGroups) {
+          if (table.data[i][j].highlightValue === undefined) {
+            continue;
+          }
+          values.push(table.data[i][j].highlightValue);
+        }
+        let min = _.min(values)!;
+        let max = _.max(values)!;
+        const realmax = max;
+
+        // most metrics are between 0 and 1, so until we have a better way to know the range
+        // of the metrics, we use this heuristics.
+        if (max <= 1 && min >= 0) {
+          min = 0;
+          max = 1;
+        }
+
+        let interval = max - min;
+        if (interval === 0) {
+          continue;
+        }
+
+        for (let j = table.colstart + k; j < table.ncols; j += nGroups) {
+          const value = table.data[i][j].highlightValue;
+          if (value === undefined) continue;
+          const newvalue = ((value - min) / interval) * 1000;
+          table.data[i][j].highlight = {
+            color:
+              highlight === "row-best"
+                ? undefined
+                : "#" + rainbow.colorAt(newvalue),
+            bold: value === realmax,
+            mode: "dot",
+          };
+        }
+      }
+    }
+  }
+
+  // treat each column indepedently, compare the values in the same column
+  if (highlight === "col" || highlight === "col-best") {
+    if (zstyle !== "column") {
+      throw new Error("Not implemented");
+    }
+
+    for (let j = table.colstart; j < table.ncols; j++) {
+      const values = [];
+      for (let i = table.rowstart; i < table.nrows; i++) {
+        if (table.data[i][j].highlightValue === undefined) {
+          continue;
+        }
+        values.push(table.data[i][j].highlightValue);
+      }
+      let min = _.min(values)!;
+      let max = _.max(values)!;
+      const realmax = max;
+
+      // most metrics are between 0 and 1, so until we have a better way to know the range
+      // of the metrics, we use this heuristics.
+      if (max <= 1 && min >= 0) {
+        min = 0;
+        max = 1;
+      }
+
+      let interval = max - min;
+      if (interval === 0) {
+        continue;
+      }
+
+      for (let i = table.rowstart; i < table.nrows; i++) {
+        const value = table.data[i][j].highlightValue;
+        if (value === undefined) {
+          continue;
+        }
+        const newvalue = ((value - min) / interval) * 1000;
+        table.data[i][j].highlight = {
+          color:
+            highlight === "col-best"
+              ? undefined
+              : "#" + rainbow.colorAt(newvalue),
+          bold: value === realmax,
+          mode: "dot",
+        };
+      }
+    }
+  }
+
+  if (typeof highlight !== "string") {
+    if (highlight.type === "col") {
+      // this is opposite to the other highlight modes, highlight a particular column treat each row indepedently
+      // and use a particular value at the column to compare to the values in the other column of the same row
+      if (zstyle !== "column") {
+        throw new Error("Not implemented");
+      }
+      const nGroups = zLabels.length;
+      const k = (highlight.value - table.colstart) % nGroups;
+
+      for (let i = table.rowstart; i < table.nrows; i++) {
+        const cmp = table.data[i][highlight.value].highlightValue;
+        if (cmp === undefined) continue;
+        table.data[i][highlight.value].highlight = {
+          color: blue[6],
+          bold: true,
+          mode: "text",
+        };
+        for (let j = table.colstart + k; j < table.ncols; j += nGroups) {
+          const value = table.data[i][j].highlightValue;
+          if (value === undefined) continue;
+          if (value > cmp) {
+            table.data[i][j].highlight = {
+              color: red[5],
+              bold: true,
+              mode: "text",
+            };
+          } else if (value < cmp) {
+            table.data[i][j].highlight = {
+              color: green[5],
+              bold: true,
+              mode: "text",
+            };
+          }
+        }
+      }
+    }
+    if (highlight.type === "row") {
+      if (zstyle !== "column") {
+        throw new Error("Not implemented");
+      }
+      const nGroups = zLabels.length;
+
+      for (let k = 0; k < nGroups; k++) {
+        for (let j = table.colstart + k; j < table.ncols; j++) {
+          const cmp = table.data[highlight.value][j].highlightValue;
+          if (cmp === undefined) continue;
+          table.data[highlight.value][j].highlight = {
+            color: blue[6],
+            bold: true,
+            mode: "text",
+          };
+          for (let i = table.rowstart; i < table.nrows; i++) {
+            const value = table.data[i][j].highlightValue;
+            if (value === undefined) continue;
+            if (value > cmp) {
+              table.data[i][j].highlight = {
+                color: red[6],
+                bold: true,
+                mode: "text",
+              };
+            } else if (value < cmp) {
+              table.data[i][j].highlight = {
+                color: green[6],
+                bold: true,
+                mode: "text",
+              };
+            }
+          }
+        }
+      }
+    }
+  }
+
   return table;
 }

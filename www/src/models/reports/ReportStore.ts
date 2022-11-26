@@ -1,5 +1,5 @@
 import axios from "axios";
-import { Attribute, AttrValue } from "components/reports";
+import { Attribute, AttrValue, ReportData } from "components/reports";
 import { SERVER } from "env";
 import {
   SimpleCRUDStore,
@@ -45,6 +45,27 @@ export class ReportStore extends CRUDStore<
       create: override,
       update: override,
     });
+  }
+
+  async getReportData(reportId: number): Promise<ReportData> {
+    return axios.get(`${this.remoteURL}/${reportId}/data`).then((res) => {
+      return ReportData.deserialize(res.data.data);
+    });
+  }
+
+  async previewReportData(
+    draft: DraftCreateReport | DraftUpdateReport
+  ): Promise<ReportData> {
+    return axios
+      .post(
+        `${this.remoteURL}/preview`,
+        draft instanceof DraftUpdateReport
+          ? this.serializeUpdateDraft(draft)
+          : this.serializeCreateDraft(draft)
+      )
+      .then((res) => {
+        return ReportData.deserialize(res.data.data);
+      });
   }
 
   async create(draft: Omit<DraftCreateReport, "draftID">): Promise<Report> {

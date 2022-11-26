@@ -235,6 +235,51 @@ def get_report_data(id: int):
     )
 
 
+@report_bp.route(f"/{report_bp.name}/preview", methods=["POST"])
+def preview_report():
+    posted_record = request.json
+
+    if "exps" not in posted_record:
+        raise BadRequest("Missing `exps` field")
+    exp_ids = exp_ids_deser(posted_record["exps"])
+    if len(exp_ids) == 0:
+        raise BadRequest("Empty `exps` field")
+    exps = {e.id: e for e in Exp.select(Exp.id, Exp.name).where(Exp.id.in_(exp_ids))}
+
+    raw_record = {}
+    for name, field in Report._meta.fields.items():
+        if name in posted_record and name != "id":
+            try:
+                raw_record[name] = report_deserializers[name](posted_record[name])
+            except ValueError as e:
+                raise ValueError(f"Field `{name}` {str(e)}")
+    report = Report(**raw_record)
+
+    # gather runs of experiments
+    runs = list(
+        ExpRun.select(
+            ExpRun.id, ExpRun.params, ExpRun.aggregated_primitive_outputs, ExpRun.exp
+        ).where(
+            (ExpRun.exp.in_(exp_ids))
+            & (ExpRun.is_deleted == False)
+            & (ExpRun.is_successful == True)
+        )
+    )
+    for run in runs:
+        run.exp = exps[run.exp_id]
+    data = report.args.value.get_data(runs)
+    return jsonify(
+        {
+            "type": report.args.type,
+            "data": {
+                "data": data.data,
+                "xindex": serialize_index(data.xindex, exps),
+                "yindex": serialize_index(data.yindex, exps),
+            },
+        }
+    )
+
+
 def serialize_index(index: Index, exps: dict[int, Exp]):
     if index.attr[0] == EXP_INDEX_FIELD:
         return {

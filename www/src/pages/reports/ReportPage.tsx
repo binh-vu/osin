@@ -138,7 +138,7 @@ const ReportGrids = observer(({ expId }: { expId: number }) => {
   );
 });
 
-function getReportElement(expId: number, report: Report) {
+export function getReportElement(expId: number, report: Report) {
   if (report.args.type === "table") {
     return <ReportTable report={report} expId={expId} />;
   }

@@ -25,6 +25,10 @@ export class AttrGetter {
       values: observable,
     });
   }
+
+  clone(): AttrGetter {
+    return new AttrGetter(this.attr.clone(), this.values?.slice());
+  }
 }
 
 export class IndexSchema {
@@ -55,6 +59,14 @@ export class IndexSchema {
 
   static empty(): IndexSchema {
     return new IndexSchema([], [], []);
+  }
+
+  clone() {
+    return new IndexSchema(
+      this.attrs.map((x) => x.clone()),
+      this.index2children.map((x) => x.slice()),
+      this.fullyObserverdAttrs.map((x) => x.slice())
+    );
   }
 
   get roots(): number[] {
@@ -153,6 +165,14 @@ export class BaseReport {
 
   get nZValues(): number {
     return this.zvalues.map((x) => x[1].length).reduce((a, b) => a + b, 0);
+  }
+
+  clone(): BaseReport {
+    return new BaseReport(
+      this.xaxis.clone(),
+      this.yaxis.clone(),
+      this.zvalues.map((x) => [x[0], x[1].map((y) => y.clone())])
+    );
   }
 }
 

@@ -3,6 +3,7 @@ import {
   Alert,
   Button,
   Col,
+  Divider,
   Input,
   InputNumber,
   Popconfirm,
@@ -11,28 +12,27 @@ import {
   Space,
   Typography,
 } from "antd";
+import { ReportData, TableComponent } from "components/reports";
 import { LoadingComponent } from "gena-app";
 import { Filter } from "misc";
-import { toJS } from "mobx";
+import { autorun, comparer, reaction } from "mobx";
 import { observer } from "mobx-react";
-import { Experiment, Report, ReportStore, useStores } from "models";
+import { Report, useStores } from "models";
 import {
   BaseReport,
   COLUMN_MAX_SIZE,
   DraftCreateReport,
   DraftUpdateReport,
-  IndexProperty,
   IndexSchema,
-  Position,
   ReportTableArgs,
 } from "models/reports";
 import {
   IndexSchemaForm,
   ZValueForm,
 } from "pages/reports/forms/IndexSchemaForm";
-import { useEffect, useMemo } from "react";
+import { createRef, useEffect, useMemo, useState } from "react";
 import { routes } from "routes";
-import { RawAnyIndex } from "./IndexBuilder";
+import { ReportTable, ReportTableFunc } from "../reports/ReportTable";
 
 const useStyles = makeStyles({
   form: {},
@@ -58,6 +58,9 @@ const useStyles = makeStyles({
     "& .ant-alert-message": {
       color: "#ff4d4f",
     },
+  },
+  formItemLabel: {
+    fontSize: "15px !important",
   },
 });
 
@@ -199,7 +202,9 @@ export const ReportForm = observer(
       <Space direction="vertical" style={{ width: "100%" }}>
         <Row>
           <Col span={24}>
-            <Typography.Title level={5}>Name</Typography.Title>
+            <Typography.Title level={5} className={classes.formItemLabel}>
+              Name
+            </Typography.Title>
             <Input
               value={draftReport.name}
               onChange={(e) => {
@@ -211,7 +216,9 @@ export const ReportForm = observer(
         </Row>
         <Row>
           <Col span={24}>
-            <Typography.Title level={5}>Description</Typography.Title>
+            <Typography.Title level={5} className={classes.formItemLabel}>
+              Description
+            </Typography.Title>
             <Input
               value={draftReport.description}
               onChange={(e) => (draftReport.description = e.target.value)}
@@ -221,7 +228,9 @@ export const ReportForm = observer(
         </Row>
         <Row>
           <Col span={24}>
-            <Typography.Title level={5}>Type</Typography.Title>
+            <Typography.Title level={5} className={classes.formItemLabel}>
+              Type
+            </Typography.Title>
             <Select
               value={"table"}
               style={{ width: "100%" }}
@@ -231,7 +240,9 @@ export const ReportForm = observer(
         </Row>
         <Row>
           <Col span={24}>
-            <Typography.Title level={5}>Experiments</Typography.Title>
+            <Typography.Title level={5} className={classes.formItemLabel}>
+              Experiments
+            </Typography.Title>
             <Select
               mode="multiple"
               style={{ width: "100%" }}
@@ -248,25 +259,31 @@ export const ReportForm = observer(
         </Row>
         <Row>
           <Col span={24}>
-            <Typography.Title level={5}>X Axis</Typography.Title>
+            <Typography.Title level={5} className={classes.formItemLabel}>
+              X Axis
+            </Typography.Title>
             <IndexSchemaForm index={draftReport.args.value.xaxis} exps={exps} />
           </Col>
         </Row>
         <Row>
           <Col span={24}>
-            <Typography.Title level={5}>Y Axis</Typography.Title>
+            <Typography.Title level={5} className={classes.formItemLabel}>
+              Y Axis
+            </Typography.Title>
             <IndexSchemaForm index={draftReport.args.value.yaxis} exps={exps} />
           </Col>
         </Row>
         <Row>
           <Col span={24}>
-            <Typography.Title level={5}>Z Values</Typography.Title>
+            <Typography.Title level={5} className={classes.formItemLabel}>
+              Z Values
+            </Typography.Title>
             <ZValueForm exps={exps} args={draftReport.args.value} />
           </Col>
         </Row>
         <Row>
           <Col span={24}>
-            <Typography.Title level={5}>
+            <Typography.Title level={5} className={classes.formItemLabel}>
               <Space direction="horizontal">
                 Positions
                 <InputNumber
@@ -334,163 +351,59 @@ export const ReportForm = observer(
             </Space>
           </Col>
         </Row>
+        <Typography.Title level={5}>PREVIEW REPORT</Typography.Title>
+        <Row>
+          <Col span={24}>
+            <PreviewReport report={draftReport} expId={expId} />
+          </Col>
+        </Row>
       </Space>
     );
   }
 );
 
-function upsertReport(
-  name: string,
-  description: string,
-  xaxis: RawAnyIndex[],
-  yaxis: RawAnyIndex[],
-  zvalues: RawAnyIndex[],
-  pos: Position,
-  expId: number,
-  exps: Experiment[],
-  report: Report | undefined,
-  reportStore: ReportStore
-): Promise<Report | undefined> {
-  // if (pos.rowOrder === null || pos.colSpan === null || pos.colOffset === null) {
-  return Promise.resolve(undefined);
-  // }
+export const PreviewReport = observer(
+  ({
+    expId,
+    report,
+  }: {
+    expId: number;
+    report: DraftCreateReport | DraftUpdateReport;
+  }) => {
+    const { reportStore } = useStores();
+    const [data, setData] = useState<ReportData | undefined>(undefined);
 
-  // let newxaxis = new Axis(
-  //   xaxis.map((x) => buildIndex(x, "params", exps)).filter(notUndefined)
-  // );
-  // let newyaxis = new Axis(
-  //   yaxis.map((y) => buildIndex(y, "params", exps)).filter(notUndefined)
-  // );
-  // let newzvalues = zvalues
-  //   .map((z) => buildIndex(z, "aggregated_primitive_outputs", exps))
-  //   .filter(notUndefined);
+    useEffect(() => {
+      console.log("PreviewReport: create autorun");
+      let previousReport: BaseReport | undefined = undefined;
+      const disposer = autorun(() => {
+        if (!comparer.structural(previousReport, report.args.value)) {
+          console.log("PreviewReport: autorun");
+          previousReport = report.args.value.clone();
+          reportStore.previewReportData(report).then(setData);
+        }
+      });
+      return () => {
+        console.log("PreviewReport: dispose autorun");
+        disposer();
+      };
+    }, []);
 
-  // if (
-  //   newxaxis.indices.length !== xaxis.length ||
-  //   newyaxis.indices.length !== yaxis.length ||
-  //   newzvalues.length !== zvalues.length ||
-  //   zvalues.length === 0
-  // ) {
-  //   // invalid index values
-  //   return Promise.resolve(undefined);
-  // }
+    if (data === undefined) {
+      return <LoadingComponent msg="Loading preview..." />;
+    }
 
-  // const args = {
-  //   type: "table" as const,
-  //   value: {
-  //     xaxis: newxaxis,
-  //     yaxis: newyaxis,
-  //     zvalues: newzvalues,
-  //   },
-  // };
-  // if (report === undefined) {
-  //   return reportStore.create({
-  //     name,
-  //     description,
-  //     args,
-  //     exp: expId,
-  //     exps: exps.map((e) => e.id),
-  //     position: pos,
-  //   });
-  // } else {
-  //   return reportStore.update({
-  //     id: report.id,
-  //     name,
-  //     description,
-  //     args,
-  //     exp: expId,
-  //     exps: exps.map((e) => e.id),
-  //     position: pos,
-  //   });
-  // }
-}
-
-function buildIndex(
-  index: RawAnyIndex,
-  property: IndexProperty,
-  exps: Experiment[]
-): any | undefined {
-  return undefined;
-  // if (
-  //   (index.isExp && index.expindex === undefined) ||
-  //   (!index.isExp && index.index === undefined)
-  // ) {
-  //   return undefined;
-  // }
-
-  // if (!index.isExp) {
-  //   if (index.index! === EXPNAME_INDEX_FIELD) {
-  //     if (index.values !== undefined) {
-  //       let selectedExpNames = new Set(index.values);
-  //       exps = exps.filter((e) => selectedExpNames.has(e.name));
-  //     }
-
-  //     return new ExpIndex(
-  //       Object.fromEntries(exps.map((exp) => [exp.id, EXPNAME_INDEX_FIELD])),
-  //       null
-  //     );
-  //   }
-  //   return new Index(index.index!.split("."), index.values || null, property);
-  // }
-
-  // return new ExpIndex(
-  //   Object.fromEntries(
-  //     Object.entries(index.expindex!).map(([expid, expindex]) => {
-  //       return [
-  //         parseInt(expid),
-  //         new Index(expindex.split("."), null, property),
-  //       ];
-  //     })
-  //   ),
-  //   Object.keys(index.expvalues).length === 0 ? null : index.expvalues
-  // );
-}
-
-function getRawIndices(exps: Experiment[], indices: any[]): RawAnyIndex[] {
-  return [];
-  // return indices.map((index) => {
-  //   if (index instanceof Index) {
-  //     return {
-  //       isExp: false,
-  //       index: index.index.join("."),
-  //       values: index.values === null ? undefined : index.values,
-  //     };
-  //   } else {
-  //     const indices = Object.entries(index.indices);
-  //     const tmp = indices
-  //       .map(([key, val]) => (val === EXPNAME_INDEX_FIELD ? 1 : 0))
-  //       .reduce((a: number, b) => a + b, 0);
-  //     if (tmp > 0) {
-  //       if (tmp !== indices.length) {
-  //         throw new Error(
-  //           "The UI does not support mixed exp index for now. This should not reachable for report created through the UI."
-  //         );
-  //       }
-
-  //       // all exp indices are EXPNAME_INDEX_FIELD
-  //       return {
-  //         isExp: false,
-  //         index: EXPNAME_INDEX_FIELD,
-  //         // use all values if all exp are used
-  //         values:
-  //           indices.length === exps.length
-  //             ? undefined
-  //             : indices.map(([key, val]) => key),
-  //       };
-  //     }
-
-  //     return {
-  //       isExp: true,
-  //       expindex: Object.fromEntries(
-  //         indices.map(([key, val]) => [key, (val as Index).index.join(".")])
-  //       ),
-  //       expvalues: index.values === null ? {} : index.values,
-  //       expvalueOptions: {},
-  //     };
-  //   }
-  // });
-}
-
-function notUndefined<V>(v: V | undefined): v is V {
-  return v !== undefined;
-}
+    return (
+      <TableComponent
+        reportData={data}
+        zvalues={report.args.value.zvalues}
+        title={`Table. ${report.name}`}
+        editURL={{
+          path: routes.updatereport,
+          urlArgs: { expId, reportId: -1 },
+          queryArgs: {},
+        }}
+      />
+    );
+  }
+);

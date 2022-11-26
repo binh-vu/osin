@@ -149,13 +149,17 @@ export class TableBuilder<C extends Cell> {
       const row: C[] = [];
       for (let j = 0; j < ncols; j++) {
         if (i < rowstart - nExtraColHeaderRow && j >= colstart) {
-          row.push(colHeaders[i][j - colstart]);
+          row.push(
+            Object.assign(colHeaders[i][j - colstart], { row: i, col: j })
+          );
         } else if (i >= rowstart && j < colstart - nExtraRowHeaderCol) {
-          row.push(rowHeaders[i - rowstart][j]);
+          row.push(
+            Object.assign(rowHeaders[i - rowstart][j], { row: i, col: j })
+          );
         } else {
           row.push({
             ...this.cellFactory(),
-            th: false,
+            th: i < rowstart || j < colstart ? true : false,
             metaTh: false,
             label: "",
             colspan: 1,

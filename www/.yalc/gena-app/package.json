@@ -1,6 +1,6 @@
 {
   "name": "gena-app",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "private": false,
   "repository": {
     "type": "git",
@@ -66,5 +66,5 @@
     ]
   },
   "license": "MIT",
-  "yalcSig": "3d5b9d0d51fee024f651d3cfec918113"
+  "yalcSig": "34ce87dbe744f9b3bb529bb42dc6f117"
 }

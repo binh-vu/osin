@@ -4,9 +4,9 @@ export class Attribute {
   readonly path: ReadonlyArray<string>;
   private value: string;
 
-  constructor(path: string[]) {
+  constructor(path: string[], value?: string) {
     this.path = path;
-    this.value = this.path.join(".");
+    this.value = value || path.join(".");
   }
 
   asString(): string {
@@ -32,6 +32,10 @@ export class Attribute {
   getLabel(): string {
     return this.path.length > 1 ? this.path.slice(1).join(".") : this.path[0];
   }
+
+  clone(): Attribute {
+    return new Attribute(this.path.slice(), this.value);
+  }
 }
 
 export class IndexElement {
@@ -43,6 +47,10 @@ export class IndexElement {
 
   toString(): string {
     return this.element.join(".");
+  }
+
+  clone(): IndexElement {
+    return new IndexElement(this.element.slice());
   }
 }
 
