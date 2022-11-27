@@ -25,7 +25,7 @@ const defaultColumns: TableColumn<ExperimentRun>[] = [
     render: ((id: number, exprun: ExperimentRun) => {
       return (
         <InternalLink
-          path={routes.run}
+          path={routes.runWithExpId}
           urlArgs={{ expId: exprun.expId, runId: id }}
           queryArgs={{}}
         >

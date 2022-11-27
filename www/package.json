@@ -1,6 +1,6 @@
 {
   "name": "osin",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "private": true,
   "dependencies": {
     "@ant-design/colors": "^6.0.0",
@@ -29,7 +29,7 @@
     "axios": "^0.27.2",
     "filesize": "^9.0.11",
     "fuse.js": "^6.4.6",
-    "gena-app": "^4.1.0",
+    "gena-app": "^4.1.2",
     "humanize-duration": "^3.27.3",
     "hyphenation.en-us": "^0.2.1",
     "lodash": "^4.17.21",

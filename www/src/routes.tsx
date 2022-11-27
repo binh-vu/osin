@@ -64,7 +64,8 @@ export const Layout = (
               newreport: 1,
               updatereport: 1,
               runs: 1,
-              run: 1,
+              runWithExpId: 1,
+              run: 2,
             }}
             isFirstItemLogo={true}
           />
@@ -119,10 +120,16 @@ export const routes = {
     pathDef: "/exps/:expId/runs",
     exact: true,
   }),
-  run: new NoQueryArgsPathDef({
+  runWithExpId: new NoQueryArgsPathDef({
     component: ExpRunPage,
     urlSchema: { expId: "number", runId: "number" },
     pathDef: "/exps/:expId/runs/:runId",
+    exact: true,
+  }),
+  run: new NoQueryArgsPathDef({
+    component: ExpRunPage,
+    urlSchema: { runId: "number" },
+    pathDef: "/runs/:runId",
     exact: true,
   }),
   home: new NoArgsPathDef({ component: HomePage, pathDef: "/", exact: true }),

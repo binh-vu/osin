@@ -62,8 +62,8 @@ export const IndexSchemaForm = observer(
 
     // gather attributes
     const attrOptions = useMemo(() => {
-      return exps.flatMap((exp) => {
-        const options = ParamSchema.mergeSchemas(exp.params)
+      let options = exps.flatMap((exp) => {
+        return ParamSchema.mergeSchemas(exp.params)
           .leafAttributes()
           .map((attr) => attr.prepend(ATTRNAME_PARAMS))
           .concat(
@@ -72,13 +72,11 @@ export const IndexSchemaForm = observer(
               .map((attr) =>
                 attr.prepend(ATTRNAME_AGGREGATED_PRIMITIVE_OUTPUTS)
               )
-          )
-          .map((attr) => attr2selectOption(attr, classes));
-
-        options.push(attr2selectOption(expNameAttribute, classes));
-
-        return options;
+          );
       });
+      options = _.uniqBy(options, (attr) => attr.asString());
+      options.push(expNameAttribute);
+      return options.map((attr) => attr2selectOption(attr, classes));
     }, [exps]);
 
     // gather index's attributes
@@ -287,7 +285,6 @@ export const AttrGetterForm = observer(
             <Col span={12}>
               <Select
                 showSearch={true}
-                allowClear={true}
                 style={{ width: "100%" }}
                 value={
                   attr === undefined ? undefined : attr2selectValue(attr.attr)
@@ -296,7 +293,6 @@ export const AttrGetterForm = observer(
                 status={attr === undefined ? "error" : ""}
                 onChange={(value, option) => {
                   if (attr === undefined) {
-                    console.log("call me");
                     index.addAttrGetter(
                       new AttrGetter((option as AttrOption).attr, undefined),
                       index.attrs[attridx] === undefined ? undefined : attridx
@@ -432,7 +428,7 @@ export const ZValueForm = observer(
               )
             )}
             onChange={(
-              values: string[],
+              _values: string[],
               options: AttrOption | AttrOption[]
             ) => {
               const it: [number | null, Attribute][] = (

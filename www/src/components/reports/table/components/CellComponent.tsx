@@ -7,6 +7,11 @@ import { AttrGetter } from "models/reports";
 import { Cell, cellFactory, Table } from "../TableBuilder";
 import Rainbow from "rainbowvis.js";
 import { Filter } from "misc";
+import { Descriptions, Typography } from "antd";
+import { useMemo } from "react";
+import { TableComponent } from "components/table";
+import { InternalLink } from "gena-app";
+import { routes } from "routes";
 export type HighlightMode =
   | "none"
   | "row"
@@ -94,10 +99,16 @@ export const CellComponent = ({
     );
   }
 
-  return <DataCellComponent cell={cell} />;
+  return <DataCellComponent cell={cell} onClick={onClick} />;
 };
 
-export const DataCellComponent = ({ cell }: { cell: ExtraCell }) => {
+export const DataCellComponent = ({
+  cell,
+  onClick,
+}: {
+  cell: ExtraCell;
+  onClick: (cell: ExtraCell) => void;
+}) => {
   const style: React.CSSProperties = {};
   const tdStyle: React.CSSProperties = { ...cell.style, position: "relative" };
   if (cell.highlight.bold) {
@@ -128,10 +139,113 @@ export const DataCellComponent = ({ cell }: { cell: ExtraCell }) => {
       rowSpan={cell.rowspan}
       colSpan={cell.colspan}
       className={cell.className}
+      onClick={(e) => onClick(cell)}
     >
       {highlightEl}
       <span style={style}>{cell.label}</span>
     </td>
+  );
+};
+
+export const CellStatistics = ({
+  table,
+  cell,
+  zvalues,
+  zstyle,
+  renderRecordId,
+}: {
+  table: Table<ExtraCell>;
+  cell: ExtraCell;
+  zvalues: [number | null, AttrGetter[]][];
+  zstyle: "column" | "embedded";
+  renderRecordId?: (recordId: number) => React.ReactNode;
+}) => {
+  // TODO: this code is written in a hurry, surely will contain bugs
+  const zLabels = useMemo(() => {
+    return zvalues.flatMap(([_, attrs]) =>
+      attrs.map((attr) => attr.attr.asString())
+    );
+  }, [zvalues]);
+
+  let realcell: ExtraCell;
+  let zLabel: string;
+  let zLabelIndex;
+  if (zstyle === "column") {
+    zLabelIndex = (cell.col - table.colstart) % table.colHeaderScale;
+    zLabel = zLabels[zLabelIndex];
+    realcell = table.data[cell.row][cell.col - zLabelIndex];
+  } else {
+    throw new Error("not implemented");
+  }
+
+  const datapoints: { [zvalue: string]: ReportDataPoint[] } = useMemo(() => {
+    const datapoints: { [zvalue: string]: ReportDataPoint[] } = {};
+    for (const dp of realcell.datapoints) {
+      const z = dp.z.asString();
+      if (datapoints[z] === undefined) {
+        datapoints[z] = [];
+      }
+      datapoints[z].push(dp);
+    }
+    return datapoints;
+  }, [realcell]);
+
+  const zDataPoints = datapoints[zLabel] || [];
+
+  const stats = useMemo(() => {
+    if (zDataPoints.some(Number.isNaN)) {
+      return { mean: "", max: "", min: "" };
+    }
+    const lst = zDataPoints.map((dp) => dp.recordValue);
+    return {
+      mean: _.mean(lst),
+      max: _.max(lst),
+      min: _.min(lst),
+    };
+  }, [datapoints, zLabel]);
+
+  return (
+    <>
+      <Descriptions title="Cell Statistics">
+        <Descriptions.Item label="Mean">{stats.mean}</Descriptions.Item>
+        <Descriptions.Item label="Max">{stats.max}</Descriptions.Item>
+        <Descriptions.Item label="Min">{stats.min}</Descriptions.Item>
+      </Descriptions>
+      <Typography.Title level={5} style={{ fontWeight: "bold" }}>
+        Data Points
+      </Typography.Title>
+      <TableComponent
+        key={`${cell.row}-${cell.col}`}
+        selectRows={false}
+        rowKey="recordId"
+        defaultPageSize={50}
+        store={{
+          query: async (limit, offset, conditions, sortedBy) => {
+            return {
+              records: zDataPoints.slice(offset, offset + limit),
+              total: zDataPoints.length,
+            };
+          },
+        }}
+        columns={[
+          {
+            key: "recordId",
+            dataIndex: "recordId",
+            title: "Run",
+            width: "max-content",
+            fixed: "left",
+            render: renderRecordId,
+          },
+          {
+            key: "recordValue",
+            dataIndex: "recordValue",
+            title: "Value",
+            width: "max-content",
+            fixed: "left",
+          },
+        ]}
+      />
+    </>
   );
 };
 

@@ -13,7 +13,7 @@ import {
   Typography,
 } from "antd";
 import { ReportData, TableComponent } from "components/reports";
-import { LoadingComponent } from "gena-app";
+import { InternalLink, LoadingComponent } from "gena-app";
 import { Filter } from "misc";
 import { autorun, comparer, reaction } from "mobx";
 import { observer } from "mobx-react";
@@ -31,6 +31,7 @@ import {
   ZValueForm,
 } from "pages/reports/forms/IndexSchemaForm";
 import { createRef, useEffect, useMemo, useState } from "react";
+import { unstable_batchedUpdates } from "react-dom";
 import { routes } from "routes";
 import { ReportTable, ReportTableFunc } from "../reports/ReportTable";
 
@@ -372,15 +373,26 @@ export const PreviewReport = observer(
   }) => {
     const { reportStore } = useStores();
     const [data, setData] = useState<ReportData | undefined>(undefined);
+    const [error, setError] = useState<string | undefined>(undefined);
 
     useEffect(() => {
       console.log("PreviewReport: create autorun");
-      let previousReport: BaseReport | undefined = undefined;
+      let previousReport: [BaseReport, number[]] | undefined = undefined;
       const disposer = autorun(() => {
         if (!comparer.structural(previousReport, report.args.value)) {
           console.log("PreviewReport: autorun");
-          previousReport = report.args.value.clone();
-          reportStore.previewReportData(report).then(setData);
+          previousReport = [report.args.value.clone(), report.exps.slice()];
+          reportStore
+            .previewReportData(report)
+            .then((data) => {
+              unstable_batchedUpdates(() => {
+                setData(data);
+                setError(undefined);
+              });
+            })
+            .catch((reason) => {
+              setError(reason.response.data.message);
+            });
         }
       });
       return () => {
@@ -393,6 +405,17 @@ export const PreviewReport = observer(
       return <LoadingComponent msg="Loading preview..." />;
     }
 
+    if (error !== undefined) {
+      return (
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          className="mb-8"
+        />
+      );
+    }
+
     return (
       <TableComponent
         reportData={data}
@@ -402,6 +425,18 @@ export const PreviewReport = observer(
           path: routes.updatereport,
           urlArgs: { expId, reportId: -1 },
           queryArgs: {},
+        }}
+        renderRecordId={(recordId: number) => {
+          return (
+            <InternalLink
+              path={routes.run}
+              urlArgs={{ runId: recordId }}
+              queryArgs={{}}
+              openInNewPage={true}
+            >
+              Run {recordId}{" "}
+            </InternalLink>
+          );
         }}
       />
     );

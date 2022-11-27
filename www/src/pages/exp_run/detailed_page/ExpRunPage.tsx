@@ -34,7 +34,13 @@ const useStyles = makeStyles({
 
 export const ExpRunPage = observer(() => {
   const classes = useStyles();
-  const runId = routes.run.useURLParams()!.runId;
+  let tmp = routes.runWithExpId.useURLParams();
+  let runId: number;
+  if (tmp === null) {
+    runId = routes.run.useURLParams()!.runId;
+  } else {
+    runId = tmp.runId;
+  }
   const { expStore, expRunStore } = useStores();
 
   useEffect(() => {

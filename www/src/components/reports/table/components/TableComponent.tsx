@@ -1,5 +1,5 @@
 import { makeStyles } from "@mui/styles";
-import { Dropdown } from "antd";
+import { Dropdown, Modal } from "antd";
 import { ArgSchema, ArgType, InternalLink, PathDef } from "gena-app";
 import _ from "lodash";
 import { ArrayHelper, getClassName } from "misc";
@@ -15,6 +15,7 @@ import {
   HighlightMode,
   highlightModes,
   highlightTable,
+  CellStatistics,
 } from "./CellComponent";
 
 const useStyles = makeStyles({
@@ -88,6 +89,14 @@ const useStyles = makeStyles({
   metaUselessHeader: {
     border: "none !important",
   },
+  cellModal: {
+    width: "80% !important",
+    maxHeight: "calc(100% - 40px)",
+    top: 20,
+    "& .ant-modal-header": {
+      display: "none",
+    },
+  },
 });
 
 export const TableComponent = <
@@ -100,6 +109,7 @@ export const TableComponent = <
   defaultHighlightMode = "row-best",
   zvalues,
   onReload,
+  renderRecordId,
 }: {
   title: string | React.ReactElement;
   editURL: {
@@ -111,6 +121,7 @@ export const TableComponent = <
   defaultHighlightMode?: HighlightMode;
   zvalues: [number | null, AttrGetter[]][];
   onReload?: () => void;
+  renderRecordId?: (recordId: number) => React.ReactNode;
 }) => {
   const classes = useStyles();
   const [highlight, setHighlight] =
@@ -118,6 +129,7 @@ export const TableComponent = <
   const [zvalueStyle, setZValueStyle] = useState<"column" | "embedded">(
     "column"
   );
+  const [showCell, setShowCell] = useState<undefined | ExtraCell>(undefined);
 
   const table1 = useMemo(() => {
     let nExtraRowHeaderCol = 0;
@@ -158,7 +170,7 @@ export const TableComponent = <
     // do nothing if clicking on empty cells
     if (cell.row < table.rowstart && cell.col < table.colstart) return;
 
-    // TODO: handle if click on z-value headers
+    // click on header to highlight by column/row
     if (
       cell.th &&
       (cell.row === table.rowstart - 1 || cell.col === table.colstart - 1)
@@ -187,6 +199,11 @@ export const TableComponent = <
           setHighlight({ type: "row", value: cell.row });
         }
       }
+    }
+
+    // click on a cell to display the cell's data
+    if (!cell.th) {
+      setShowCell(cell);
     }
   };
 
@@ -224,6 +241,24 @@ export const TableComponent = <
           />
         </caption>
       </table>
+      <Modal
+        open={showCell !== undefined}
+        title="Cell Information"
+        onCancel={() => setShowCell(undefined)}
+        onOk={() => setShowCell(undefined)}
+        footer={null}
+        className={classes.cellModal}
+      >
+        {showCell !== undefined ? (
+          <CellStatistics
+            cell={showCell}
+            table={table1}
+            zvalues={zvalues}
+            zstyle={zvalueStyle}
+            renderRecordId={renderRecordId}
+          />
+        ) : null}
+      </Modal>
     </div>
   );
 };

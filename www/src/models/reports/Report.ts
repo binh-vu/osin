@@ -54,6 +54,7 @@ export class IndexSchema {
       addAttrGetter: action,
       addChildAttrGetter: action,
       removeAttrGetter: action,
+      updateAttrGetter: action,
     });
   }
 
@@ -129,6 +130,10 @@ export class IndexSchema {
     }
     this.index2children.splice(idx, 1);
     this.attrs.splice(idx, 1);
+  }
+
+  updateAttrGetter(idx: number, attr: AttrGetter) {
+    this.attrs[idx] = attr;
   }
 
   getTreeSize(idx: number): number {

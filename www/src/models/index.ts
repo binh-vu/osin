@@ -16,6 +16,7 @@ import { ReportStore } from "./reports/ReportStore";
 import { Report } from "./reports/Report";
 import { ExpReportStore } from "./reports/ExpReportStore";
 import { ExpReport } from "./reports/ExpReport";
+import { AxiosError } from "axios";
 
 const expStore = new ExperimentStore();
 const reportStore = new ReportStore();
@@ -29,7 +30,16 @@ export const stores = {
 };
 
 registerDefaultAxiosErrorHandler((error) => {
-  message.error("Error while talking with the server.", 5);
+  const reason = error.reason as AxiosError;
+  if (
+    reason.response !== undefined &&
+    typeof reason.response.data === "object" &&
+    typeof (reason.response.data as any).message === "string"
+  ) {
+    message.error((reason.response.data as any).message, 5);
+  } else {
+    message.error("Error while talking with the server.", 5);
+  }
 });
 
 (window as any)._stores = stores;
