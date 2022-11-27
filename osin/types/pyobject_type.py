@@ -37,13 +37,15 @@ class PyObjectType:
             # typically a class from the typing module
             if hasattr(hint, "_name") and hint._name is not None:
                 path = hint.__module__ + "." + hint._name
-                if path in TYPE_ALIASES:
-                    path = TYPE_ALIASES[path]
             elif hasattr(hint, "__origin__") and hasattr(hint.__origin__, "_name"):
                 # found one case which is typing.Union
                 path = hint.__module__ + "." + hint.__origin__._name
             else:
                 raise NotImplementedError(hint)
+
+        if path in TYPE_ALIASES:
+            # do it here because in python 3.10 typing.Dict has __qualname__
+            path = TYPE_ALIASES[path]
 
         if path != "typing.Literal":
             args = [PyObjectType.from_type_hint(arg) for arg in get_args(hint)]
@@ -59,23 +61,20 @@ class PyObjectType:
         global TYPE_ALIASES
 
         if hasattr(hint, "__qualname__"):
-            return hint.__module__ + "." + hint.__qualname__
-
-        if hint.__module__ == "builtins":
-            return hint.__qualname__
-
-        # typically a class from the typing module
-        if hasattr(hint, "_name") and hint._name is not None:
+            path = hint.__module__ + "." + hint.__qualname__
+        elif hint.__module__ == "builtins":
+            path = hint.__qualname__
+        elif hasattr(hint, "_name") and hint._name is not None:
+            # typically a class from the typing module
             path = hint.__module__ + "." + hint._name
-            if path in TYPE_ALIASES:
-                path = TYPE_ALIASES[path]
-            return path
-
-        if hasattr(hint, "__origin__") and hasattr(hint.__origin__, "_name"):
+        elif hasattr(hint, "__origin__") and hasattr(hint.__origin__, "_name"):
             # found one case which is typing.Union
-            return hint.__module__ + "." + hint.__origin__._name
-
-        raise NotImplementedError(hint)
+            path = hint.__module__ + "." + hint.__origin__._name
+        else:
+            raise NotImplementedError(hint)
+        if path in TYPE_ALIASES:
+            path = TYPE_ALIASES[path]
+        return path
 
     def is_instance(self, value: Any):
         global INSTANCE_OF

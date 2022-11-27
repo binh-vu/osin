@@ -20,8 +20,8 @@
             "justMyCode": true,
             "args": [
                 "-xvs",
-                "-k",
-                "test_report"
+                // "-k",
+                // "test_report"
             ],
             "env": {
                 "FLASK_DEBUG": "development"
