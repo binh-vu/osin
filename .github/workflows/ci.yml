@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: ["3.8", "3.9", "3.10"]
+        python: ["3.9", "3.10"]
     steps:
       - uses: actions/checkout@v3
       - name: setup python
@@ -53,7 +53,7 @@ jobs:
       - name: setup python
         uses: actions/setup-python@v3
         with:
-          python-version: 3.8
+          python-version: 3.9
       - name: pypi publish
         run: |
           pip install twine

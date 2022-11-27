@@ -1,10 +1,8 @@
 from __future__ import annotations
-from abc import abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass, MISSING, _MISSING_TYPE
 from functools import cached_property
-from typing import Any, Generic, Literal, Optional, Union
-from graph.interface import BaseNode
+from typing import Any, Literal, Optional, Union
 from osin.models.exp import ExpRun
 from osin.types.pyobject_type import NoneType
 
