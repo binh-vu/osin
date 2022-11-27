@@ -120,10 +120,10 @@ export class ReportDataPoint {
 
 export class ReportData {
   data: ReportDataPoint[];
-  xIndex: Index;
-  yIndex: Index;
+  xIndex: Index[];
+  yIndex: Index[];
 
-  constructor(data: ReportDataPoint[], xIndex: Index, yIndex: Index) {
+  constructor(data: ReportDataPoint[], xIndex: Index[], yIndex: Index[]) {
     this.data = data;
     this.xIndex = xIndex;
     this.yIndex = yIndex;
@@ -141,8 +141,8 @@ export class ReportData {
             d.record_value
           )
       ),
-      Index.deserialize(obj.xindex),
-      Index.deserialize(obj.yindex)
+      obj.xindex.map(Index.deserialize),
+      obj.yindex.map(Index.deserialize)
     );
   }
 }

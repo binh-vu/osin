@@ -212,22 +212,32 @@ class IndexSchema:
     # list of attributes that are fully observed in the data source
     fully_observed_attrs: list[list[int]]
 
-    def build_index(self, records: list[Record]) -> Index:
+    def build_index(self, records: list[Record]) -> list[Index]:
         """Build an index from the list of records"""
         this = self._infer_attributes(records)
         paths = this.leaf_paths
-        index = this._build_index_from_path(paths[0])
+        indices = [this._build_index_from_path(paths[0])]
         for path in paths[1:]:
-            index.merge(this._build_index_from_path(path))
+            newindex = this._build_index_from_path(path)
+            for index in indices:
+                if index.attr == newindex.attr:
+                    index.merge(newindex)
+                    break
+            else:
+                indices.append(newindex)
 
         fully_observed_combinations = this._get_fully_observed_combinations(records)
         for attrs, combinations in fully_observed_combinations:
-            if not index.trim_unobserved_combinations(attrs, combinations):
+            trim_results = [
+                index.trim_unobserved_combinations(attrs, combinations)
+                for index in indices
+            ]
+            if not any(trim_results):
                 raise ValueError(
                     "The order in the observed combinations is not consistent with the index"
                 )
 
-        return index
+        return indices
 
     def get_index_element(self, record: Record) -> Optional[IndexElement]:
         """Get the index's element of a record"""
@@ -237,22 +247,30 @@ class IndexSchema:
         for path in paths:
             element = []
             for attrgetter in path:
-                if attrgetter.path not in index_element:
-                    index_element[attrgetter.path] = attrgetter.get_attribute_value(
-                        record
-                    )
-
-                if index_element[attrgetter.path] is MISSING:
-                    element = None
-                    break
-                element.append(index_element[attrgetter.path])
+                if attrgetter.values is None:
+                    if attrgetter.path not in index_element:
+                        index_element[attrgetter.path] = attrgetter.get_attribute_value(
+                            record
+                        )
+                    if index_element[attrgetter.path] is MISSING:
+                        element = None
+                        break
+                    element.append(index_element[attrgetter.path])
+                else:
+                    if (value := attrgetter.get_attribute_value(record)) is not MISSING:
+                        element.append(value)
+                    else:
+                        element = None
+                        break
             else:
                 elements.append(tuple(element))
 
         if len(elements) == 0:
             return None
         elif len(elements) > 1:
-            raise ValueError("This multi-level index is ambiguous.")
+            raise InvalidIndexError(
+                f"This multi-level index is ambiguous. Found two index elements: {', '.join([str(element) for element in elements])} in the record {record.id}"
+            )
         return tuple(elements[0])
 
     @staticmethod
@@ -346,3 +364,9 @@ class IndexSchema:
             for path in self._leaf_paths_recur(i):
                 paths.append([attrgetter] + path)
         return paths
+
+
+class InvalidIndexError(Exception):
+    """Raised when the index is invalid."""
+
+    pass

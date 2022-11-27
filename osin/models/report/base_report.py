@@ -98,8 +98,8 @@ class BaseReport:
 @dataclass
 class ReportData:
     data: list[ReportDataPoint]
-    xindex: Index
-    yindex: Index
+    xindex: list[Index]
+    yindex: list[Index]
 
 
 @dataclass

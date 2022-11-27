@@ -1,3 +1,4 @@
+import _ from "lodash";
 import {
   AttrValue,
   Index,
@@ -70,6 +71,19 @@ export class Table<C extends Cell> {
     );
   }
 
+  /** Get a cell by its position in the table. This is useful when the structure of the table has been changed */
+  getCell = (row: number, col: number): C => {
+    for (let i = 0; i < this.data.length; i++) {
+      for (let j = 0; j < this.data[i].length; j++) {
+        const cell = this.data[i][j];
+        if (cell.row === row && cell.col === col) {
+          return cell;
+        }
+      }
+    }
+    throw new Error("Cell not found");
+  };
+
   /**
    * For html table spanning to work correctly, if the cell is column spanned, then the cell on the right
    * must be removed. If the cell is row spanned, then the cell below must be removed.
@@ -122,8 +136,19 @@ export class TableBuilder<C extends Cell> {
 
   constructor(data: ReportData, cellFactory: () => C) {
     this.data = data;
-    this.xIndexMap = this.buildIndexMap(data.xIndex);
-    this.yIndexMap = this.buildIndexMap(data.yIndex);
+
+    this.xIndexMap = new Map();
+    let offset = 0;
+    for (const index of data.xIndex) {
+      this.buildIndexMap(index, { map: this.xIndexMap, offset });
+      offset += index.size();
+    }
+    this.yIndexMap = new Map();
+    offset = 0;
+    for (const index of data.yIndex) {
+      this.buildIndexMap(index, { map: this.yIndexMap, offset });
+      offset += index.size();
+    }
     this.cellFactory = cellFactory;
   }
 
@@ -201,9 +226,11 @@ export class TableBuilder<C extends Cell> {
   }
 
   /** Build (meta) headers of the table from an index */
-  buildHeader(index: Index, scale: number = 1): C[][] {
-    const height = index.getMaxLevel();
-    const width = index.size();
+  buildHeader(indices: Index[], scale: number = 1): C[][] {
+    const heights = indices.map((index) => index.getMaxLevel());
+    const widths = indices.map((index) => index.size());
+    const height = _.max(heights)!;
+    const width = _.sum(widths);
 
     const headers: C[][] = [];
     for (let i = 0; i < height * 2; i++) {
@@ -224,7 +251,12 @@ export class TableBuilder<C extends Cell> {
       headers.push(row);
     }
 
-    this.buildHeaderMain(index, 0, 0, headers, scale);
+    let offset = 0;
+    for (let i = 0; i < indices.length; i++) {
+      const index = indices[i];
+      this.buildHeaderMain(index, 0, offset, headers, scale);
+      offset += widths[i];
+    }
     return headers;
   }
 

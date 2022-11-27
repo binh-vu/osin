@@ -16,36 +16,40 @@ const reportData = {
         z: ["aggregated_primitive_outputs", "recall@100"],
       },
     ],
-    xindex: {
-      attr: ["params", "cg_method"],
-      children: [
-        [
-          "oracle_semtyper",
+    xindex: [
+      {
+        attr: ["params", "cg_method"],
+        children: [
           [
-            {
-              attr: ["params", "oracle_semtyper", "filter_mode"],
-              children: [["exact", []]],
-            },
+            "oracle_semtyper",
+            [
+              {
+                attr: ["params", "oracle_semtyper", "filter_mode"],
+                children: [["exact", []]],
+              },
+            ],
+          ],
+          [
+            "pyserini",
+            [
+              {
+                attr: ["params", "pyserini", "query_types"],
+                children: [["fuzzy", []]],
+              },
+            ],
           ],
         ],
-        [
-          "pyserini",
-          [
-            {
-              attr: ["params", "pyserini", "query_types"],
-              children: [["fuzzy", []]],
-            },
-          ],
+      },
+    ],
+    yindex: [
+      {
+        attr: ["params", "dataset"],
+        children: [
+          ["biotable", []],
+          ["wt250", []],
         ],
-      ],
-    },
-    yindex: {
-      attr: ["params", "dataset"],
-      children: [
-        ["biotable", []],
-        ["wt250", []],
-      ],
-    },
+      },
+    ],
   },
   type: "table",
 };

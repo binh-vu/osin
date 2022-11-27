@@ -6,8 +6,8 @@ import { testcase03 } from "../resources/testcase03";
 import { Cell, cellFactory, Table, TableBuilder } from "./TableBuilder";
 
 describe("test table builder", () => {
-  let testcases = [testcase01, testcase02];
-  testcases = [testcase03];
+  let testcases = [testcase01, testcase02, testcase03];
+  // testcases = [testcase02];
 
   test("construct table header", () => {
     for (const testcase of testcases) {

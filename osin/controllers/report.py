@@ -21,7 +21,12 @@ from osin.models.report import (
     Report,
     ReportDisplayPosition,
 )
-from osin.models.report.index_schema import AttrGetter, AttrValue, Index
+from osin.models.report.index_schema import (
+    AttrGetter,
+    AttrValue,
+    Index,
+    InvalidIndexError,
+)
 from peewee import DoesNotExist
 from werkzeug.exceptions import BadRequest, NotFound
 
@@ -228,8 +233,8 @@ def get_report_data(id: int):
             "type": report.args.type,
             "data": {
                 "data": data.data,
-                "xindex": serialize_index(data.xindex, exps),
-                "yindex": serialize_index(data.yindex, exps),
+                "xindex": [serialize_index(idx, exps) for idx in data.xindex],
+                "yindex": [serialize_index(idx, exps) for idx in data.yindex],
             },
         }
     )
@@ -267,21 +272,37 @@ def preview_report():
     )
     for run in runs:
         run.exp = exps[run.exp_id]
+
     data = report.args.value.get_data(runs)
     return jsonify(
         {
             "type": report.args.type,
             "data": {
                 "data": data.data,
-                "xindex": serialize_index(data.xindex, exps),
-                "yindex": serialize_index(data.yindex, exps),
+                "xindex": [serialize_index(idx, exps) for idx in data.xindex],
+                "yindex": [serialize_index(idx, exps) for idx in data.yindex],
             },
         }
     )
 
 
+def handle_internal_error(error):
+    return jsonify({"message": str(error)}), 400
+
+
+class ExperimentNotFound(Exception):
+    pass
+
+
+report_bp.register_error_handler(InvalidIndexError, handle_internal_error)
+report_bp.register_error_handler(ExperimentNotFound, handle_internal_error)
+
+
 def serialize_index(index: Index, exps: dict[int, Exp]):
     if index.attr[0] == EXP_INDEX_FIELD:
+        if len(unk_exps := set(index.children.keys()).difference(exps.keys())) > 0:
+            raise ExperimentNotFound(f"Experiments not found. Id: {list(unk_exps)}")
+
         return {
             "attr": ("Experiment",),
             "children": [

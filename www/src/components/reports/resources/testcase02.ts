@@ -1,64 +1,68 @@
 const reportData = {
   type: "table",
   data: {
-    xindex: {
-      attr: ["__exp__"],
-      children: [
-        [
-          "exp1",
+    xindex: [
+      {
+        attr: ["__exp__"],
+        children: [
           [
-            {
-              attr: ["params.cg_method"],
-              children: [
-                [
-                  "pyserini",
+            "exp1",
+            [
+              {
+                attr: ["params.cg_method"],
+                children: [
                   [
-                    {
-                      attr: ["params.index-type"],
-                      children: [
-                        ["normal", []],
-                        ["enhanced", []],
-                      ],
-                    },
+                    "pyserini",
+                    [
+                      {
+                        attr: ["params.index-type"],
+                        children: [
+                          ["normal", []],
+                          ["enhanced", []],
+                        ],
+                      },
+                    ],
+                  ],
+                  [
+                    "oracle",
+                    [
+                      {
+                        attr: ["params.index-type"],
+                        children: [
+                          ["normal", []],
+                          ["enhanced", []],
+                        ],
+                      },
+                    ],
                   ],
                 ],
-                [
-                  "oracle",
-                  [
-                    {
-                      attr: ["params.index-type"],
-                      children: [
-                        ["normal", []],
-                        ["enhanced", []],
-                      ],
-                    },
-                  ],
-                ],
-              ],
-            },
+              },
+            ],
           ],
-        ],
-        [
-          "exp2",
           [
-            {
-              attr: ["cr_method"],
-              children: [
-                ["xgboost", []],
-                ["random-forest", []],
-              ],
-            },
+            "exp2",
+            [
+              {
+                attr: ["cr_method"],
+                children: [
+                  ["xgboost", []],
+                  ["random-forest", []],
+                ],
+              },
+            ],
           ],
         ],
-      ],
-    },
-    yindex: {
-      attr: ["params", "dataset"],
-      children: [
-        ["biotable", []],
-        ["wt250", []],
-      ],
-    },
+      },
+    ],
+    yindex: [
+      {
+        attr: ["params", "dataset"],
+        children: [
+          ["biotable", []],
+          ["wt250", []],
+        ],
+      },
+    ],
     data: [],
   },
 };

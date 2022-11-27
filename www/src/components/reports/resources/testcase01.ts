@@ -303,41 +303,45 @@ const reportData = {
         z: ["aggregated_primitive_outputs", "mrr"],
       },
     ],
-    xindex: {
-      attr: ["params", "cg_method"],
-      children: [
-        [
-          "oracle_semtyper",
+    xindex: [
+      {
+        attr: ["params", "cg_method"],
+        children: [
           [
-            {
-              attr: ["params", "oracle_semtyper", "filter_mode"],
-              children: [["exact", []]],
-            },
+            "oracle_semtyper",
+            [
+              {
+                attr: ["params", "oracle_semtyper", "filter_mode"],
+                children: [["exact", []]],
+              },
+            ],
+          ],
+          [
+            "pyserini",
+            [
+              {
+                attr: ["params", "pyserini", "query_types"],
+                children: [["fuzzy", []]],
+              },
+            ],
           ],
         ],
-        [
-          "pyserini",
-          [
-            {
-              attr: ["params", "pyserini", "query_types"],
-              children: [["fuzzy", []]],
-            },
-          ],
+      },
+    ],
+    yindex: [
+      {
+        attr: ["params", "dataset"],
+        children: [
+          ["biotable_rowsampled200:shuffle:72", []],
+          ["semtab2020r4_sampled50:dev[80%:90%]:shuffle:72", []],
+          ["semtab2020r4_sampled50:shuffle:72", []],
+          ["semtab2020r4_sampled50:test[90%:100%]:shuffle:72", []],
+          ["semtab2020r4_sampled50:train[0%:80%]:shuffle:72", []],
+          ["semtab2020r4_sampled50[0%:100%]:shuffle:72", []],
+          ["wt250:shuffle:72", []],
         ],
-      ],
-    },
-    yindex: {
-      attr: ["params", "dataset"],
-      children: [
-        ["biotable_rowsampled200:shuffle:72", []],
-        ["semtab2020r4_sampled50:dev[80%:90%]:shuffle:72", []],
-        ["semtab2020r4_sampled50:shuffle:72", []],
-        ["semtab2020r4_sampled50:test[90%:100%]:shuffle:72", []],
-        ["semtab2020r4_sampled50:train[0%:80%]:shuffle:72", []],
-        ["semtab2020r4_sampled50[0%:100%]:shuffle:72", []],
-        ["wt250:shuffle:72", []],
-      ],
-    },
+      },
+    ],
   },
   type: "table",
 };
