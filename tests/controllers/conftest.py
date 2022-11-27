@@ -1,19 +1,12 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Tuple, Type
-from flask import Flask
-from flask.testing import FlaskClient
-from gena.serializer import get_peewee_serializer
+from typing import List
 import yada
 
 import pytest
-from gena.api_testsuite import APITestSuite
 from osin.apis.osin import Osin
 from osin.apis.remote_exp import RemoteExpRun
-from osin.app import app
-from osin.models import init_db
-from osin.models.exp import ExpRun
-from peewee import Model, SqliteDatabase
+from peewee import SqliteDatabase
 
 
 @pytest.fixture

@@ -1,13 +1,22 @@
 from typing import List, Tuple, Type
-from flask import Flask
-from gena.serializer import get_peewee_serializer
-from osin.models.report import Report, ReportArgs, ReportType, TableReportArgs, Index
 
 import pytest
+from flask import Flask
+from flask.testing import FlaskClient
 from gena.api_testsuite import APITestSuite
+from gena.serializer import get_peewee_serializer
+from peewee import Model
+
 from osin.apis.remote_exp import RemoteExpRun
 from osin.app import app
-from peewee import Model
+from osin.models.report import (
+    AttrGetter,
+    BaseReport,
+    IndexSchema,
+    Report,
+    ReportArgs,
+    ReportType,
+)
 
 
 class TestReport(APITestSuite):
@@ -19,7 +28,7 @@ class TestReport(APITestSuite):
         return app
 
     @pytest.fixture(scope="session")
-    def model(self) -> Type[Model]:
+    def model(self) -> Type[Report]:
         return Report
 
     @pytest.fixture
@@ -36,10 +45,10 @@ class TestReport(APITestSuite):
                 description="report1",
                 args=ReportArgs(
                     type=ReportType.Table,
-                    value=TableReportArgs(
-                        xaxis=[Index(("dataset",))],
-                        yaxis=[Index(("method",))],
-                        zvalues=[Index(("precision",))],
+                    value=BaseReport(
+                        x_axis=IndexSchema([AttrGetter(("dataset",))], [[]], []),
+                        y_axis=IndexSchema([AttrGetter(("method",))], [[]], []),
+                        z_values=[(None, [AttrGetter(("precision",))])],
                     ),
                 ),
             )
@@ -49,6 +58,8 @@ class TestReport(APITestSuite):
         for r in records:
             r = TestReport.serializer(r)
             del r["id"]
+            r["exp"] = test_db[0].exp.id
+            r["exps"] = [test_db[0].exp.id]
             raw_records.append(r)
 
         return raw_records

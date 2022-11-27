@@ -21,7 +21,7 @@
             "args": [
                 "-xvs",
                 "-k",
-                "test_exp_run"
+                "test_report"
             ],
             "env": {
                 "FLASK_DEBUG": "development"
