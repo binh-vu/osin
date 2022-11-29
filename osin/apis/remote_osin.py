@@ -5,12 +5,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-import certifi
 import requests
 from gena.deserializer import get_deserializer_from_type
 from loguru import logger
 from osin.apis.osin import Osin
 from osin.apis.remote_exp import RemoteExpRun
+from osin.misc import orjson_dumps
 from osin.models.exp import Exp, ExpRun
 from osin.repository import OsinRepository
 from osin.types import NestedPrimitiveOutputSchema, ParamSchema
@@ -39,7 +39,11 @@ class RemoteOsin(Osin):
         return resp.json()
 
     def _post(self, url: str, data: dict) -> dict:
-        resp = requests.post(f"{self.endpoint}{url}", json=data)
+        resp = requests.post(
+            f"{self.endpoint}{url}",
+            data=orjson_dumps(data).decode(),
+            headers={"Content-Type": "application/json"},
+        )
         try:
             assert resp.status_code == 200
         except:
@@ -48,7 +52,11 @@ class RemoteOsin(Osin):
         return resp.json()
 
     def _put(self, url: str, data: dict) -> dict:
-        resp = requests.put(f"{self.endpoint}{url}", json=data)
+        resp = requests.put(
+            f"{self.endpoint}{url}",
+            data=orjson_dumps(data).decode(),
+            headers={"Content-Type": "application/json"},
+        )
         try:
             assert resp.status_code == 200
         except:
