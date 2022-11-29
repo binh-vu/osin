@@ -1,25 +1,17 @@
 from __future__ import annotations
-import atexit
-import shutil
+import certifi
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Union
+from typing import List, Optional
 from gena.deserializer import get_deserializer_from_type
-from gena.serializer import datetime_serializer
 
-import orjson
 from loguru import logger
 from osin.apis.osin import Osin
-from osin.apis.remote_exp import RemoteExp, RemoteExpRun
+from osin.apis.remote_exp import RemoteExpRun
 import requests
-from osin.misc import get_caller_python_script, orjson_dumps
-from osin.models.base import init_db
-from osin.models.exp import Exp, ExpRun, NestedPrimitiveOutput, RunMetadata
-from osin.models.exp_data import ExampleData, Record
-from osin.params_helper import DataClassInstance, param_as_dict
+from osin.models.exp import Exp, ExpRun
 from osin.repository import OsinRepository
-from osin.types import NestedPrimitiveOutputSchema, ParamSchema, PyObject
-from osin.types.primitive_type import validate_primitive_data
+from osin.types import NestedPrimitiveOutputSchema, ParamSchema
 from dataclasses import asdict
 
 
@@ -38,7 +30,9 @@ class RemoteOsin(Osin):
         self.tmpdir = Path(tmpdir)
 
     def _get(self, url: str, params: dict) -> dict:
-        resp = requests.get(f"{self.endpoint}{url}", params=params, verify=False)
+        resp = requests.get(
+            f"{self.endpoint}{url}", params=params, verify=certifi.where()
+        )
         try:
             assert resp.status_code == 200
         except:
@@ -47,7 +41,7 @@ class RemoteOsin(Osin):
         return resp.json()
 
     def _post(self, url: str, data: dict) -> dict:
-        resp = requests.post(f"{self.endpoint}{url}", json=data, verify=False)
+        resp = requests.post(f"{self.endpoint}{url}", json=data, verify=certifi.where())
         try:
             assert resp.status_code == 200
         except:
@@ -56,7 +50,7 @@ class RemoteOsin(Osin):
         return resp.json()
 
     def _put(self, url: str, data: dict) -> dict:
-        resp = requests.put(f"{self.endpoint}{url}", json=data, verify=False)
+        resp = requests.put(f"{self.endpoint}{url}", json=data, verify=certifi.where())
         try:
             assert resp.status_code == 200
         except:
@@ -188,3 +182,18 @@ class RemoteOsin(Osin):
             f"/api/exprun/{exprun_id}",
             data,
         )
+
+    def _upload_exprun(self, exprun: RemoteExpRun):
+        files = {}
+        for file in exprun.rundir.iterdir():
+            if file.suffix in OsinRepository.ALLOWED_EXTENSIONS:
+                files[file.stem] = (file.name, file.read_bytes())
+
+        resp = requests.post(
+            f"{self.endpoint}/api/exprun/{exprun.id}/upload", files=files
+        )
+        try:
+            assert resp.status_code == 200
+        except:
+            logger.error(resp.text)
+            raise

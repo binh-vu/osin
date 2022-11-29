@@ -144,7 +144,7 @@ class Osin(ABC):
         return remote_exp_run
 
     def finish_exp_run(self, exp_run: RemoteExpRun, is_successful: bool = True):
-        """Flush whatever remaining in experiment run that haven't sent to the database to the database before stopping the experiment run."""
+        """Flush whatever remaining in experiment run that haven't sent to the server before stopping the experiment run."""
         exp_run.finished_time = datetime.utcnow()
 
         self.osin_keeper.get_exp_run_data_format(exp_run.exp, exp_run).save_run_data(
@@ -190,6 +190,7 @@ class Osin(ABC):
             )
 
         self.osin_keeper.get_exp_run_success_file(exp_run.exp, exp_run).touch()
+        self._upload_exprun(exp_run)
         self._update_exprun(
             exp_run.id,
             ExpRun(
@@ -209,7 +210,6 @@ class Osin(ABC):
                 "aggregated_primitive_outputs",
             ],
         )
-
         self.cleanup_records.add(exp_run.id)
 
     def update_exp_run_output(
@@ -303,4 +303,8 @@ class Osin(ABC):
 
     @abstractmethod
     def _update_exprun(self, exprun_id: int, exprun: ExpRun, fields: List[str]):
+        pass
+
+    @abstractmethod
+    def _upload_exprun(self, exprun: RemoteExpRun):
         pass

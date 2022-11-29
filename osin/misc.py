@@ -1,6 +1,7 @@
 from pathlib import Path
 import sqlite3
 import sys
+from typing import Optional
 
 import orjson
 
@@ -79,3 +80,11 @@ class Directory:
 
                 return dpath
             return self.root / record[1]
+
+
+def get_extension(filename: str) -> Optional[str]:
+    """Return the extension of a filename without the dot"""
+    lst = filename.rsplit(".", 1)
+    if len(lst) == 1:
+        return None
+    return lst[1].lower()

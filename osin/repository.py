@@ -9,6 +9,7 @@ from slugify import slugify
 
 class OsinRepository:
     instance = None
+    ALLOWED_EXTENSIONS = {".json", ".h5"}
 
     def __init__(self, osin_dir: Union[Path, str]):
         self.osin_dir = Path(osin_dir)

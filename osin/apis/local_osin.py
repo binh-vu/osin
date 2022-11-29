@@ -49,3 +49,6 @@ class LocalOsin(Osin):
 
     def _update_exprun(self, exprun_id: int, exprun: ExpRun, fields: List[str]):
         ExpRun.update(**{field: getattr(exprun, field) for field in fields}).where(ExpRun.id == exprun_id).execute()  # type: ignore
+
+    def _upload_exprun(self, exprun: RemoteExpRun):
+        pass

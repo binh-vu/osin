@@ -124,7 +124,7 @@ dotenv = ["python-dotenv"]
 
 [[package]]
 name = "gena"
-version = "1.6.1"
+version = "1.6.2"
 description = "Generate APIs from Database Models"
 category = "main"
 optional = false
@@ -593,8 +593,8 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 
 [metadata]
 lock-version = "1.1"
-python-versions = "^3.8"
-content-hash = "026ad32d201b9d04a39579362ff15dca6437393d2eb9f1b78bb35e2c803446fc"
+python-versions = "^3.9"
+content-hash = "651073500042ade1791176316d5c93e576390e9c66d973fc54baaf485bb097f7"
 
 [metadata.files]
 attrs = [
@@ -657,8 +657,8 @@ flask = [
     {file = "Flask-2.2.2.tar.gz", hash = "sha256:642c450d19c4ad482f96729bd2a8f6d32554aa1e231f4f6b4e7e5264b16cca2b"},
 ]
 gena = [
-    {file = "gena-1.6.1-py3-none-any.whl", hash = "sha256:83a77d9844352f88ba26753ada4e682c0f97493f65e8d472204e63e6d647f608"},
-    {file = "gena-1.6.1.tar.gz", hash = "sha256:e209bde13e39970d1b29da0fe0ef2857cb2b65c6abf53a57790ea37881c934d1"},
+    {file = "gena-1.6.2-py3-none-any.whl", hash = "sha256:87d55e20804c5f6d0ab42ab522083131acac05f06a532e1930de29cd0ef8e7f5"},
+    {file = "gena-1.6.2.tar.gz", hash = "sha256:15105ec4f8052b6b8674a05b303aba245cd3c19059dafa72be4a7b1d6fa8ba51"},
 ]
 graph-wrapper = [
     {file = "graph-wrapper-1.5.0.tar.gz", hash = "sha256:ac88dca637645d445e5ad5be1efd35aa583a7b8a27ff3c24751964394fc2c242"},

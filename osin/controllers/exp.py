@@ -1,14 +1,16 @@
 from datetime import datetime
+from typing import Optional
 from flask import jsonify, request
 import orjson
 from gena import generate_api
 from dateutil.parser import parse
 from peewee import DoesNotExist, fn
-from osin.misc import identity
+from osin.misc import get_extension, identity
 from osin.models.exp import Exp, ExpRun
 from werkzeug.exceptions import BadRequest, NotFound
 from osin.repository import OsinRepository
 import h5py
+from werkzeug.utils import secure_filename
 
 exp_bp = generate_api(Exp)
 exprun_bp = generate_api(
@@ -107,3 +109,38 @@ def fetch_exp_run_data(id: int):
     out = exp_run_data.to_dict()
     out["n_examples"] = n_examples
     return jsonify(out)
+
+
+@exprun_bp.route(f"/{exprun_bp.name}/<id>/upload", methods=["POST"])
+def upload_exp_run_data(id: int):
+    try:
+        exp_run: ExpRun = ExpRun.get_by_id(id)
+    except DoesNotExist:
+        raise NotFound(f"ExpRun with id {id} does not exist")
+
+    files = {}
+    for file_id, file in request.files.items():
+        print(file, file and file.filename is not None, get_extension(file.filename))
+        if (
+            file
+            and file.filename is not None
+            and ("." + (get_extension(file.filename) or ""))
+            in OsinRepository.ALLOWED_EXTENSIONS
+        ):
+            files[file_id] = file
+
+    if len(files) == 0:
+        raise BadRequest(f"No files provided")
+
+    osin = OsinRepository.get_instance()
+    rundir = osin.get_exp_run_dir(exp_run.exp, exp_run)
+    if not rundir.exists():
+        rundir.mkdir(parents=True)
+
+    for file_id, file in files.items():
+        filename = secure_filename(file.filename)
+        file.save(str(rundir / filename))
+
+    (rundir / "_SUCCESS").touch()
+
+    return jsonify({"status": "success"})
