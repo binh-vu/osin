@@ -16,8 +16,8 @@ exprun_bp = generate_api(
     deserializers={
         "params": identity,
         # seems that with timezone, peewee cannot parse back to datetime
-        "finished_time": lambda x: parse(x).replace(tzinfo=None),
-        "created_time": lambda x: parse(x).replace(tzinfo=None),
+        # "finished_time": lambda x: parse(x).replace(tzinfo=None),
+        # "created_time": lambda x: parse(x).replace(tzinfo=None),
         "aggregated_primitive_outputs": identity,
     },
 )
