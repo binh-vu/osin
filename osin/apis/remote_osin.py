@@ -30,9 +30,7 @@ class RemoteOsin(Osin):
         self.tmpdir = Path(tmpdir)
 
     def _get(self, url: str, params: dict) -> dict:
-        resp = requests.get(
-            f"{self.endpoint}{url}", params=params, verify=certifi.where()
-        )
+        resp = requests.get(f"{self.endpoint}{url}", params=params)
         try:
             assert resp.status_code == 200
         except:
@@ -41,7 +39,7 @@ class RemoteOsin(Osin):
         return resp.json()
 
     def _post(self, url: str, data: dict) -> dict:
-        resp = requests.post(f"{self.endpoint}{url}", json=data, verify=certifi.where())
+        resp = requests.post(f"{self.endpoint}{url}", json=data)
         try:
             assert resp.status_code == 200
         except:
@@ -50,7 +48,7 @@ class RemoteOsin(Osin):
         return resp.json()
 
     def _put(self, url: str, data: dict) -> dict:
-        resp = requests.put(f"{self.endpoint}{url}", json=data, verify=certifi.where())
+        resp = requests.put(f"{self.endpoint}{url}", json=data)
         try:
             assert resp.status_code == 200
         except:
