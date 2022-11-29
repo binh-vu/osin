@@ -3,7 +3,7 @@ import atexit
 from datetime import datetime
 from pathlib import Path
 import shutil
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union
 from loguru import logger
 import orjson
 

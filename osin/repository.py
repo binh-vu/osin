@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Union, TYPE_CHECKING
+from typing import Optional, Union
 
 from osin.models.exp import Exp, ExpRun
 from osin.formats import Hdf5Format
