@@ -126,7 +126,7 @@ export const TableComponent = <
   const classes = useStyles();
   const [highlight, setHighlight] =
     useState<HighlightMode>(defaultHighlightMode);
-  const [zvalueStyle, setZValueStyle] = useState<"column" | "embedded">(
+  const [zvalueStyle, setZValueStyle] = useState<"column" | "row" | "embedded">(
     "column"
   );
   const [showCell, setShowCell] = useState<undefined | ExtraCell>(undefined);
@@ -138,13 +138,18 @@ export const TableComponent = <
     let colHeaderScale = 1;
 
     const nZValues = _.sum(zvalues.map(([_, a]) => a.length));
-    if (zvalueStyle === "column" && nZValues > 1) {
-      nExtraColHeaderRow = 1;
-      colHeaderScale = nZValues;
-    } else if (zvalueStyle === "embedded" && nZValues > 1) {
-      const x = Math.ceil(Math.sqrt(nZValues));
-      colHeaderScale = x;
-      rowHeaderScale = x;
+    if (nZValues > 1) {
+      if (zvalueStyle === "column" && nZValues > 1) {
+        nExtraColHeaderRow = 1;
+        colHeaderScale = nZValues;
+      } else if (zvalueStyle === "row") {
+        nExtraRowHeaderCol = 1;
+        rowHeaderScale = nZValues;
+      } else {
+        const x = Math.ceil(Math.sqrt(nZValues));
+        colHeaderScale = x;
+        rowHeaderScale = x;
+      }
     }
 
     const table = new TableBuilder(reportData, extraCellFactory).build(
@@ -329,7 +334,7 @@ export const Footnote = <
         urlArgs={editURL.urlArgs}
         queryArgs={editURL.queryArgs}
       >
-        edit the table
+        edit
       </InternalLink>
       <span className={classes.actionSep}>&#183;</span>
       <Dropdown

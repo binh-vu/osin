@@ -1,6 +1,6 @@
 {
   "name": "osin",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "private": true,
   "dependencies": {
     "@ant-design/colors": "^6.0.0",
@@ -60,7 +60,7 @@
     "react-error-overlay": "6.0.9"
   },
   "scripts": {
-    "start": "BROWSER=none react-scripts start",
+    "start": "PORT=5525 BROWSER=none react-scripts start",
     "start_nonroot": "CHOKIDAR_USEPOLLING=true BROWSER=none react-scripts start",
     "build": "python ./scripts/build.py ../osin/www",
     "test": "react-scripts test",

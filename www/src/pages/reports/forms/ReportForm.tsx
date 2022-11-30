@@ -15,7 +15,7 @@ import {
 import { ReportData, TableComponent } from "components/reports";
 import { InternalLink, LoadingComponent } from "gena-app";
 import { Filter } from "misc";
-import { autorun, comparer, reaction } from "mobx";
+import { autorun, comparer, reaction, runInAction } from "mobx";
 import { observer } from "mobx-react";
 import { Report, useStores } from "models";
 import {
@@ -334,6 +334,9 @@ export const ReportForm = observer(
         <Row>
           <Col span={24}>
             <Space>
+              <Button onClick={() => draftReport.args.value.swapAxes()}>
+                Swap X-Y Axes
+              </Button>
               <Button type="primary" onClick={onSubmit}>
                 {report === undefined ? "Create" : "Update"}
               </Button>

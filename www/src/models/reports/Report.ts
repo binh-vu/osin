@@ -165,6 +165,7 @@ export class BaseReport {
       yaxis: observable,
       zvalues: observable,
       nZValues: computed,
+      swapAxes: action,
     });
   }
 
@@ -178,6 +179,12 @@ export class BaseReport {
       this.yaxis.clone(),
       this.zvalues.map((x) => [x[0], x[1].map((y) => y.clone())])
     );
+  }
+
+  swapAxes() {
+    const tmp = this.xaxis;
+    this.xaxis = this.yaxis;
+    this.yaxis = tmp;
   }
 }
 

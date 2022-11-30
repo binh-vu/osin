@@ -157,7 +157,7 @@ export const CellStatistics = ({
   table: Table<ExtraCell>;
   cell: ExtraCell;
   zvalues: [number | null, AttrGetter[]][];
-  zstyle: "column" | "embedded";
+  zstyle: "column" | "row" | "embedded";
   renderRecordId?: (recordId: number) => React.ReactNode;
 }) => {
   // TODO: this code is written in a hurry, surely will contain bugs
@@ -252,17 +252,26 @@ export const CellStatistics = ({
 export function imputeCellData(
   table: Table<ExtraCell>,
   zvalues: [number | null, AttrGetter[]][],
-  style: "column" | "embedded"
+  style: "column" | "row" | "embedded"
 ) {
   const zLabels = zvalues.flatMap(([_, attrs]) =>
     attrs.map((attr) => attr.attr.getLabel())
   );
 
-  if (style === "column" && zLabels.length > 1) {
-    // add z labels to the last extra column header row
-    for (let j = table.colstart; j < table.ncols; j += table.colHeaderScale) {
-      for (let k = 0; k < zLabels.length; k++) {
-        table.data[table.rowstart - 1][j + k].label = zLabels[k];
+  if (zLabels.length > 1) {
+    if (style === "column") {
+      // add z labels to the last extra column header row
+      for (let j = table.colstart; j < table.ncols; j += table.colHeaderScale) {
+        for (let k = 0; k < zLabels.length; k++) {
+          table.data[table.rowstart - 1][j + k].label = zLabels[k];
+        }
+      }
+    } else if (style === "row") {
+      // add z labels to the last extra row header column
+      for (let i = table.rowstart; i < table.nrows; i += table.rowHeaderScale) {
+        for (let k = 0; k < zLabels.length; k++) {
+          table.data[i + k][table.colstart - 1].label = zLabels[k];
+        }
       }
     }
   }
@@ -302,6 +311,40 @@ export function imputeCellData(
             }
           }
         });
+      } else if (style === "row") {
+        zLabels.forEach((zLabel, k) => {
+          if (!datapoints[zLabel].some(Number.isNaN)) {
+            const mean = _.mean(datapoints[zLabel]);
+            table.data[i + k][j].highlightValue = mean;
+            table.data[i + k][j].label = mean.toFixed(3);
+          } else {
+            if (datapoints[zLabel].length === 1) {
+              const zvalue = datapoints[zLabel][0];
+              table.data[i + k][j].label =
+                zvalue === null ? "null" : zvalue.toString();
+            } else {
+              table.data[i + k][j].label = datapoints[zLabel].join(", ");
+            }
+          }
+        });
+      } else if (style === "embedded") {
+        zLabels.forEach((zLabel, k) => {
+          const kj = k % table.colHeaderScale;
+          const ki = (k - kj) / table.colHeaderScale;
+          if (!datapoints[zLabel].some(Number.isNaN)) {
+            const mean = _.mean(datapoints[zLabel]);
+            table.data[i + ki][j + kj].highlightValue = mean;
+            table.data[i + ki][j + kj].label = mean.toFixed(3);
+          } else {
+            if (datapoints[zLabel].length === 1) {
+              const zvalue = datapoints[zLabel][0];
+              table.data[i + ki][j + kj].label =
+                zvalue === null ? "null" : zvalue.toString();
+            } else {
+              table.data[i + ki][j + kj].label = datapoints[zLabel].join(", ");
+            }
+          }
+        });
       } else {
         throw new Error("Not implemented");
       }
@@ -313,7 +356,7 @@ export function highlightTable(
   table: Table<ExtraCell>,
   highlight: HighlightMode,
   zvalues: [number | null, AttrGetter[]][],
-  zstyle: "column" | "embedded"
+  zstyle: "column" | "row" | "embedded"
 ): Table<ExtraCell> {
   if (
     highlight === "none" ||
@@ -339,50 +382,93 @@ export function highlightTable(
 
   // treat each row indepedently, compare the values in the same row
   if (highlight === "row" || highlight === "row-best") {
-    if (zstyle !== "column") {
-      throw new Error("Not implemented");
-    }
-
     const nGroups = zLabels.length;
-    for (let i = table.rowstart; i < table.nrows; i++) {
-      for (let k = 0; k < nGroups; k++) {
-        const values = [];
-        for (let j = table.colstart + k; j < table.ncols; j += nGroups) {
-          if (table.data[i][j].highlightValue === undefined) {
+    if (zstyle === "column") {
+      for (let i = table.rowstart; i < table.nrows; i++) {
+        for (let k = 0; k < nGroups; k++) {
+          const values = [];
+          for (let j = table.colstart + k; j < table.ncols; j += nGroups) {
+            if (table.data[i][j].highlightValue === undefined) {
+              continue;
+            }
+            values.push(table.data[i][j].highlightValue);
+          }
+          let min = _.min(values)!;
+          let max = _.max(values)!;
+          const realmax = max;
+
+          // most metrics are between 0 and 1, so until we have a better way to know the range
+          // of the metrics, we use this heuristics.
+          if (max <= 1 && min >= 0) {
+            min = 0;
+            max = 1;
+          }
+
+          let interval = max - min;
+          if (interval === 0 || values.length === 1) {
+            // only highlight when we have more than one value and when the values are different
             continue;
           }
-          values.push(table.data[i][j].highlightValue);
-        }
-        let min = _.min(values)!;
-        let max = _.max(values)!;
-        const realmax = max;
 
-        // most metrics are between 0 and 1, so until we have a better way to know the range
-        // of the metrics, we use this heuristics.
-        if (max <= 1 && min >= 0) {
-          min = 0;
-          max = 1;
-        }
-
-        let interval = max - min;
-        if (interval === 0) {
-          continue;
-        }
-
-        for (let j = table.colstart + k; j < table.ncols; j += nGroups) {
-          const value = table.data[i][j].highlightValue;
-          if (value === undefined) continue;
-          const newvalue = ((value - min) / interval) * 1000;
-          table.data[i][j].highlight = {
-            color:
-              highlight === "row-best"
-                ? undefined
-                : "#" + rainbow.colorAt(newvalue),
-            bold: value === realmax,
-            mode: "dot",
-          };
+          for (let j = table.colstart + k; j < table.ncols; j += nGroups) {
+            const value = table.data[i][j].highlightValue;
+            if (value === undefined) continue;
+            const newvalue = ((value - min) / interval) * 1000;
+            table.data[i][j].highlight = {
+              color:
+                highlight === "row-best"
+                  ? undefined
+                  : "#" + rainbow.colorAt(newvalue),
+              bold: value === realmax,
+              mode: "dot",
+            };
+          }
         }
       }
+    } else if (zstyle === "row") {
+      for (let k = 0; k < nGroups; k++) {
+        for (let i = table.rowstart + k; i < table.nrows; i += nGroups) {
+          const values = [];
+          for (let j = table.colstart; j < table.ncols; j++) {
+            if (table.data[i][j].highlightValue === undefined) {
+              continue;
+            }
+            values.push(table.data[i][j].highlightValue);
+          }
+          let min = _.min(values)!;
+          let max = _.max(values)!;
+          const realmax = max;
+
+          // most metrics are between 0 and 1, so until we have a better way to know the range
+          // of the metrics, we use this heuristics.
+          if (max <= 1 && min >= 0) {
+            min = 0;
+            max = 1;
+          }
+
+          let interval = max - min;
+          if (interval === 0 || values.length === 1) {
+            // only highlight when we have more than one value and when the values are different
+            continue;
+          }
+
+          for (let j = table.colstart; j < table.ncols; j++) {
+            const value = table.data[i][j].highlightValue;
+            if (value === undefined) continue;
+            const newvalue = ((value - min) / interval) * 1000;
+            table.data[i][j].highlight = {
+              color:
+                highlight === "row-best"
+                  ? undefined
+                  : "#" + rainbow.colorAt(newvalue),
+              bold: value === realmax,
+              mode: "dot",
+            };
+          }
+        }
+      }
+    } else {
+      throw new Error(`Not implemented: ${zstyle}`);
     }
   }
 
