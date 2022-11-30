@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import MISSING
 from typing import Optional
 
 
@@ -25,7 +26,9 @@ from osin.models.report.index_schema import (
     AttrGetter,
     AttrValue,
     Index,
+    InvalidIndexElementError,
     InvalidIndexError,
+    UnsupportedAttributeError,
 )
 from peewee import DoesNotExist
 from werkzeug.exceptions import BadRequest, NotFound
@@ -74,7 +77,7 @@ pos_deser = get_dataclass_deserializer(
 
 
 @report_bp.route(f"/{report_bp.name}/get-attr-values", methods=["GET"])
-def get_index_values():
+def get_attr_values():
     """Get possible values of an index"""
     exp_ids = request.args.get("exps")
     if exp_ids is None:
@@ -104,9 +107,8 @@ def get_index_values():
 
     items = set()
     for run in runs:
-        try:
-            item = attrgetter.get_attribute_value(run)
-        except KeyError:
+        item = attrgetter.get_attribute_value(run)
+        if item is MISSING:
             continue
         items.add(item)
 
@@ -295,6 +297,8 @@ class ExperimentNotFound(Exception):
 
 
 report_bp.register_error_handler(InvalidIndexError, handle_internal_error)
+report_bp.register_error_handler(InvalidIndexElementError, handle_internal_error)
+report_bp.register_error_handler(UnsupportedAttributeError, handle_internal_error)
 report_bp.register_error_handler(ExperimentNotFound, handle_internal_error)
 
 

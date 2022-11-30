@@ -41,14 +41,18 @@ class AttrGetter:
             return value
         if isinstance(value, (str, int, bool, NoneType)):
             return value
-        raise ValueError(f"Invalid value: {value}")
+        raise InvalidIndexElementError(
+            f"Value: {value} cannot used as an index element or an item of an n-tuple index element"
+        )
 
     def get_value(self, record: Record) -> AttrValue | float | _MISSING_TYPE:
         """Get the attribute value, but this attribute value is not used in the index so it can be a float"""
         value = self._get_value(record)
         if value is not MISSING:
             if not isinstance(value, (str, int, float, bool, NoneType)):
-                raise ValueError(f"Invalid value: {value}")
+                raise UnsupportedAttributeError(
+                    f"Value: {value} of the attribute {self.path} is not supported"
+                )
         return value
 
     def _get_value(self, record: Record) -> Any | _MISSING_TYPE:
@@ -78,7 +82,9 @@ class AttrGetter:
                 return MISSING
         except TypeError:
             # value is not hashable
-            raise ValueError(f"Invalid value: {value}")
+            raise UnsupportedAttributeError(
+                f"Value: {value} of the attribute {self.path} is not supported"
+            )
         return value
 
     def to_tuple(self):
@@ -366,5 +372,17 @@ class IndexSchema:
 
 class InvalidIndexError(Exception):
     """Raised when the index is invalid."""
+
+    pass
+
+
+class InvalidIndexElementError(Exception):
+    """Raised when the index element is invalid."""
+
+    pass
+
+
+class UnsupportedAttributeError(Exception):
+    """Raised when the values of an attribute can't be used in a report (e.g., complex python object)."""
 
     pass
