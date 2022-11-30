@@ -64,33 +64,6 @@ class RemoteOsin(Osin):
             raise
         return resp.json()
 
-    def _cleanup(self, exp_run: RemoteExpRun):
-        if exp_run.id not in self.cleanup_records:
-            logger.debug("Cleaning up exp run: {}", exp_run.id)
-            if exp_run.finished_time is None:
-                # the user may forget to call finish_exp_run
-                # we decide that it is still a failure
-                try:
-                    self.finish_exp_run(exp_run, is_successful=False)
-                except:
-                    finished_time = datetime.utcnow()
-                    ExpRun.update(
-                        is_finished=True,
-                        is_successful=False,
-                        finished_time=finished_time,
-                    ).where(
-                        ExpRun.id == exp_run.id
-                    ).execute()  # type: ignore
-
-                    raise
-            else:
-                finished_time = datetime.utcnow()
-                ExpRun.update(
-                    is_finished=True, is_successful=False, finished_time=finished_time
-                ).where(
-                    ExpRun.id == exp_run.id
-                ).execute()  # type: ignore
-
     def _find_latest_exp(self, name: str) -> Optional[Exp]:
         exps = self._get(
             "/api/exp",

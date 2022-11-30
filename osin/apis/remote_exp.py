@@ -12,7 +12,6 @@ from osin.types import (
     ParamSchema,
     NestedPrimitiveOutputSchema,
     PyObject,
-    PyObjectType,
 )
 
 if TYPE_CHECKING:
