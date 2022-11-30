@@ -1,11 +1,21 @@
 version: '2.0'
 services:
   osin:
-    build: .
-    image: toan2/osin
+    build: osin/
+    image: toan2/osin:1.8.6
+    volumes:
+      - ./data/:/data
+      - ./.certs:/root/.certs:ro
+      - ./osin/osin:/osin/osin:ro
     ports:
-    - "8501:8501"
-    - "5524:5524"
+      - "5524:5524"
     environment:
-    - DBFILE=/tmp/osin.db
-    command: python -m osin.main
+      - PYTHONPATH=/osin
+      - FLASK_ENV=development
+    command: 
+      - /bin/bash
+      - -c
+      - |
+        poetry run python -m osin init -d /data
+        # poetry run python -m osin start -d /data -p 5524 --certfile /root/.certs/fullchain.pem --keyfile /root/.certs/privkey.pem
+        poetry run python -m osin start -d /data -p 5524 --wsgi
