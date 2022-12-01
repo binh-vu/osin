@@ -78,6 +78,7 @@ export const ReportTable = forwardRef(
     return (
       <div className={classes.root}>
         <TableComponent
+          recordKey={report.id.toString()}
           reportData={data}
           zvalues={report.args.value.zvalues}
           title={`Table ${report.id}. ${report.name}`}

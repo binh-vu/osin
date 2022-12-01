@@ -421,6 +421,9 @@ export const PreviewReport = observer(
 
     return (
       <TableComponent
+        recordKey={`preview-${expId}-${
+          report instanceof DraftUpdateReport ? report.id : report.draftID
+        }`}
         reportData={data}
         zvalues={report.args.value.zvalues}
         title={`Table. ${report.name}`}

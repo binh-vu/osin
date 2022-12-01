@@ -12,23 +12,9 @@ import { useMemo } from "react";
 import { TableComponent } from "components/table";
 import { InternalLink } from "gena-app";
 import { routes } from "routes";
-export type HighlightMode =
-  | "none"
-  | "row"
-  | "col"
-  | "a-col"
-  | "a-row"
-  | "row-best"
-  | "col-best"
-  | { type: "row"; value: number }
-  | { type: "col"; value: number };
-export const highlightModes: HighlightMode[] = [
-  "none",
-  "row",
-  "col",
-  "row-best",
-  "col-best",
-];
+import { HighlightMode } from "./ReportTableRenderConfig";
+import { toJS } from "mobx";
+
 export interface ExtraCell extends Cell {
   // for highlighting cell, not put in style because
   // we want to be flexible in terms of how to highlight
@@ -61,13 +47,14 @@ export const CellComponent = ({
   if (cell.th) {
     let extra = undefined;
     if (typeof highlight !== "string" && !cell.metaTh) {
+      // add col/row span to detect the leaf nodes so as we may have imbalance index tree
       if (
         (highlight.type === "row" &&
           cell.row === highlight.value &&
-          cell.col === table.colstart - 1) ||
+          cell.col + cell.colspan === table.colstart) ||
         (highlight.type === "col" &&
           cell.col === highlight.value &&
-          cell.row === table.rowstart - 1)
+          cell.row + cell.rowspan === table.rowstart)
       ) {
         extra = (
           <span
@@ -93,7 +80,7 @@ export const CellComponent = ({
         onClick={(e) => onClick(cell)}
         className={cell.className}
       >
-        <span>{cell.label}</span>
+        <span>{cell.label.toString()}</span>
         {extra}
       </th>
     );
@@ -174,8 +161,18 @@ export const CellStatistics = ({
     zLabelIndex = (cell.col - table.colstart) % table.colHeaderScale;
     zLabel = zLabels[zLabelIndex];
     realcell = table.data[cell.row][cell.col - zLabelIndex];
+  } else if (zstyle === "row") {
+    zLabelIndex = (cell.row - table.rowstart) % table.rowHeaderScale;
+    zLabel = zLabels[zLabelIndex];
+    realcell = table.data[cell.row - zLabelIndex][cell.col];
+  } else if (zstyle === "embedded") {
+    const ki = (cell.row - table.rowstart) % table.rowHeaderScale;
+    const kj = (cell.col - table.colstart) % table.colHeaderScale;
+    zLabelIndex = kj + ki * table.colHeaderScale;
+    zLabel = zLabels[zLabelIndex];
+    realcell = table.data[cell.row - ki][cell.col - kj];
   } else {
-    throw new Error("not implemented");
+    throw new Error(`unreachable! invalid z-value style: ${zstyle}`);
   }
 
   const datapoints: { [zvalue: string]: ReportDataPoint[] } = useMemo(() => {
@@ -354,9 +351,7 @@ export function imputeCellData(
 
 export function highlightTable(
   table: Table<ExtraCell>,
-  highlight: HighlightMode,
-  zvalues: [number | null, AttrGetter[]][],
-  zstyle: "column" | "row" | "embedded"
+  highlight: HighlightMode
 ): Table<ExtraCell> {
   if (
     highlight === "none" ||
@@ -370,229 +365,147 @@ export function highlightTable(
   rainbow.setSpectrum("#b7eb8f", "#237804");
   rainbow.setNumberRange(0, 1000);
 
-  const zLabels = zvalues.flatMap(([_, attrs]) =>
-    attrs.map((attr) => attr.attr.getLabel())
-  );
-
   for (let i = table.rowstart; i < table.nrows; i++) {
     for (let j = table.colstart; j < table.ncols; j++) {
       table.data[i][j].highlight = {};
     }
   }
 
-  // treat each row indepedently, compare the values in the same row
-  if (highlight === "row" || highlight === "row-best") {
-    const nGroups = zLabels.length;
-    if (zstyle === "column") {
-      for (let i = table.rowstart; i < table.nrows; i++) {
-        for (let k = 0; k < nGroups; k++) {
-          const values = [];
-          for (let j = table.colstart + k; j < table.ncols; j += nGroups) {
-            if (table.data[i][j].highlightValue === undefined) {
-              continue;
-            }
-            values.push(table.data[i][j].highlightValue);
-          }
-          let min = _.min(values)!;
-          let max = _.max(values)!;
-          const realmax = max;
+  const isHighlightTheBest =
+    typeof highlight === "string" && highlight.endsWith("-best");
+  const groups = highlightGrouping(table, highlight);
+  for (const group of groups) {
+    const values = group.group
+      .filter((cell) => cell.highlightValue !== undefined)
+      .map((cell) => cell.highlightValue);
 
-          // most metrics are between 0 and 1, so until we have a better way to know the range
-          // of the metrics, we use this heuristics.
-          if (max <= 1 && min >= 0) {
-            min = 0;
-            max = 1;
-          }
+    let min = _.min(values)!;
+    let max = _.max(values)!;
+    const realmax = max;
 
-          let interval = max - min;
-          if (interval === 0 || values.length === 1) {
-            // only highlight when we have more than one value and when the values are different
-            continue;
-          }
-
-          for (let j = table.colstart + k; j < table.ncols; j += nGroups) {
-            const value = table.data[i][j].highlightValue;
-            if (value === undefined) continue;
-            const newvalue = ((value - min) / interval) * 1000;
-            table.data[i][j].highlight = {
-              color:
-                highlight === "row-best"
-                  ? undefined
-                  : "#" + rainbow.colorAt(newvalue),
-              bold: value === realmax,
-              mode: "dot",
-            };
-          }
-        }
-      }
-    } else if (zstyle === "row") {
-      for (let k = 0; k < nGroups; k++) {
-        for (let i = table.rowstart + k; i < table.nrows; i += nGroups) {
-          const values = [];
-          for (let j = table.colstart; j < table.ncols; j++) {
-            if (table.data[i][j].highlightValue === undefined) {
-              continue;
-            }
-            values.push(table.data[i][j].highlightValue);
-          }
-          let min = _.min(values)!;
-          let max = _.max(values)!;
-          const realmax = max;
-
-          // most metrics are between 0 and 1, so until we have a better way to know the range
-          // of the metrics, we use this heuristics.
-          if (max <= 1 && min >= 0) {
-            min = 0;
-            max = 1;
-          }
-
-          let interval = max - min;
-          if (interval === 0 || values.length === 1) {
-            // only highlight when we have more than one value and when the values are different
-            continue;
-          }
-
-          for (let j = table.colstart; j < table.ncols; j++) {
-            const value = table.data[i][j].highlightValue;
-            if (value === undefined) continue;
-            const newvalue = ((value - min) / interval) * 1000;
-            table.data[i][j].highlight = {
-              color:
-                highlight === "row-best"
-                  ? undefined
-                  : "#" + rainbow.colorAt(newvalue),
-              bold: value === realmax,
-              mode: "dot",
-            };
-          }
-        }
-      }
-    } else {
-      throw new Error(`Not implemented: ${zstyle}`);
-    }
-  }
-
-  // treat each column indepedently, compare the values in the same column
-  if (highlight === "col" || highlight === "col-best") {
-    if (zstyle !== "column") {
-      throw new Error("Not implemented");
+    // most metrics are between 0 and 1, so until we have a better way to know the range
+    // of the metrics, we use this heuristics.
+    if (max <= 1 && min >= 0) {
+      min = 0;
+      max = 1;
     }
 
-    for (let j = table.colstart; j < table.ncols; j++) {
-      const values = [];
-      for (let i = table.rowstart; i < table.nrows; i++) {
-        if (table.data[i][j].highlightValue === undefined) {
-          continue;
-        }
-        values.push(table.data[i][j].highlightValue);
-      }
-      let min = _.min(values)!;
-      let max = _.max(values)!;
-      const realmax = max;
+    let interval = max - min;
+    if (interval === 0 || values.length === 1) {
+      // only highlight when we have more than one value and when the values are different
+      continue;
+    }
 
-      // most metrics are between 0 and 1, so until we have a better way to know the range
-      // of the metrics, we use this heuristics.
-      if (max <= 1 && min >= 0) {
-        min = 0;
-        max = 1;
-      }
+    if (
+      group.pivotCell !== undefined &&
+      group.pivotCell.highlightValue === undefined
+    ) {
+      continue;
+    }
 
-      let interval = max - min;
-      if (interval === 0) {
+    for (const cell of group.group) {
+      if (cell.highlightValue === undefined) {
         continue;
       }
-
-      for (let i = table.rowstart; i < table.nrows; i++) {
-        const value = table.data[i][j].highlightValue;
-        if (value === undefined) {
-          continue;
-        }
-        const newvalue = ((value - min) / interval) * 1000;
-        table.data[i][j].highlight = {
-          color:
-            highlight === "col-best"
-              ? undefined
-              : "#" + rainbow.colorAt(newvalue),
-          bold: value === realmax,
+      if (group.pivotCell === undefined) {
+        const newvalue = ((cell.highlightValue - min) / interval) * 1000;
+        // show the dot, but seems like it's difficult to see when we just want to
+        // highlight the best, so just use text mode when highlighting the best
+        cell.highlight = {
+          color: isHighlightTheBest
+            ? undefined
+            : "#" + rainbow.colorAt(newvalue),
+          bold: cell.highlightValue === realmax,
           mode: "dot",
         };
-      }
-    }
-  }
-
-  if (typeof highlight !== "string") {
-    if (highlight.type === "col") {
-      // this is opposite to the other highlight modes, highlight a particular column treat each row indepedently
-      // and use a particular value at the column to compare to the values in the other column of the same row
-      if (zstyle !== "column") {
-        throw new Error("Not implemented");
-      }
-      const nGroups = zLabels.length;
-      const k = (highlight.value - table.colstart) % nGroups;
-
-      for (let i = table.rowstart; i < table.nrows; i++) {
-        const cmp = table.data[i][highlight.value].highlightValue;
-        if (cmp === undefined) continue;
-        table.data[i][highlight.value].highlight = {
-          color: blue[6],
+      } else {
+        cell.highlight = {
           bold: true,
           mode: "text",
         };
-        for (let j = table.colstart + k; j < table.ncols; j += nGroups) {
-          const value = table.data[i][j].highlightValue;
-          if (value === undefined) continue;
-          if (value > cmp) {
-            table.data[i][j].highlight = {
-              color: red[5],
-              bold: true,
-              mode: "text",
-            };
-          } else if (value < cmp) {
-            table.data[i][j].highlight = {
-              color: green[5],
-              bold: true,
-              mode: "text",
-            };
-          }
-        }
-      }
-    }
-    if (highlight.type === "row") {
-      if (zstyle !== "column") {
-        throw new Error("Not implemented");
-      }
-      const nGroups = zLabels.length;
-
-      for (let k = 0; k < nGroups; k++) {
-        for (let j = table.colstart + k; j < table.ncols; j++) {
-          const cmp = table.data[highlight.value][j].highlightValue;
-          if (cmp === undefined) continue;
-          table.data[highlight.value][j].highlight = {
-            color: blue[6],
-            bold: true,
-            mode: "text",
-          };
-          for (let i = table.rowstart; i < table.nrows; i++) {
-            const value = table.data[i][j].highlightValue;
-            if (value === undefined) continue;
-            if (value > cmp) {
-              table.data[i][j].highlight = {
-                color: red[6],
-                bold: true,
-                mode: "text",
-              };
-            } else if (value < cmp) {
-              table.data[i][j].highlight = {
-                color: green[6],
-                bold: true,
-                mode: "text",
-              };
-            }
-          }
+        if (cell.highlightValue > group.pivotCell.highlightValue!) {
+          cell.highlight.color = red[5];
+        } else if (cell.highlightValue < group.pivotCell.highlightValue!) {
+          cell.highlight.color = green[5];
+        } else {
+          cell.highlight.color = blue[5];
         }
       }
     }
   }
 
   return table;
+}
+
+function highlightGrouping(
+  table: Table<ExtraCell>,
+  highlight: HighlightMode
+): { group: ExtraCell[]; pivotCell?: ExtraCell }[] {
+  // leverage the fact that rowHeaderScale & colHeaderScale is calculated based on zstyle
+  // and if we have to calculate it again, the formula is the same and we also require the
+  // knowledge of how zstyle is used, so don't repeat the code here.
+  const rowstep = table.rowHeaderScale;
+  const colstep = table.colHeaderScale;
+  const groups = [];
+
+  // each row is a group, compare the values in the same row
+  // since each row is a group, rowstep does not matter here (the step is used to jump between zvalues
+  // so any value between the step is a new group and because each row is already consider as a new group
+  // this has no effect and can be ignore)
+  // Note that when we highlight a column, we compare each value of that column to values of the other
+  // columns in the same row, so it is grouping by row.
+  const isHighlightAColumn =
+    typeof highlight !== "string" && highlight.type === "col";
+  const isGroupingByRow =
+    highlight === "row" || highlight === "row-best" || isHighlightAColumn;
+  if (isGroupingByRow) {
+    let pivotCell = undefined;
+    let kprime = isHighlightAColumn
+      ? (highlight.value - table.colstart) % colstep
+      : -1;
+    for (let i = table.rowstart; i < table.nrows; i++) {
+      for (let k = 0; k < colstep; k++) {
+        if (isHighlightAColumn) {
+          if (k !== kprime) continue;
+          pivotCell = table.data[i][highlight.value];
+        }
+        const group = [];
+        for (let j = table.colstart + k; j < table.ncols; j += colstep) {
+          group.push(table.data[i][j]);
+        }
+        groups.push({ group, pivotCell });
+      }
+    }
+    return groups;
+  }
+
+  // each col is a group, compare the values in the same col
+  // similarly, colstep does not matter here
+  const isHighlightARow =
+    typeof highlight !== "string" && highlight.type === "row";
+  const isGroupingByCol =
+    highlight === "col" || highlight === "col-best" || isHighlightARow;
+  if (isGroupingByCol) {
+    let pivotCell = undefined;
+    let kprime = isHighlightARow
+      ? (highlight.value - table.rowstart) % rowstep
+      : -1;
+    for (let j = table.colstart; j < table.ncols; j++) {
+      for (let k = 0; k < rowstep; k++) {
+        if (isHighlightARow) {
+          if (k !== kprime) continue;
+          pivotCell = table.data[highlight.value][j];
+        }
+        const group = [];
+        for (let i = table.rowstart + k; i < table.nrows; i += rowstep) {
+          group.push(table.data[i][j]);
+        }
+        groups.push({ group, pivotCell });
+      }
+    }
+    return groups;
+  }
+
+  // happen when highlight is "none" so we do nothing
+  return [];
 }

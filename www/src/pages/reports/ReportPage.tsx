@@ -140,7 +140,7 @@ const ReportGrids = observer(({ expId }: { expId: number }) => {
 
 export function getReportElement(expId: number, report: Report) {
   if (report.args.type === "table") {
-    return <ReportTable report={report} expId={expId} />;
+    return <ReportTable report={report} expId={expId} enableReload={true} />;
   }
 
   throw new Error("Unknown report type: " + report.args.type);
