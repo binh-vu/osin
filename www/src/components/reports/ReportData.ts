@@ -36,6 +36,10 @@ export class Attribute {
   clone(): Attribute {
     return new Attribute(this.path.slice(), this.value);
   }
+
+  isChildOf(attr: Attribute): boolean {
+    return this.value.startsWith(attr.value + ".");
+  }
 }
 
 export class IndexElement {

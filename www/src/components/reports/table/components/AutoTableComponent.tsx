@@ -1,75 +1,37 @@
-import { makeStyles } from "@mui/styles";
-import { Alert, Dropdown, Modal } from "antd";
-import { ArgSchema, ArgType, InternalLink, PathDef } from "gena-app";
+import { InternalLink } from "gena-app";
 import _ from "lodash";
-import { ArrayHelper, getClassName } from "misc";
-import { AttrGetter } from "models/reports";
-import { useMemo, useState } from "react";
-import { Attribute, AutoTableReportData, ReportData } from "../../ReportData";
-import { Cell, Table, TableBuilder } from "../TableBuilder";
-import { observer } from "mobx-react";
+import { ArrayHelper } from "misc";
+import { useMemo } from "react";
+import { routes } from "routes";
+import { Attribute, AutoTableReportData } from "../../ReportData";
 import {
-  CellComponent,
-  ExtraCell,
-  extraCellFactory,
-  imputeCellData,
-  highlightTable,
-  CellStatistics,
-} from "./CellComponent";
-import {
-  HighlightMode,
-  ReportTableRenderConfig,
-  ReportTableRenderConfigStore,
-  ZValueStyle,
-} from "./ReportTableRenderConfig";
-import { toJS } from "mobx";
+  BaseCell,
+  BaseTable,
+  BaseTableComponent,
+} from "./base/BaseTableComponent";
 
 export const AutoTableComponent = ({
+  title,
+  footnote,
   reportData,
 }: {
+  title?: string | React.ReactNode;
+  footnote?: string | React.ReactNode;
   reportData: AutoTableReportData;
 }) => {
   const table = useTable(reportData);
-
   return (
-    <table>
-      <tbody>
-        {table.map((row, i) => {
-          return (
-            <tr key={i}>
-              {row.map((cell, j) => {
-                return <AutoCellComponent key={`${i}-${j}`} cell={cell} />;
-              })}
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    <BaseTableComponent
+      table={table}
+      cellProps={{}}
+      title={title}
+      footnote={footnote}
+    />
   );
 };
 
-export const AutoCellComponent = ({ cell }: { cell: AutoTableCell }) => {
-  if (cell.th) {
-    return <th>{cell.label}</th>;
-  }
-
-  return <td>{cell.label}</td>;
-};
-
-export interface AutoTableCell {
-  row: number;
-  col: number;
-  label: string | number;
-  // whether the cell is a header
-  th: boolean;
-}
-
-export interface AutoTable {
-  cells: AutoTableCell[][];
-}
-
 function useTable(reportData: AutoTableReportData) {
-  const cells = useMemo(() => {
+  const table = useMemo(() => {
     const valueHeader = buildHeader(reportData.valueHeaders);
     const attrHeaders = reportData.groups.map((g) =>
       buildHeader(g[1].attrHeaders)
@@ -86,12 +48,19 @@ function useTable(reportData: AutoTableReportData) {
       _.sumBy(attrHeaders, "length") +
       reportData.groups.length;
 
-    const cells = ArrayHelper.new2d(height, width, (i, j) => ({
-      label: "",
-      th: false,
-      row: i,
-      col: j,
-    }));
+    const cells = ArrayHelper.new2d(
+      height,
+      width,
+      (i, j): BaseCell => ({
+        label: "",
+        row: i,
+        col: j,
+        th: false,
+        metaTh: false,
+        rowSpan: 1,
+        colSpan: 1,
+      })
+    );
 
     // set the value headers
     for (let i = 0; i < valueHeader.length; i++) {
@@ -106,7 +75,12 @@ function useTable(reportData: AutoTableReportData) {
       const [groupName, groupData] = reportData.groups[gi];
       // for (let [groupName, groupData] of reportData.groups) {
       // set the attribute headers
-      Object.assign(cells[startrow][0], { label: groupName, th: true });
+      Object.assign(cells[startrow][0], {
+        label: groupName,
+        th: true,
+        metaTh: true,
+        colSpan: attrHeaderWidth,
+      });
       startrow++;
 
       const attrHeader = attrHeaders[gi];
@@ -125,29 +99,43 @@ function useTable(reportData: AutoTableReportData) {
       for (let i = 0; i < groupData.rows.length; i++) {
         const row = groupData.rows[i];
         for (let j = 0; j < attrHeaders[0].length; j++) {
-          cells[i + startrow][j].label = row.headers[j];
+          const label = row.headers[j];
+          cells[i + startrow][j].label = label === null ? "<null>" : label;
         }
         for (let j = attrHeaderWidth; j < width; j++) {
-          cells[i + startrow][j].label = row.values[j - attrHeaderWidth];
+          const label = row.values[j - attrHeaderWidth];
+          cells[i + startrow][j].label = label === null ? "<null>" : label;
         }
       }
       startrow += groupData.rows.length;
     }
 
-    return cells;
+    return new BaseTable(cells, height, width);
   }, [reportData]);
 
-  return cells;
+  const table2 = useMemo(() => {
+    const table2 = table.clone();
+    return table2.fixSpanning();
+  }, [table]);
+
+  return table2;
 }
 
 function buildHeader(attrs: Attribute[]) {
   const width = attrs.length;
   const height = _.maxBy(attrs, (a) => a.path.length)!.path.length;
 
-  const headers = ArrayHelper.new2d(height, width, (i, j) => ({
-    label: "",
-    th: true,
-  }));
+  const headers = ArrayHelper.new2d(
+    height,
+    width,
+    (i, j): Omit<BaseCell, "row" | "col"> => ({
+      label: "",
+      th: true,
+      metaTh: false,
+      rowSpan: 1,
+      colSpan: 1,
+    })
+  );
 
   // do not sort the attribute as it related to the order of columns in each row data returned by the server,
   // even if it looks ugly.
@@ -159,7 +147,41 @@ function buildHeader(attrs: Attribute[]) {
     }
   }
 
-  // TODO: merge attrs with the same path so that it's easier to read
+  // merge attrs with the same path so that it's easier to read
+  // there is one caveat that if the next attribute is a child of the previous attribute
+  // then, spanning won't make sense (it also won't make sense if the next attribute is a child of the previous attribute)
+  // so we need to disable spanning in that case.
+  if (attrs.slice(1).every((a, i) => !a.isChildOf(attrs[i]))) {
+    const cmpLevel = ArrayHelper.zeros(height);
+    for (let j = 1; j < attrs.length; j++) {
+      const attr = attrs[j];
+      let hasMatched = true;
+      for (let i = 0; i < attr.path.length; i++) {
+        if (
+          cmpLevel[i] !== -1 &&
+          hasMatched &&
+          attrs[cmpLevel[i]].path[i] === attr.path[i]
+        ) {
+          // same path, so we can merge
+          headers[i][cmpLevel[i]].colSpan++;
+        } else {
+          // different path, so we need to reset the cmpLevel to point to the latest attribute
+          cmpLevel[i] = j;
+          hasMatched = false;
+        }
+      }
 
+      // the attr is shorter than the previous attr, so we mark the rest of the cmpLevel as -1
+      for (let i = attr.path.length; i < height; i++) {
+        cmpLevel[i] = -1;
+      }
+
+      if (attr.path.length < height) {
+        // the attr is shorter than the max height, so we allow it span to the bottom
+        headers[attr.path.length - 1][j].rowSpan =
+          height - attr.path.length + 1;
+      }
+    }
+  }
   return headers;
 }

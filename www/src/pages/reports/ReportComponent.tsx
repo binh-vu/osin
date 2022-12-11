@@ -7,6 +7,7 @@ import {
   TableComponent,
 } from "components/reports";
 import { AutoTableComponent } from "components/reports/table/components/AutoTableComponent";
+import { Footnote } from "components/reports/table/components/base/BaseTableComponent";
 import { SERVER } from "env";
 import { InternalLink, LoadingComponent } from "gena-app";
 import { useStores } from "models";
@@ -130,7 +131,32 @@ export const ReportComponent = forwardRef(
       data instanceof AutoTableReportData &&
       report.args.value instanceof AutoTableReport
     ) {
-      return <AutoTableComponent reportData={data} />;
+      return (
+        <AutoTableComponent
+          reportData={data}
+          title={`Table ${report.id}. ${report.name}`}
+          footnote={
+            <Footnote
+              actions={[
+                <InternalLink
+                  path={routes.viewreport}
+                  urlArgs={{ expId, reportId: report.id }}
+                  queryArgs={{}}
+                >
+                  view
+                </InternalLink>,
+                <InternalLink
+                  path={routes.updatereport}
+                  urlArgs={{ expId, reportId: report.id }}
+                  queryArgs={{}}
+                >
+                  edit
+                </InternalLink>,
+              ]}
+            />
+          }
+        />
+      );
     }
 
     return (

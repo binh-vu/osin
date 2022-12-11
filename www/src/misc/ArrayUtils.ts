@@ -30,7 +30,7 @@ export const ArrayHelper = {
     height: number,
     width: number,
     cell: C | ((i: number, j: number) => C)
-  ) => {
+  ): C[][] => {
     const arr = [];
     for (let i = 0; i < height; i++) {
       const row = [];

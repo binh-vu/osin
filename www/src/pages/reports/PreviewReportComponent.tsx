@@ -125,7 +125,9 @@ export const PreviewReportComponent = observer(
       data instanceof AutoTableReportData &&
       report.args.value instanceof AutoTableReport
     ) {
-      return <AutoTableComponent reportData={data} />;
+      return (
+        <AutoTableComponent reportData={data} title={`Table. ${report.name}`} />
+      );
     }
 
     return (

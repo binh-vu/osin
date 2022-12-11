@@ -28,7 +28,7 @@ export const SingleReportPage = observer(() => {
   }
 
   return (
-    <Row>
+    <Row className="ml-16 mr-16">
       <Col span={24}>{getReportElement(expId, report)}</Col>
     </Row>
   );
