@@ -17,7 +17,7 @@ import {
   ReportData,
   TableComponent,
 } from "components/reports";
-import { AutoTableComponent } from "components/reports/table/components/AutoTableComponent";
+import { AutoTableComponent } from "components/reports/autotable/AutoTableComponent";
 import { InternalLink, LoadingComponent } from "gena-app";
 import { Filter } from "misc";
 import { autorun, comparer, reaction, runInAction, toJS } from "mobx";

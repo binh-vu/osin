@@ -1,21 +1,18 @@
-import { blue, gold, green, red, yellow } from "@ant-design/colors";
+import { blue, gold, green, red } from "@ant-design/colors";
 import { faHighlighter } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { AttrValue, ReportDataPoint } from "components/reports/ReportData";
 import _ from "lodash";
 import { AttrGetter } from "models/reports";
-import { Cell, cellFactory, Table } from "../TableBuilder";
+import { Table } from "./TableBuilder";
 import Rainbow from "rainbowvis.js";
-import { Filter } from "misc";
 import { Descriptions, Typography } from "antd";
 import { useMemo } from "react";
 import { TableComponent } from "components/table";
-import { InternalLink } from "gena-app";
-import { routes } from "routes";
 import { HighlightMode } from "./ReportTableRenderConfig";
-import { toJS } from "mobx";
+import { BaseCell } from "../basetable/BaseTableComponent";
 
-export interface ExtraCell extends Cell {
+export interface Cell extends BaseCell<ReportDataPoint[]> {
   // for highlighting cell, not put in style because
   // we want to be flexible in terms of how to highlight
   highlight: {
@@ -27,10 +24,18 @@ export interface ExtraCell extends Cell {
   highlightValue?: number;
 }
 
-export const extraCellFactory: () => ExtraCell = () => {
-  const cell = cellFactory() as ExtraCell;
-  cell.highlight = {};
-  return cell;
+export const cellFactory = (): Cell => {
+  return {
+    th: false,
+    metaTh: false,
+    label: "",
+    colSpan: 1,
+    rowSpan: 1,
+    row: 0,
+    col: 0,
+    highlight: {},
+    data: [],
+  };
 };
 
 export const CellComponent = ({
@@ -39,9 +44,9 @@ export const CellComponent = ({
   onClick,
   highlight,
 }: {
-  table: Table<ExtraCell>;
-  cell: ExtraCell;
-  onClick: (cell: ExtraCell) => void;
+  table: Table<Cell>;
+  cell: Cell;
+  onClick: (cell: Cell) => void;
   highlight: HighlightMode;
 }) => {
   if (cell.th) {
@@ -51,10 +56,10 @@ export const CellComponent = ({
       if (
         (highlight.type === "row" &&
           cell.row === highlight.value &&
-          cell.col + cell.colspan === table.colstart) ||
+          cell.col + cell.colSpan === table.colstart) ||
         (highlight.type === "col" &&
           cell.col === highlight.value &&
-          cell.row + cell.rowspan === table.rowstart)
+          cell.row + cell.rowSpan === table.rowstart)
       ) {
         extra = (
           <span
@@ -75,8 +80,8 @@ export const CellComponent = ({
     return (
       <th
         style={cell.style}
-        rowSpan={cell.rowspan}
-        colSpan={cell.colspan}
+        rowSpan={cell.rowSpan}
+        colSpan={cell.colSpan}
         onClick={(e) => onClick(cell)}
         className={cell.className}
       >
@@ -93,8 +98,8 @@ export const DataCellComponent = ({
   cell,
   onClick,
 }: {
-  cell: ExtraCell;
-  onClick: (cell: ExtraCell) => void;
+  cell: Cell;
+  onClick: (cell: Cell) => void;
 }) => {
   const style: React.CSSProperties = {};
   const tdStyle: React.CSSProperties = { ...cell.style, position: "relative" };
@@ -123,8 +128,8 @@ export const DataCellComponent = ({
   return (
     <td
       style={tdStyle}
-      rowSpan={cell.rowspan}
-      colSpan={cell.colspan}
+      rowSpan={cell.rowSpan}
+      colSpan={cell.colSpan}
       className={cell.className}
       onClick={(e) => onClick(cell)}
     >
@@ -141,8 +146,8 @@ export const CellStatistics = ({
   zstyle,
   renderRecordId,
 }: {
-  table: Table<ExtraCell>;
-  cell: ExtraCell;
+  table: Table<Cell>;
+  cell: Cell;
   zvalues: [number | null, AttrGetter[]][];
   zstyle: "column" | "row" | "embedded";
   renderRecordId?: (recordId: number) => React.ReactNode;
@@ -154,7 +159,7 @@ export const CellStatistics = ({
     );
   }, [zvalues]);
 
-  let realcell: ExtraCell;
+  let realcell: Cell;
   let zLabel: string;
   let zLabelIndex;
   if (zstyle === "column") {
@@ -177,7 +182,7 @@ export const CellStatistics = ({
 
   const datapoints: { [zvalue: string]: ReportDataPoint[] } = useMemo(() => {
     const datapoints: { [zvalue: string]: ReportDataPoint[] } = {};
-    for (const dp of realcell.datapoints) {
+    for (const dp of realcell.data) {
       const z = dp.z.asString();
       if (datapoints[z] === undefined) {
         datapoints[z] = [];
@@ -247,7 +252,7 @@ export const CellStatistics = ({
 };
 
 export function imputeCellData(
-  table: Table<ExtraCell>,
+  table: Table<Cell>,
   zvalues: [number | null, AttrGetter[]][],
   style: "column" | "row" | "embedded"
 ) {
@@ -276,15 +281,15 @@ export function imputeCellData(
   for (let i = table.rowstart; i < table.nrows; i += table.rowHeaderScale) {
     for (let j = table.colstart; j < table.ncols; j += table.colHeaderScale) {
       const cell = table.data[i][j];
-      if (cell.datapoints.length === 0) {
-        cell.rowspan = table.rowHeaderScale;
-        cell.colspan = table.colHeaderScale;
+      if (cell.data.length === 0) {
+        cell.rowSpan = table.rowHeaderScale;
+        cell.colSpan = table.colHeaderScale;
         cell.label = "-";
         continue;
       }
 
       const datapoints: { [zvalue: string]: AttrValue[] } = {};
-      for (const dp of cell.datapoints) {
+      for (const dp of cell.data) {
         const z = dp.z.getLabel();
         if (datapoints[z] === undefined) {
           datapoints[z] = [];
@@ -350,9 +355,9 @@ export function imputeCellData(
 }
 
 export function highlightTable(
-  table: Table<ExtraCell>,
+  table: Table<Cell>,
   highlight: HighlightMode
-): Table<ExtraCell> {
+): Table<Cell> {
   if (
     highlight === "none" ||
     table.ncols - table.colstart === 0 ||
@@ -438,9 +443,9 @@ export function highlightTable(
 }
 
 function highlightGrouping(
-  table: Table<ExtraCell>,
+  table: Table<Cell>,
   highlight: HighlightMode
-): { group: ExtraCell[]; pivotCell?: ExtraCell }[] {
+): { group: Cell[]; pivotCell?: Cell }[] {
   // leverage the fact that rowHeaderScale & colHeaderScale is calculated based on zstyle
   // and if we have to calculate it again, the formula is the same and we also require the
   // knowledge of how zstyle is used, so don't repeat the code here.

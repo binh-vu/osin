@@ -1,14 +1,18 @@
-import { ClassNameMap, makeStyles } from "@mui/styles";
-import { Dropdown } from "antd";
+import { makeStyles } from "@mui/styles";
 import { Render } from "components/table/TableRenderer";
-import { ArgSchema, ArgType, InternalLink, PathDef } from "gena-app";
 import { getClassName } from "misc";
 
 const useTableStyles = makeStyles({
+  root: {
+    textAlign: "center",
+  },
   tableContainer: {
     maxWidth: "100%",
-    overflow: "auto hidden",
     display: "inline-block",
+  },
+  tableWrapper: {
+    overflow: "auto hidden",
+    maxWidth: "100%",
   },
   table: {
     marginLeft: "auto",
@@ -61,15 +65,17 @@ const useFooterStyles = makeStyles({
   },
 });
 
-export interface BaseCell {
+export interface BaseCell<D> {
   // the cell value.
   label: string | number | boolean;
+  // data associated with this cell.
+  data: D;
   // the row and column index of this cell.
   row: number;
   col: number;
   // whether this cell is a header cell.
   th: boolean;
-  // whether this cell is a meta header cell.
+  // whether this cell is a meta header cell (describing other header cell).
   metaTh: boolean;
   // row/column span of this cell.
   rowSpan: number;
@@ -79,7 +85,7 @@ export interface BaseCell {
   className?: string;
 }
 
-export class BaseTable<C extends BaseCell> {
+export class BaseTable<C extends BaseCell<D>, D> {
   data: C[][];
   nrows: number;
   ncols: number;
@@ -98,6 +104,19 @@ export class BaseTable<C extends BaseCell> {
     );
   }
 
+  /** Get a cell by its position in the table. This is useful when the structure of the table has been changed */
+  getCell = (row: number, col: number): C => {
+    for (let i = 0; i < this.data.length; i++) {
+      for (let j = 0; j < this.data[i].length; j++) {
+        const cell = this.data[i][j];
+        if (cell.row === row && cell.col === col) {
+          return cell;
+        }
+      }
+    }
+    throw new Error("Cell not found");
+  };
+
   /**
    * For html table spanning to work correctly, if the cell is column spanned, then the cell on the right
    * must be removed. If the cell is row spanned, then the cell below must be removed.
@@ -109,7 +128,7 @@ export class BaseTable<C extends BaseCell> {
    * Note that this function implies when the cell is spanned, the cell on the right/below must be removed regardless
    * of its span.
    */
-  fixSpanning(): BaseTable<C> {
+  fixSpanning() {
     if (this.data.length === 0) {
       return this;
     }
@@ -148,7 +167,11 @@ export class BaseTable<C extends BaseCell> {
 /**
  * A base component to render a table-based report.
  */
-export const BaseTableComponent = <C extends BaseCell, T extends BaseTable<C>>({
+export const BaseTableComponent = <
+  C extends BaseCell<D>,
+  T extends BaseTable<C, D>,
+  D
+>({
   title,
   footnote,
   table,
@@ -176,31 +199,33 @@ export const BaseTableComponent = <C extends BaseCell, T extends BaseTable<C>>({
     );
   }
   return (
-    <div className={classes.tableContainer}>
-      {title !== undefined ? (
-        <div className={classes.title}>{title}</div>
-      ) : undefined}
-      <div>
-        <table className={getClassName(classes.table, classes.largeTable)}>
-          <tbody>
-            {table.data.map((row, ri) => {
-              return (
-                <tr key={ri}>
-                  {row.map((cell) => renderCell!(cell, table, cellProps))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+    <div className={classes.root}>
+      <div className={classes.tableContainer}>
+        {title !== undefined ? (
+          <div className={classes.title}>{title}</div>
+        ) : undefined}
+        <div className={classes.tableWrapper}>
+          <table className={getClassName(classes.table, classes.largeTable)}>
+            <tbody>
+              {table.data.map((row, ri) => {
+                return (
+                  <tr key={ri}>
+                    {row.map((cell) => renderCell!(cell, table, cellProps))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {footnote !== undefined ? (
+          <div className={classes.footnote}>{footnote}</div>
+        ) : undefined}
       </div>
-      {footnote !== undefined ? (
-        <div className={classes.footnote}>{footnote}</div>
-      ) : undefined}
     </div>
   );
 };
 
-export const BaseCellComponent = <C extends BaseCell, T extends BaseTable<C>>({
+export const BaseCellComponent = <C extends BaseCell<D>, D>({
   cell,
   children,
   ...cellHTMLProps

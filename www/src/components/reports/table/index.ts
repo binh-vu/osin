@@ -1,3 +1,3 @@
 export * from "./TableBuilder";
-export * from "./components/CellComponent";
-export * from "./components/TableComponent";
+export * from "./CellComponent";
+export * from "./TableComponent";

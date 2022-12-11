@@ -1,13 +1,27 @@
 import AsciiTable from "ascii-table";
-import { ReportData } from "../ReportData";
+import { BaseCell } from "../basetable/BaseTableComponent";
+import { ReportData, ReportDataPoint } from "../ReportData";
 import { testcase01 } from "../resources/testcase01";
 import { testcase02 } from "../resources/testcase02";
 import { testcase03 } from "../resources/testcase03";
-import { Cell, cellFactory, Table, TableBuilder } from "./TableBuilder";
+import { Table, TableBuilder } from "./TableBuilder";
+
+const cellFactory = (): BaseCell<ReportDataPoint[]> => {
+  return {
+    th: false,
+    metaTh: false,
+    label: "",
+    colSpan: 1,
+    rowSpan: 1,
+    row: 0,
+    col: 0,
+    data: [],
+  };
+};
 
 describe("test table builder", () => {
   let testcases = [testcase01, testcase02, testcase03];
-  // testcases = [testcase02];
+  // testcases = [testcase01];
 
   test("construct table header", () => {
     for (const testcase of testcases) {
@@ -46,6 +60,8 @@ describe("test table builder", () => {
         testcase.colHeaderScale
       );
       expect(tableToString(table)).toEqual(testcase.tableStructure);
+      expect(table.nrows).toEqual(table.data.length);
+      expect(table.ncols).toEqual(table.data[0].length);
       for (let i = 0; i < table.nrows; i++) {
         for (let j = 0; j < table.ncols; j++) {
           const cell = table.data[i][j];
@@ -73,6 +89,7 @@ describe("test table builder", () => {
         testcase.colHeaderScale
       );
       table.fixSpanning();
+
       expect(filters.map(filters.filterCell)(table.data)).toEqual(
         testcase.spannedCells
       );
@@ -92,16 +109,16 @@ const filters = {
       });
     };
   },
-  filterCell: (cell: Cell) => {
+  filterCell: (cell: BaseCell<ReportDataPoint[]>) => {
     return {
       label: cell.label,
-      colspan: cell.colspan,
-      rowspan: cell.rowspan,
+      colSpan: cell.colSpan,
+      rowSpan: cell.rowSpan,
     };
   },
 };
 
-const tableToString = (table: Table<Cell>) => {
+const tableToString = (table: Table<BaseCell<ReportDataPoint[]>>) => {
   const tbl = new AsciiTable();
   for (let row of table.data) {
     tbl.addRow(row.map((r) => r.label));

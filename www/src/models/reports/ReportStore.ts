@@ -55,12 +55,12 @@ export class ReportStore extends CRUDStore<
   }
 
   async getReportData(
-    reportId: number
+    report: Report
   ): Promise<ReportData | AutoTableReportData> {
-    return axios.get(`${this.remoteURL}/${reportId}/data`).then((res) => {
-      return res.data.type === "auto_table"
+    return axios.get(`${this.remoteURL}/${report.id}/data`).then((res) => {
+      return report.args.value instanceof AutoTableReport
         ? AutoTableReportData.deserialize(res.data.data)
-        : ReportData.deserialize(res.data.data);
+        : ReportData.deserialize(res.data.data, report.args.value);
     });
   }
 
@@ -75,9 +75,9 @@ export class ReportStore extends CRUDStore<
           : this.serializeCreateDraft(draft)
       )
       .then((res) => {
-        return draft.args.type === "auto_table"
+        return draft.args.value instanceof AutoTableReport
           ? AutoTableReportData.deserialize(res.data.data)
-          : ReportData.deserialize(res.data.data);
+          : ReportData.deserialize(res.data.data, draft.args.value);
       });
   }
 

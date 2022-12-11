@@ -3,12 +3,14 @@ import _ from "lodash";
 import { ArrayHelper } from "misc";
 import { useMemo } from "react";
 import { routes } from "routes";
-import { Attribute, AutoTableReportData } from "../../ReportData";
+import { Attribute, AutoTableReportData } from "../ReportData";
 import {
   BaseCell,
   BaseTable,
   BaseTableComponent,
-} from "./base/BaseTableComponent";
+} from "../basetable/BaseTableComponent";
+
+export interface Cell extends BaseCell<any> {}
 
 export const AutoTableComponent = ({
   title,
@@ -51,7 +53,7 @@ function useTable(reportData: AutoTableReportData) {
     const cells = ArrayHelper.new2d(
       height,
       width,
-      (i, j): BaseCell => ({
+      (i, j): Cell => ({
         label: "",
         row: i,
         col: j,
@@ -59,6 +61,7 @@ function useTable(reportData: AutoTableReportData) {
         metaTh: false,
         rowSpan: 1,
         colSpan: 1,
+        data: undefined,
       })
     );
 
@@ -128,12 +131,13 @@ function buildHeader(attrs: Attribute[]) {
   const headers = ArrayHelper.new2d(
     height,
     width,
-    (i, j): Omit<BaseCell, "row" | "col"> => ({
+    (i, j): Omit<Cell, "row" | "col"> => ({
       label: "",
       th: true,
       metaTh: false,
       rowSpan: 1,
       colSpan: 1,
+      data: undefined,
     })
   );
 

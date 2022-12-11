@@ -5,13 +5,13 @@ import _ from "lodash";
 import { ArrayHelper, getClassName } from "misc";
 import { AttrGetter } from "models/reports";
 import { useMemo, useState } from "react";
-import { ReportData } from "../../ReportData";
-import { Cell, Table, TableBuilder } from "../TableBuilder";
+import { ReportData, ReportDataPoint } from "../ReportData";
+import { Table, TableBuilder } from "./TableBuilder";
 import { observer } from "mobx-react";
 import {
   CellComponent,
-  ExtraCell,
-  extraCellFactory,
+  Cell,
+  cellFactory,
   imputeCellData,
   highlightTable,
   CellStatistics,
@@ -23,57 +23,10 @@ import {
   ZValueStyle,
 } from "./ReportTableRenderConfig";
 import { toJS } from "mobx";
+import { BaseTableComponent } from "../basetable/BaseTableComponent";
 
 const useStyles = makeStyles({
   root: {},
-  tableContainer: {
-    width: "100%",
-    overflow: "auto hidden",
-  },
-  table: {
-    marginLeft: "auto",
-    marginRight: "auto",
-    border: "1px solid #ddd",
-    "& td,th": {
-      border: "1px solid #ddd",
-      textAlign: "left",
-    },
-  },
-  smallTable: {
-    "& td,th": {
-      padding: 8,
-    },
-  },
-  middleTable: {
-    "& td,th": {
-      padding: "12px 8px",
-    },
-  },
-  largeTable: {
-    "& td,th": {
-      padding: 16,
-    },
-  },
-  title: {
-    textAlign: "center",
-    captionSide: "top",
-    color: "rgba(0, 0, 0, 0.45)",
-    paddingTop: "0.75em",
-    paddingBottom: "0.3em",
-  },
-  footnote: {
-    textAlign: "right",
-    captionSide: "bottom",
-    paddingTop: "0.3em",
-    color: "rgba(0, 0, 0, 0.45)",
-    paddingBottom: "0.3em",
-  },
-  actionSep: {
-    fontWeight: 900,
-    paddingLeft: 4,
-    paddingRight: 4,
-    color: "#1890ff",
-  },
   rowHeader: {
     borderLeft: "none !important",
   },
@@ -111,6 +64,12 @@ const useStyles = makeStyles({
     "& .ant-modal-header": {
       display: "none",
     },
+  },
+  actionSep: {
+    fontWeight: 900,
+    paddingLeft: 4,
+    paddingRight: 4,
+    color: "#1890ff",
   },
 });
 
@@ -162,9 +121,9 @@ export const TableComponent = observer(
     const reportTableRenderConfig =
       reportTableRenderConfigStore.configs.get(recordKey)!;
 
-    const [showCell, setShowCell] = useState<undefined | ExtraCell>(undefined);
+    const [showCell, setShowCell] = useState<undefined | Cell>(undefined);
 
-    const table1: Table<ExtraCell> | string = useMemo(() => {
+    const table1: Table<Cell> | string = useMemo(() => {
       try {
         let nExtraRowHeaderCol = 0;
         let nExtraColHeaderRow = 0;
@@ -186,7 +145,7 @@ export const TableComponent = observer(
           }
         }
 
-        const table = new TableBuilder(reportData, extraCellFactory).build(
+        const table = new TableBuilder(reportData, cellFactory).build(
           nExtraRowHeaderCol,
           nExtraColHeaderRow,
           rowHeaderScale,
@@ -200,7 +159,7 @@ export const TableComponent = observer(
       }
     }, [reportData, reportTableRenderConfig.zvalueStyle]);
 
-    const table: Table<ExtraCell> | string = useMemo(() => {
+    const table: Table<Cell> | string = useMemo(() => {
       if (typeof table1 === "string") {
         return table1;
       }
@@ -228,15 +187,15 @@ export const TableComponent = observer(
       );
     }
 
-    const onCellClick = (cell: ExtraCell) => {
+    const onCellClick = (cell: Cell) => {
       // do nothing if clicking on empty cells
       if (cell.row < table.rowstart && cell.col < table.colstart) return;
       // click on header to highlight by column/row
       // add col/row span to detect the leaf nodes so as we may have imbalance index tree
       if (
         cell.th &&
-        (cell.row + cell.rowspan === table.rowstart ||
-          cell.col + cell.colspan === table.colstart)
+        (cell.row + cell.rowSpan === table.rowstart ||
+          cell.col + cell.colSpan === table.colstart)
       ) {
         // toggle highlight a column/row in a matrix
         if (cell.row < table.rowstart) {
@@ -278,43 +237,32 @@ export const TableComponent = observer(
 
     return (
       <div className={classes.root}>
-        <div className={classes.title}>{title}</div>
-        <div className={classes.tableContainer}>
-          <table className={getClassName(classes.table, classes.largeTable)}>
-            <tbody>
-              {table.data.map((row, ri) => {
-                return (
-                  <tr key={ri}>
-                    {row.map((cell, ci) => {
-                      return (
-                        <CellComponent
-                          key={`${ri}-${ci}`}
-                          cell={cell}
-                          onClick={onCellClick}
-                          highlight={reportTableRenderConfig.highlight}
-                          table={table}
-                        />
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <div className={classes.footnote}>
-          <Footnote
-            editURL={editURL}
-            classes={classes}
-            highlight={reportTableRenderConfig.highlight}
-            setHighlight={(highlight) => {
-              reportTableRenderConfig.highlight = highlight;
-            }}
-            zvalues={zvalues}
-            onReload={onReload}
-            renderConfig={reportTableRenderConfig}
-          />
-        </div>
+        <BaseTableComponent<Cell, Table<Cell>, ReportDataPoint[]>
+          table={table}
+          title={title}
+          renderCell={(cell, table, cellProps) => (
+            <CellComponent
+              key={`${cell.row}-${cell.col}`}
+              cell={cell}
+              onClick={onCellClick}
+              highlight={reportTableRenderConfig.highlight}
+              table={table}
+            />
+          )}
+          footnote={
+            <Footnote
+              editURL={editURL}
+              classes={classes}
+              highlight={reportTableRenderConfig.highlight}
+              setHighlight={(highlight) => {
+                reportTableRenderConfig.highlight = highlight;
+              }}
+              zvalues={zvalues}
+              onReload={onReload}
+              renderConfig={reportTableRenderConfig}
+            />
+          }
+        />
         <Modal
           open={showCell !== undefined}
           title="Cell Information"
@@ -337,6 +285,47 @@ export const TableComponent = observer(
     );
   }
 );
+
+function useTable(
+  reportData: ReportData,
+  renderConfig: ReportTableRenderConfig
+) {
+  const table1: Table<Cell> | string = useMemo(() => {
+    try {
+      let nExtraRowHeaderCol = 0;
+      let nExtraColHeaderRow = 0;
+      let rowHeaderScale = 1;
+      let colHeaderScale = 1;
+
+      const nZValues = _.sum(reportData.zvalues.map(([_, a]) => a.length));
+      if (nZValues > 1) {
+        if (renderConfig.zvalueStyle === "column") {
+          nExtraColHeaderRow = 1;
+          colHeaderScale = nZValues;
+        } else if (renderConfig.zvalueStyle === "row") {
+          nExtraRowHeaderCol = 1;
+          rowHeaderScale = nZValues;
+        } else {
+          const x = Math.ceil(Math.sqrt(nZValues));
+          colHeaderScale = x;
+          rowHeaderScale = x;
+        }
+      }
+
+      const table = new TableBuilder(reportData, cellFactory).build(
+        nExtraRowHeaderCol,
+        nExtraColHeaderRow,
+        rowHeaderScale,
+        colHeaderScale
+      );
+      // imputeCellData(table, reportData.zvalues, renderConfig.zvalueStyle);
+      return table;
+    } catch (e: any) {
+      console.error(e);
+      return e.toString();
+    }
+  }, [reportData, renderConfig.zvalueStyle]);
+}
 
 function styleTable<C extends Cell>(
   table: Table<C>,

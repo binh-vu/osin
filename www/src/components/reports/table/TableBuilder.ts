@@ -1,4 +1,5 @@
 import _ from "lodash";
+import { ArrayHelper } from "misc";
 import {
   AttrValue,
   Index,
@@ -6,30 +7,14 @@ import {
   ReportData,
   ReportDataPoint,
 } from "../ReportData";
+import { BaseCell, BaseTable } from "../basetable/BaseTableComponent";
 
-export interface Cell {
-  className?: string;
-  style?: React.CSSProperties;
-  label: string | number;
-  row: number;
-  col: number;
-  colspan: number;
-  rowspan: number;
-  // data points associated with this cell
-  datapoints: ReportDataPoint[];
-
-  // whether the cell is a header
-  th: boolean;
-  // whether the cell is a header, but for describing the other headers (containing the real index)
-  metaTh: boolean;
-}
-
-export class Table<C extends Cell> {
-  data: C[][];
+export class Table<C extends BaseCell<ReportDataPoint[]>> extends BaseTable<
+  C,
+  ReportDataPoint[]
+> {
   rowstart: number;
   colstart: number;
-  nrows: number;
-  ncols: number;
   nExtraRowHeaderCol: number;
   nExtraColHeaderRow: number;
   rowHeaderScale: number;
@@ -37,20 +22,18 @@ export class Table<C extends Cell> {
 
   constructor(
     data: C[][],
-    rowstart: number,
-    colstart: number,
     nrows: number,
     ncols: number,
+    rowstart: number,
+    colstart: number,
     nExtraRowHeaderCol: number,
     nExtraColHeaderRow: number,
     rowHeaderScale: number,
     colHeaderScale: number
   ) {
-    this.data = data;
+    super(data, nrows, ncols);
     this.rowstart = rowstart;
     this.colstart = colstart;
-    this.nrows = nrows;
-    this.ncols = ncols;
     this.nExtraRowHeaderCol = nExtraRowHeaderCol;
     this.nExtraColHeaderRow = nExtraColHeaderRow;
     this.rowHeaderScale = rowHeaderScale;
@@ -60,75 +43,19 @@ export class Table<C extends Cell> {
   clone() {
     return new Table(
       this.data.map((row) => row.map((cell) => ({ ...cell }))),
-      this.rowstart,
-      this.colstart,
       this.nrows,
       this.ncols,
+      this.rowstart,
+      this.colstart,
       this.nExtraRowHeaderCol,
       this.nExtraColHeaderRow,
       this.rowHeaderScale,
       this.colHeaderScale
     );
   }
-
-  /** Get a cell by its position in the table. This is useful when the structure of the table has been changed */
-  getCell = (row: number, col: number): C => {
-    for (let i = 0; i < this.data.length; i++) {
-      for (let j = 0; j < this.data[i].length; j++) {
-        const cell = this.data[i][j];
-        if (cell.row === row && cell.col === col) {
-          return cell;
-        }
-      }
-    }
-    throw new Error("Cell not found");
-  };
-
-  /**
-   * For html table spanning to work correctly, if the cell is column spanned, then the cell on the right
-   * must be removed. If the cell is row spanned, then the cell below must be removed.
-   *
-   * This simple algorithm works by first creating a flag table, in which each cell is marked as false
-   * if it is supposted to be removed. Then the table is traversed from top to bottom, left to right, and
-   * remove the cell if it is marked as true.
-   */
-  fixSpanning(): Table<C> {
-    if (this.data.length === 0) {
-      return this;
-    }
-    const flags: boolean[][] = [];
-
-    for (let i = 0; i < this.nrows; i++) {
-      flags.push([]);
-      for (let j = 0; j < this.ncols; j++) {
-        flags[i].push(true);
-      }
-    }
-
-    for (let i = this.nrows - 1; i >= 0; i--) {
-      for (let j = this.ncols - 1; j >= 0; j--) {
-        const cell = this.data[i][j];
-        if (cell.rowspan === 1 && cell.colspan === 1) {
-          continue;
-        }
-        for (let u = 0; u < cell.rowspan; u++) {
-          for (let v = 0; v < cell.colspan; v++) {
-            flags[i + u][j + v] = false;
-          }
-        }
-        flags[i][j] = true;
-      }
-    }
-
-    for (let i = 0; i < this.nrows; i++) {
-      this.data[i] = this.data[i].filter((_, j: number) => flags[i][j]);
-    }
-
-    return this;
-  }
 }
 
-export class TableBuilder<C extends Cell> {
+export class TableBuilder<C extends BaseCell<ReportDataPoint[]>> {
   data: ReportData;
   xIndexMap: Map<string, number>;
   yIndexMap: Map<string, number>;
@@ -174,25 +101,23 @@ export class TableBuilder<C extends Cell> {
       const row: C[] = [];
       for (let j = 0; j < ncols; j++) {
         if (i < rowstart - nExtraColHeaderRow && j >= colstart) {
-          row.push(
-            Object.assign(colHeaders[i][j - colstart], { row: i, col: j })
-          );
+          const cell: Partial<BaseCell<ReportDataPoint[]>> = { row: i, col: j };
+          row.push(Object.assign(colHeaders[i][j - colstart], cell));
         } else if (i >= rowstart && j < colstart - nExtraRowHeaderCol) {
-          row.push(
-            Object.assign(rowHeaders[i - rowstart][j], { row: i, col: j })
-          );
+          const cell: Partial<BaseCell<ReportDataPoint[]>> = { row: i, col: j };
+          row.push(Object.assign(rowHeaders[i - rowstart][j], cell));
         } else {
-          row.push({
-            ...this.cellFactory(),
+          const cell: Partial<BaseCell<ReportDataPoint[]>> = {
             th: i < rowstart || j < colstart ? true : false,
             metaTh: false,
             label: "",
-            colspan: 1,
-            rowspan: 1,
+            colSpan: 1,
+            rowSpan: 1,
             row: i,
             col: j,
-            datapoints: [],
-          });
+            data: [],
+          };
+          row.push(Object.assign(this.cellFactory(), cell));
         }
       }
       rows.push(row);
@@ -209,15 +134,14 @@ export class TableBuilder<C extends Cell> {
         this.yIndexMap.get(record.y.toString())! * rowHeaderScale + rowstart;
       const j =
         this.xIndexMap.get(record.x.toString())! * colHeaderScale + colstart;
-      rows[i][j].datapoints.push(record);
+      rows[i][j].data.push(record);
     }
-
     return new Table(
       rows,
-      rowstart,
-      colstart,
       nrows,
       ncols,
+      rowstart,
+      colstart,
       nExtraRowHeaderCol,
       nExtraColHeaderRow,
       rowHeaderScale,
@@ -236,17 +160,16 @@ export class TableBuilder<C extends Cell> {
     for (let i = 0; i < height * 2; i++) {
       const row = [];
       for (let j = 0; j < width * scale; j++) {
-        row.push({
-          ...this.cellFactory(),
+        const cell: Partial<BaseCell<ReportDataPoint[]>> = {
           th: true,
           metaTh: true,
           label: "",
-          colspan: 1,
-          rowspan: 1,
+          colSpan: 1,
+          rowSpan: 1,
           row: i,
           col: j,
-          datapoints: [],
-        });
+        };
+        row.push(Object.assign(this.cellFactory(), cell));
       }
       headers.push(row);
     }
@@ -301,18 +224,18 @@ export class TableBuilder<C extends Cell> {
     header.th = true;
     header.metaTh = true;
     header.label = index.attr.getLabel();
-    header.colspan = index.size() * scale;
+    header.colSpan = index.size() * scale;
 
     for (const [value, nextValues] of index.children.entries()) {
       headers[rowoffset + 1][coloffset].th = true;
       headers[rowoffset + 1][coloffset].metaTh = false;
       headers[rowoffset + 1][coloffset].label = value;
       if (nextValues.length === 0) {
-        headers[rowoffset + 1][coloffset].colspan = 1 * scale;
-        headers[rowoffset + 1][coloffset].rowspan = height - rowoffset - 1;
+        headers[rowoffset + 1][coloffset].colSpan = 1 * scale;
+        headers[rowoffset + 1][coloffset].rowSpan = height - rowoffset - 1;
         coloffset += scale;
       } else {
-        headers[rowoffset + 1][coloffset].colspan =
+        headers[rowoffset + 1][coloffset].colSpan =
           nextValues.map((nv) => nv.size()).reduce((a, b) => a + b) * scale;
         for (const nextValue of nextValues) {
           this.buildHeaderMain(
@@ -340,23 +263,10 @@ export class TableBuilder<C extends Cell> {
           ...cell,
           row: cell.col,
           col: cell.row,
-          rowspan: cell.colspan,
-          colspan: cell.rowspan,
+          rowSpan: cell.colSpan,
+          colSpan: cell.rowSpan,
         };
       });
     });
   }
 }
-
-export const cellFactory = (): Cell => {
-  return {
-    th: false,
-    metaTh: false,
-    label: "",
-    colspan: 1,
-    rowspan: 1,
-    row: 0,
-    col: 0,
-    datapoints: [],
-  };
-};

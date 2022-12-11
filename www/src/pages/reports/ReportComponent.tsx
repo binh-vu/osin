@@ -6,8 +6,8 @@ import {
   ReportData,
   TableComponent,
 } from "components/reports";
-import { AutoTableComponent } from "components/reports/table/components/AutoTableComponent";
-import { Footnote } from "components/reports/table/components/base/BaseTableComponent";
+import { AutoTableComponent } from "components/reports/autotable/AutoTableComponent";
+import { Footnote } from "components/reports/basetable/BaseTableComponent";
 import { SERVER } from "env";
 import { InternalLink, LoadingComponent } from "gena-app";
 import { useStores } from "models";
@@ -59,7 +59,7 @@ export const ReportComponent = forwardRef(
 
     const onReload = () => {
       return reportStore
-        .getReportData(report.id)
+        .getReportData(report)
         .then((reportData) => {
           setData(reportData);
         })

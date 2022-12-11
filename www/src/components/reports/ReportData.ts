@@ -1,3 +1,5 @@
+import { BaseReport } from "models/reports";
+
 export type AttrValue = string | number | boolean | null;
 
 export class Attribute {
@@ -126,14 +128,21 @@ export class ReportData {
   data: ReportDataPoint[];
   xIndex: Index[];
   yIndex: Index[];
+  zvalues: [number | null, Attribute[]][];
 
-  constructor(data: ReportDataPoint[], xIndex: Index[], yIndex: Index[]) {
+  constructor(
+    data: ReportDataPoint[],
+    xIndex: Index[],
+    yIndex: Index[],
+    zvalues: [number | null, Attribute[]][]
+  ) {
     this.data = data;
     this.xIndex = xIndex;
     this.yIndex = yIndex;
+    this.zvalues = zvalues;
   }
 
-  static deserialize(obj: any) {
+  static deserialize(obj: any, basereport: BaseReport) {
     return new ReportData(
       obj.data.map(
         (d: any) =>
@@ -146,7 +155,11 @@ export class ReportData {
           )
       ),
       obj.xindex.map(Index.deserialize),
-      obj.yindex.map(Index.deserialize)
+      obj.yindex.map(Index.deserialize),
+      basereport.zvalues.map((zvalue) => [
+        zvalue[0],
+        zvalue[1].map((a) => a.attr),
+      ])
     );
   }
 }
