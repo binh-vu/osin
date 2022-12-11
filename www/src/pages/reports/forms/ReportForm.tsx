@@ -12,13 +12,19 @@ import {
   Space,
   Typography,
 } from "antd";
-import { ReportData, TableComponent } from "components/reports";
+import {
+  AutoTableReportData,
+  ReportData,
+  TableComponent,
+} from "components/reports";
+import { AutoTableComponent } from "components/reports/table/components/AutoTableComponent";
 import { InternalLink, LoadingComponent } from "gena-app";
 import { Filter } from "misc";
-import { autorun, comparer, reaction, runInAction } from "mobx";
+import { autorun, comparer, reaction, runInAction, toJS } from "mobx";
 import { observer } from "mobx-react";
 import { Report, useStores } from "models";
 import {
+  AutoTableReport,
   BaseReport,
   COLUMN_MAX_SIZE,
   DraftCreateReport,
@@ -33,9 +39,12 @@ import {
 import { createRef, useEffect, useMemo, useState } from "react";
 import { unstable_batchedUpdates } from "react-dom";
 import { routes } from "routes";
-import { ReportTable, ReportTableFunc } from "../reports/ReportTable";
+import { PreviewReportComponent } from "../PreviewReportComponent";
+import { ReportComponent, ReportTableFunc } from "../ReportComponent";
+import { AutoTableForm } from "./AutoTableForm";
+import { BaseReportForm } from "./BaseReportForm";
 
-const useStyles = makeStyles({
+export const useStyles = makeStyles({
   form: {},
   card: {
     border: "1px solid #ddd",
@@ -85,10 +94,7 @@ export const ReportForm = observer(
             },
             name: "",
             description: "",
-            args: new ReportTableArgs(
-              "table",
-              new BaseReport(IndexSchema.empty(), IndexSchema.empty(), [])
-            ),
+            args: new ReportTableArgs("table", BaseReport.default()),
           });
         }
         return reportStore.getCreateDraft(draftID)!;
@@ -200,7 +206,7 @@ export const ReportForm = observer(
     }
 
     return (
-      <Space direction="vertical" style={{ width: "100%" }}>
+      <Space direction="vertical" style={{ width: "100%" }} size={16}>
         <Row>
           <Col span={24}>
             <Typography.Title level={5} className={classes.formItemLabel}>
@@ -233,9 +239,21 @@ export const ReportForm = observer(
               Type
             </Typography.Title>
             <Select
-              value={"table"}
+              value={draftReport.args.type}
               style={{ width: "100%" }}
-              options={[{ label: "Table", value: "table" }]}
+              options={[
+                { label: "Table", value: "table" },
+                { label: "Auto Table", value: "auto_table" },
+              ]}
+              onChange={(value: "table" | "auto_table") => {
+                if (value !== draftReport.args.type) {
+                  draftReport.args.type = value;
+                  draftReport.args.value =
+                    value === "table"
+                      ? BaseReport.default()
+                      : AutoTableReport.default();
+                }
+              }}
             />
           </Col>
         </Row>
@@ -258,30 +276,19 @@ export const ReportForm = observer(
             />
           </Col>
         </Row>
-        <Row>
-          <Col span={24}>
-            <Typography.Title level={5} className={classes.formItemLabel}>
-              X Axis
-            </Typography.Title>
-            <IndexSchemaForm index={draftReport.args.value.xaxis} exps={exps} />
-          </Col>
-        </Row>
-        <Row>
-          <Col span={24}>
-            <Typography.Title level={5} className={classes.formItemLabel}>
-              Y Axis
-            </Typography.Title>
-            <IndexSchemaForm index={draftReport.args.value.yaxis} exps={exps} />
-          </Col>
-        </Row>
-        <Row>
-          <Col span={24}>
-            <Typography.Title level={5} className={classes.formItemLabel}>
-              Z Values
-            </Typography.Title>
-            <ZValueForm exps={exps} args={draftReport.args.value} />
-          </Col>
-        </Row>
+        {draftReport.args.value instanceof BaseReport ? (
+          <BaseReportForm
+            classes={classes}
+            baseReport={draftReport.args.value}
+            exps={exps}
+          />
+        ) : (
+          <AutoTableForm
+            classes={classes}
+            autoTableReport={draftReport.args.value}
+            exps={exps}
+          />
+        )}
         <Row>
           <Col span={24}>
             <Typography.Title level={5} className={classes.formItemLabel}>
@@ -334,9 +341,17 @@ export const ReportForm = observer(
         <Row>
           <Col span={24}>
             <Space>
-              <Button onClick={() => draftReport.args.value.swapAxes()}>
-                Swap X-Y Axes
-              </Button>
+              {draftReport.args.value instanceof BaseReport ? (
+                <Button
+                  onClick={() => {
+                    if (draftReport.args.value instanceof BaseReport) {
+                      draftReport.args.value.swapAxes();
+                    }
+                  }}
+                >
+                  Swap X-Y Axes
+                </Button>
+              ) : undefined}
               <Button type="primary" onClick={onSubmit}>
                 {report === undefined ? "Create" : "Update"}
               </Button>
@@ -355,96 +370,15 @@ export const ReportForm = observer(
             </Space>
           </Col>
         </Row>
-        <Typography.Title level={5}>PREVIEW REPORT</Typography.Title>
+        <Typography.Title level={5} style={{ marginBottom: 0 }}>
+          PREVIEW REPORT
+        </Typography.Title>
         <Row>
           <Col span={24}>
-            <PreviewReport report={draftReport} expId={expId} />
+            <PreviewReportComponent report={draftReport} expId={expId} />
           </Col>
         </Row>
       </Space>
-    );
-  }
-);
-
-export const PreviewReport = observer(
-  ({
-    expId,
-    report,
-  }: {
-    expId: number;
-    report: DraftCreateReport | DraftUpdateReport;
-  }) => {
-    const { reportStore } = useStores();
-    const [data, setData] = useState<ReportData | undefined>(undefined);
-    const [error, setError] = useState<string | undefined>(undefined);
-
-    useEffect(() => {
-      console.log("PreviewReport: create autorun");
-      let previousReport: [BaseReport, number[]] | undefined = undefined;
-      const disposer = autorun(() => {
-        if (!comparer.structural(previousReport, report.args.value)) {
-          console.log("PreviewReport: autorun");
-          previousReport = [report.args.value.clone(), report.exps.slice()];
-          reportStore
-            .previewReportData(report)
-            .then((data) => {
-              unstable_batchedUpdates(() => {
-                setData(data);
-                setError(undefined);
-              });
-            })
-            .catch((reason) => {
-              setError(reason.response.data.message);
-            });
-        }
-      });
-      return () => {
-        console.log("PreviewReport: dispose autorun");
-        disposer();
-      };
-    }, []);
-
-    if (data === undefined) {
-      return <LoadingComponent msg="Loading preview..." />;
-    }
-
-    if (error !== undefined) {
-      return (
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          className="mb-8"
-        />
-      );
-    }
-
-    return (
-      <TableComponent
-        recordKey={`preview-${expId}-${
-          report instanceof DraftUpdateReport ? report.id : report.draftID
-        }`}
-        reportData={data}
-        zvalues={report.args.value.zvalues}
-        title={`Table. ${report.name}`}
-        editURL={{
-          path: routes.updatereport,
-          urlArgs: { expId, reportId: -1 },
-          queryArgs: {},
-        }}
-        renderRecordId={(recordId: number) => {
-          return (
-            <InternalLink
-              path={routes.run}
-              urlArgs={{ runId: recordId }}
-              queryArgs={{}}
-              openInNewPage={true}
-            >
-              Run {recordId}{" "}
-            </InternalLink>
-          );
-        }}
-      />
     );
   }
 );

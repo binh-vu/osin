@@ -1,5 +1,10 @@
 import axios from "axios";
-import { Attribute, AttrValue, ReportData } from "components/reports";
+import {
+  Attribute,
+  AttrValue,
+  AutoTableReportData,
+  ReportData,
+} from "components/reports";
 import { SERVER } from "env";
 import {
   SimpleCRUDStore,
@@ -17,6 +22,8 @@ import {
   AttrGetter,
   DraftUpdateReport,
   BaseReport,
+  AutoTableReport,
+  RecordFilter,
 } from "./Report";
 
 export interface DraftCreateReport
@@ -55,7 +62,7 @@ export class ReportStore extends CRUDStore<
 
   async previewReportData(
     draft: DraftCreateReport | DraftUpdateReport
-  ): Promise<ReportData> {
+  ): Promise<ReportData | AutoTableReportData> {
     return axios
       .post(
         `${this.remoteURL}/preview`,
@@ -64,7 +71,9 @@ export class ReportStore extends CRUDStore<
           : this.serializeCreateDraft(draft)
       )
       .then((res) => {
-        return ReportData.deserialize(res.data.data);
+        return draft.args.type === "auto_table"
+          ? AutoTableReportData.deserialize(res.data.data)
+          : ReportData.deserialize(res.data.data);
       });
   }
 
@@ -107,18 +116,33 @@ export class ReportStore extends CRUDStore<
   }
 
   public deserialize(record: any): Report {
+    let value;
+    if (record.args.type === "table") {
+      value = new BaseReport(
+        deserializeIndexSchema(record.args.value.x_axis),
+        deserializeIndexSchema(record.args.value.y_axis),
+        deserializeZValues(record.args.value.z_values)
+      );
+    } else if (record.args.type === "auto_table") {
+      value = new AutoTableReport(
+        record.args.value.groups.map(([group, filter]: any) => {
+          return [
+            group,
+            new RecordFilter(filter.is_in.map(deserializeAttrGetter)),
+          ];
+        }),
+        record.args.value.z_values.map(deserializeAttrGetter),
+        record.args.value.ignore_list_attr
+      );
+    } else {
+      throw new Error(`Unknown report type: ${record.args.type}`);
+    }
+
     return new Report(
       record.id,
       record.name,
       record.description,
-      new ReportTableArgs(
-        record.args.type,
-        new BaseReport(
-          deserializeIndexSchema(record.args.value.x_axis),
-          deserializeIndexSchema(record.args.value.y_axis),
-          deserializeZValues(record.args.value.z_values)
-        )
-      )
+      new ReportTableArgs(record.args.type, value)
     );
   }
 
@@ -126,16 +150,31 @@ export class ReportStore extends CRUDStore<
     record: DraftCreateReport | DraftUpdateReport
   ): object {
     const r = super.serializeRecord(record) as any;
-    r.args = {
-      type: record.args.type,
-      value: {
+    let value;
+    if (record.args.value instanceof BaseReport) {
+      value = {
         x_axis: serializeIndexSchema(record.args.value.xaxis),
         y_axis: serializeIndexSchema(record.args.value.yaxis),
         z_values: record.args.value.zvalues.map(([expid, attrs]) => [
           expid,
           attrs.map(serializeAttrGetter),
         ]),
-      },
+      };
+    } else if (record.args.value instanceof AutoTableReport) {
+      value = {
+        groups: record.args.value.groups.map(([group, filter]) => {
+          return [group, { is_in: filter.isIn.map(serializeAttrGetter) }];
+        }),
+        z_values: record.args.value.zvalues.map(serializeAttrGetter),
+        ignore_list_attr: record.args.value.ignoreListAttr,
+      };
+    } else {
+      throw new Error(`Unknown report type: ${record.args.type}`);
+    }
+
+    r.args = {
+      type: record.args.type,
+      value,
     };
     r.position = {
       row_order: r.position.rowOrder,

@@ -14,15 +14,10 @@ export const ArrayHelper = {
     newarr.splice(i, 0, newItem);
     setIndices(newarr);
   },
-  update: <T>(
-    i: number,
-    newIndex: T,
-    indices: T[],
-    setIndices: (indices: T[]) => void
-  ) => {
-    const newdims = indices.slice();
-    newdims[i] = newIndex;
-    setIndices(newdims);
+  update: <T>(i: number, item: T, arr: T[], setArr: (indices: T[]) => void) => {
+    const newdims = arr.slice();
+    newdims[i] = item;
+    setArr(newdims);
   },
   zeros: (n: number) => {
     const out = [];
@@ -30,6 +25,21 @@ export const ArrayHelper = {
       out.push(0);
     }
     return out;
+  },
+  new2d: <C>(
+    height: number,
+    width: number,
+    cell: C | ((i: number, j: number) => C)
+  ) => {
+    const arr = [];
+    for (let i = 0; i < height; i++) {
+      const row = [];
+      for (let j = 0; j < width; j++) {
+        row.push(typeof cell === "function" ? (cell as any)(i, j) : cell);
+      }
+      arr.push(row);
+    }
+    return arr;
   },
 };
 

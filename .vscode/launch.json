@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "module": "osin",
-            "justMyCode": true,
+            "justMyCode": false,
             "args": [
                 "start",
                 "-d",

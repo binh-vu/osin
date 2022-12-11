@@ -6,7 +6,7 @@ import { Report, useStores } from "models";
 import { COLUMN_MAX_SIZE, Position } from "models/reports";
 import React, { useEffect } from "react";
 import { routes } from "routes";
-import { ReportTable } from "./reports/ReportTable";
+import { ReportComponent } from "./ReportComponent";
 
 const useStyles = makeStyles({
   divider: {
@@ -14,6 +14,9 @@ const useStyles = makeStyles({
   },
 });
 
+/**
+ * A page that display all reports of an experiment.
+ */
 export const ReportPage = observer(() => {
   const classes = useStyles();
   const expId = routes.reports.useURLParams()!.expId;
@@ -139,9 +142,5 @@ const ReportGrids = observer(({ expId }: { expId: number }) => {
 });
 
 export function getReportElement(expId: number, report: Report) {
-  if (report.args.type === "table") {
-    return <ReportTable report={report} expId={expId} enableReload={true} />;
-  }
-
-  throw new Error("Unknown report type: " + report.args.type);
+  return <ReportComponent report={report} expId={expId} enableReload={true} />;
 }

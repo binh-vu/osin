@@ -22,6 +22,8 @@ from osin.models.report import (
     Report,
     ReportDisplayPosition,
 )
+from osin.models.report.auto_table import AutoTableReportData
+from osin.models.report.base_report import ReportData
 from osin.models.report.index_schema import (
     AttrGetter,
     AttrValue,
@@ -32,6 +34,7 @@ from osin.models.report.index_schema import (
 )
 from peewee import DoesNotExist
 from werkzeug.exceptions import BadRequest, NotFound
+
 
 expreport_bp = generate_api(ExpReport)
 report_bp = generate_api(
@@ -233,11 +236,7 @@ def get_report_data(id: int):
     return jsonify(
         {
             "type": report.args.type,
-            "data": {
-                "data": data.data,
-                "xindex": [serialize_index(idx, exps) for idx in data.xindex],
-                "yindex": [serialize_index(idx, exps) for idx in data.yindex],
-            },
+            "data": serialize_report_data(data, exps),
         }
     )
 
@@ -277,14 +276,7 @@ def preview_report():
 
     data = report.args.value.get_data(runs)
     return jsonify(
-        {
-            "type": report.args.type,
-            "data": {
-                "data": data.data,
-                "xindex": [serialize_index(idx, exps) for idx in data.xindex],
-                "yindex": [serialize_index(idx, exps) for idx in data.yindex],
-            },
-        }
+        {"type": report.args.type, "data": serialize_report_data(data, exps)}
     )
 
 
@@ -300,6 +292,17 @@ report_bp.register_error_handler(InvalidIndexError, handle_internal_error)
 report_bp.register_error_handler(InvalidIndexElementError, handle_internal_error)
 report_bp.register_error_handler(UnsupportedAttributeError, handle_internal_error)
 report_bp.register_error_handler(ExperimentNotFound, handle_internal_error)
+
+
+def serialize_report_data(data: ReportData, exps: dict[int, Exp]):
+    if isinstance(data, ReportData):
+        return {
+            "data": data.data,
+            "xindex": [serialize_index(idx, exps) for idx in data.xindex],
+            "yindex": [serialize_index(idx, exps) for idx in data.yindex],
+        }
+    elif isinstance(data, AutoTableReportData):
+        return data.to_dict()
 
 
 def serialize_index(index: Index, exps: dict[int, Exp]):

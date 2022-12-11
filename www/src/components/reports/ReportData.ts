@@ -146,3 +146,56 @@ export class ReportData {
     );
   }
 }
+
+export class AutoTableReportRowData {
+  headers: (string | boolean | number | null)[];
+  values: (string | boolean | number | null)[];
+
+  constructor(
+    headers: (string | boolean | number | null)[],
+    values: (string | boolean | number | null)[]
+  ) {
+    this.headers = headers;
+    this.values = values;
+  }
+}
+
+export class AutoTableReportGroupData {
+  attrHeaders: Attribute[];
+  rows: AutoTableReportRowData[];
+
+  constructor(attrHeaders: Attribute[], rows: AutoTableReportRowData[]) {
+    this.attrHeaders = attrHeaders;
+    this.rows = rows;
+  }
+
+  static deserialize(obj: any) {
+    return new AutoTableReportGroupData(
+      obj.attr_headers.map((a: any) => new Attribute(a)),
+      obj.rows.map((r: any) => new AutoTableReportRowData(r.headers, r.values))
+    );
+  }
+}
+
+export class AutoTableReportData {
+  groups: [string, AutoTableReportGroupData][];
+  valueHeaders: Attribute[];
+
+  constructor(
+    groups: [string, AutoTableReportGroupData][],
+    valueHeaders: Attribute[]
+  ) {
+    this.groups = groups;
+    this.valueHeaders = valueHeaders;
+  }
+
+  static deserialize(obj: any) {
+    return new AutoTableReportData(
+      obj.groups.map((g: any) => [
+        g[0],
+        AutoTableReportGroupData.deserialize(g[1]),
+      ]),
+      obj.value_headers.map((a: any) => new Attribute(a))
+    );
+  }
+}

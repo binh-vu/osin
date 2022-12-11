@@ -15,6 +15,7 @@ import { ExpRunPage } from "pages/exp_run/detailed_page/ExpRunPage";
 import { ExpRunExplorerPage } from "pages/exp_run/explorer_page/ExpRunExplorerPage";
 import { ReportPage } from "pages/reports/ReportPage";
 import { UpsertReportPage } from "pages/reports/UpsertReportPage";
+import { SingleReportPage } from "pages/reports/SingleReportPage";
 
 /*************************************************************************************
  * Layouts of the application
@@ -61,6 +62,7 @@ export const Layout = (
               home: 0,
               expSetup: 1,
               reports: 1,
+              viewreport: 1,
               newreport: 1,
               updatereport: 1,
               runs: 1,
@@ -100,6 +102,12 @@ export const routes = {
     component: ReportPage,
     urlSchema: { expId: "number" },
     pathDef: "/exps/:expId/reports",
+    exact: true,
+  }),
+  viewreport: new NoQueryArgsPathDef({
+    component: SingleReportPage,
+    urlSchema: { reportId: "number", expId: "number" },
+    pathDef: "/exps/:expId/report/:reportId",
     exact: true,
   }),
   newreport: new NoQueryArgsPathDef({

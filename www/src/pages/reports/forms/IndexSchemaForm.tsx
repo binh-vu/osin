@@ -20,7 +20,7 @@ import {
 import React, { useEffect, useMemo, useState } from "react";
 import { Attribute, AttrValue } from "../../../components/reports/ReportData";
 
-const useStyles = makeStyles({
+export const useStyles = makeStyles({
   attrParamStyle: {
     color: blue[5],
     fontWeight: 500,
@@ -50,34 +50,16 @@ export type AttrValueOption = {
   label: React.ReactElement | string;
   value: AttrValue;
 };
-const expNameAttribute = new Attribute([EXPNAME_INDEX_FIELD]);
+export const expNameAttribute = new Attribute([EXPNAME_INDEX_FIELD]);
 
 export const IndexSchemaForm = observer(
   ({ exps, index }: { index: IndexSchema; exps: Experiment[] }) => {
     const classes = useStyles();
     const { reportStore } = useStores();
-    const [attrValueOptions, setAttrValueOptions] = useState<
-      Map<string, AttrValueOption[]>
-    >(new Map());
 
-    // gather attributes
-    const attrOptions = useMemo(() => {
-      let options = exps.flatMap((exp) => {
-        return ParamSchema.mergeSchemas(exp.params)
-          .leafAttributes()
-          .map((attr) => attr.prepend(ATTRNAME_PARAMS))
-          .concat(
-            exp.aggregatedPrimitiveOutputs
-              .leafAttributes()
-              .map((attr) =>
-                attr.prepend(ATTRNAME_AGGREGATED_PRIMITIVE_OUTPUTS)
-              )
-          );
-      });
-      options = _.uniqBy(options, (attr) => attr.asString());
-      options.push(expNameAttribute);
-      return options.map((attr) => attr2selectOption(attr, classes));
-    }, [exps]);
+    // gather attributes & their options
+    const attrOptions = useAttrOptions(exps, classes);
+    const attrValueOptions = useAttrValueOptions(exps, index.attrs);
 
     // gather index's attributes
     const indexAttrHookKey = index.attrs
@@ -119,44 +101,6 @@ export const IndexSchemaForm = observer(
       }
       return options;
     }, [indexAttrHookKey]);
-
-    // gather attribute options
-    useEffect(() => {
-      const expIds = exps.map((e) => e.id);
-      const promises: Promise<[string, AttrValueOption[]]>[] = [];
-      for (const attr of index.attrs) {
-        const attrId = attr.attr.asString();
-        if (attrId === expNameAttribute.asString()) {
-          // special case for experiment name, do not need to query the server
-          // as this changes dynamically, every time the user selects or adds an experiment
-          promises.push(
-            Promise.resolve([
-              attrId,
-              exps.map((e) => ({ value: e.id, label: e.name })),
-            ])
-          );
-        } else if (!attrValueOptions.has(attrId)) {
-          promises.push(
-            reportStore.fetchAttrValues(attr.attr, expIds).then((values) => {
-              return [
-                attrId,
-                values.map((v) => ({ label: (v || "").toString(), value: v })),
-              ];
-            })
-          );
-        }
-      }
-
-      Promise.all(promises).then((results) => {
-        const newAttrOptions = new Map(results);
-        for (const [attrId, values] of attrValueOptions.entries()) {
-          if (!newAttrOptions.has(attrId)) {
-            newAttrOptions.set(attrId, values);
-          }
-        }
-        setAttrValueOptions(newAttrOptions);
-      });
-    }, [exps, indexAttrHookKey]);
 
     const treeData = (() => {
       if (index.roots.length === 0)
@@ -263,24 +207,31 @@ export const FullyObservedAttrs = observer(
 
 export const AttrGetterForm = observer(
   ({
-    attridx,
     attrOptions,
     isRemovable,
     attrValueOptions,
-    index,
-    treeStructure = true,
+    addAttr,
+    replaceAttr,
+    addChildAttr,
+    attr,
+    removeAttr,
+    placeholder = "set of values to show (optional - empty to show all)",
+    mustHasAttrValue = false,
   }: {
-    attridx: number;
-    index: IndexSchema;
     isRemovable?: boolean;
     attrOptions: AttrOption[];
     attrValueOptions: AttrValueOption[];
-    treeStructure?: boolean;
+    attr?: AttrGetter;
+    addAttr: (attr: AttrGetter) => void;
+    replaceAttr: (attr: AttrGetter) => void;
+    addChildAttr?: (attr: AttrGetter) => void;
+    removeAttr: () => void;
+    placeholder?: string;
+    mustHasAttrValue?: boolean;
   }) => {
-    const attr = index.attrs[attridx];
     return (
       <Row wrap={false}>
-        <Col flex="auto" style={{ paddingRight: 8, marginLeft: 8 }}>
+        <Col flex="auto" style={{ paddingRight: 8 }}>
           <Row>
             <Col span={12}>
               <Select
@@ -293,14 +244,12 @@ export const AttrGetterForm = observer(
                 status={attr === undefined ? "error" : ""}
                 onChange={(value, option) => {
                   if (attr === undefined) {
-                    index.addAttrGetter(
-                      new AttrGetter((option as AttrOption).attr, undefined),
-                      index.attrs[attridx] === undefined ? undefined : attridx
+                    addAttr(
+                      new AttrGetter((option as AttrOption).attr, undefined)
                     );
                   } else {
-                    index.attrs[attridx] = new AttrGetter(
-                      (option as AttrOption).attr,
-                      undefined
+                    replaceAttr(
+                      new AttrGetter((option as AttrOption).attr, undefined)
                     );
                   }
                 }}
@@ -310,14 +259,24 @@ export const AttrGetterForm = observer(
               <Select
                 mode="multiple"
                 style={{ width: "100%", marginLeft: 8 }}
-                placeholder="set of values to show (optional - empty to show all)"
+                placeholder={placeholder}
                 options={attrValueOptions}
                 value={attr === undefined ? [] : attr.values || []}
+                status={
+                  mustHasAttrValue &&
+                  (attr === undefined ||
+                    attr.values === undefined ||
+                    attr.values.length === 0)
+                    ? "error"
+                    : ""
+                }
                 onChange={(values) => {
-                  if (values.length === 0) {
-                    attr.values = undefined;
-                  } else {
-                    attr.values = values;
+                  if (attr !== undefined) {
+                    if (values.length === 0) {
+                      attr.values = undefined;
+                    } else {
+                      attr.values = values;
+                    }
                   }
                 }}
               />
@@ -329,27 +288,25 @@ export const AttrGetterForm = observer(
           <Button
             type="link"
             onClick={() => {
-              index.addAttrGetter(
+              addAttr(
                 new AttrGetter(
                   Attribute.fromString(attrOptions[0].value),
                   undefined
-                ),
-                attr === undefined ? undefined : attridx
+                )
               );
             }}
           >
             Add
           </Button>
-          {treeStructure ? (
+          {addChildAttr !== undefined ? (
             <Button
               type="link"
               onClick={() => {
-                index.addChildAttrGetter(
+                addChildAttr(
                   new AttrGetter(
                     Attribute.fromString(attrOptions[0].value),
                     undefined
-                  ),
-                  attr === undefined ? undefined : attridx
+                  )
                 );
               }}
             >
@@ -360,7 +317,7 @@ export const AttrGetterForm = observer(
             danger={true}
             disabled={!isRemovable}
             type="link"
-            onClick={() => index.removeAttrGetter(attridx)}
+            onClick={() => removeAttr()}
           >
             Remove
           </Button>
@@ -371,7 +328,17 @@ export const AttrGetterForm = observer(
 );
 
 export const ZValueForm = observer(
-  ({ exps, args }: { args: BaseReport; exps: Experiment[] }) => {
+  ({
+    exps,
+    zvalues,
+    setZValues,
+    noExpSpecificZValues = false,
+  }: {
+    exps: Experiment[];
+    zvalues: [number | null, AttrGetter[]][];
+    setZValues: (zvalues: [number | null, AttrGetter[]][]) => void;
+    noExpSpecificZValues?: boolean;
+  }) => {
     const classes = useStyles();
 
     const id2exp = useMemo(() => {
@@ -395,10 +362,15 @@ export const ZValueForm = observer(
         ...expoptions.map((x) => x[1]),
         (x: Attribute) => x.asString()
       );
-      expoptions = expoptions.filter(([exp, attrs]) => {
-        _.pullAllBy(attrs, commonOptions, (x: Attribute) => x.asString());
-        return attrs.length > 0;
-      });
+
+      if (noExpSpecificZValues) {
+        expoptions = [];
+      } else {
+        expoptions = expoptions.filter(([exp, attrs]) => {
+          _.pullAllBy(attrs, commonOptions, (x: Attribute) => x.asString());
+          return attrs.length > 0;
+        });
+      }
 
       return commonOptions
         .map((attr) => attr2selectOption(attr, classes))
@@ -417,9 +389,9 @@ export const ZValueForm = observer(
             allowClear={true}
             mode="multiple"
             style={{ width: "100%" }}
-            status={args.nZValues === 0 ? "error" : ""}
+            status={_.sum(zvalues.map((x) => x[1].length)) === 0 ? "error" : ""}
             options={options}
-            value={args.zvalues.flatMap(([expId, attrs]) =>
+            value={zvalues.flatMap(([expId, attrs]) =>
               attrs.map((attr) =>
                 attr2selectValue(
                   attr.attr,
@@ -447,7 +419,7 @@ export const ZValueForm = observer(
                 output.get(expId)!.push(new AttrGetter(attr, undefined));
               }
 
-              args.zvalues = Array.from(output.entries());
+              setZValues(Array.from(output.entries()));
             }}
           />
         </Col>
@@ -455,6 +427,87 @@ export const ZValueForm = observer(
     );
   }
 );
+
+/**
+ * Return a list of attributes that can be selected
+ *
+ * @param exps
+ * @param classes
+ * @returns
+ */
+export const useAttrOptions = (
+  exps: Experiment[],
+  classes: ReturnType<typeof useStyles>
+) => {
+  return useMemo(() => {
+    let options = exps.flatMap((exp) => {
+      return ParamSchema.mergeSchemas(exp.params)
+        .leafAttributes()
+        .map((attr) => attr.prepend(ATTRNAME_PARAMS))
+        .concat(
+          exp.aggregatedPrimitiveOutputs
+            .leafAttributes()
+            .map((attr) => attr.prepend(ATTRNAME_AGGREGATED_PRIMITIVE_OUTPUTS))
+        );
+    });
+    options = _.uniqBy(options, (attr) => attr.asString());
+    options.push(expNameAttribute);
+    return options.map((attr) => attr2selectOption(attr, classes));
+  }, [exps]);
+};
+
+/**
+ * Return a mapping from an attribute to a list of its values
+ */
+export const useAttrValueOptions = (
+  exps: Experiment[],
+  attrs: AttrGetter[]
+) => {
+  const { reportStore } = useStores();
+  const [attrValueOptions, setAttrValueOptions] = useState<
+    Map<string, AttrValueOption[]>
+  >(new Map());
+
+  const hookKey = attrs.map((a) => a.attr.asString()).join("-");
+  useEffect(() => {
+    const expIds = exps.map((e) => e.id);
+    const promises: Promise<[string, AttrValueOption[]]>[] = [];
+    for (const attr of attrs) {
+      const attrId = attr.attr.asString();
+      if (attrId === expNameAttribute.asString()) {
+        // special case for experiment name, do not need to query the server
+        // as this changes dynamically, every time the user selects or adds an experiment
+        promises.push(
+          Promise.resolve([
+            attrId,
+            exps.map((e) => ({ value: e.id, label: e.name })),
+          ])
+        );
+      } else if (!attrValueOptions.has(attrId)) {
+        promises.push(
+          reportStore.fetchAttrValues(attr.attr, expIds).then((values) => {
+            return [
+              attrId,
+              values.map((v) => ({ label: (v || "").toString(), value: v })),
+            ];
+          })
+        );
+      }
+    }
+
+    Promise.all(promises).then((results) => {
+      const newAttrOptions = new Map(results);
+      for (const [attrId, values] of attrValueOptions.entries()) {
+        if (!newAttrOptions.has(attrId)) {
+          newAttrOptions.set(attrId, values);
+        }
+      }
+      setAttrValueOptions(newAttrOptions);
+    });
+  }, [exps, hookKey]);
+
+  return attrValueOptions;
+};
 
 const treeRecurBuild = (
   i: number,
@@ -466,17 +519,36 @@ const treeRecurBuild = (
     key: i,
     title: (
       <AttrGetterForm
-        attridx={i}
+        attr={index.attrs[i]}
         isRemovable={
           index.attrs.length > 1 && index.getTreeSize(i) !== index.attrs.length
         }
-        index={index}
         attrOptions={attrOptions}
         attrValueOptions={
           index.attrs[i] === undefined
             ? []
             : attrValueOptions.get(index.attrs[i].attr.asString()) || []
         }
+        addAttr={(attr: AttrGetter) => {
+          index.addAttrGetter(
+            attr,
+            index.attrs[i] === undefined ? undefined : i
+          );
+        }}
+        addChildAttr={(attr: AttrGetter) => {
+          index.addChildAttrGetter(
+            attr,
+            index.attrs[i] === undefined ? undefined : i
+          );
+        }}
+        replaceAttr={(attr: AttrGetter) => {
+          index.attrs[i] = attr;
+        }}
+        removeAttr={() => {
+          if (index.attrs[i] !== undefined) {
+            index.removeAttrGetter(i);
+          }
+        }}
       />
     ),
     children: (index.index2children[i] || []).map((ci) =>
@@ -485,7 +557,7 @@ const treeRecurBuild = (
   };
 };
 
-const attr2selectOption = (
+export const attr2selectOption = (
   attr: Attribute,
   classes: ReturnType<typeof useStyles>,
   exp?: Experiment

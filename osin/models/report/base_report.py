@@ -108,4 +108,4 @@ class ReportDataPoint:
     y: IndexElement
     z: Attr
     record_id: int
-    record_value: AttrValue
+    record_value: AttrValue | float

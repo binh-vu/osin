@@ -169,6 +169,10 @@ export class BaseReport {
     });
   }
 
+  static default(): BaseReport {
+    return new BaseReport(IndexSchema.empty(), IndexSchema.empty(), []);
+  }
+
   get nZValues(): number {
     return this.zvalues.map((x) => x[1].length).reduce((a, b) => a + b, 0);
   }
@@ -186,13 +190,80 @@ export class BaseReport {
     this.xaxis = this.yaxis;
     this.yaxis = tmp;
   }
+
+  isValid(): boolean {
+    return (
+      this.xaxis.attrs.length > 0 &&
+      this.yaxis.attrs.length > 0 &&
+      this.nZValues > 0
+    );
+  }
+}
+
+export class RecordFilter {
+  isIn: AttrGetter[];
+
+  public constructor(isIn: AttrGetter[]) {
+    this.isIn = isIn;
+
+    makeObservable(this, {
+      isIn: observable,
+    });
+  }
+
+  clone(): RecordFilter {
+    return new RecordFilter(this.isIn.map((x) => x.clone()));
+  }
+}
+
+export type AutoTableReportGroup = [string, RecordFilter];
+
+export class AutoTableReport {
+  groups: AutoTableReportGroup[];
+  zvalues: AttrGetter[];
+  ignoreListAttr: boolean;
+
+  public constructor(
+    groups: AutoTableReportGroup[],
+    zvalues: AttrGetter[],
+    ignoreListAttr: boolean
+  ) {
+    this.groups = groups;
+    this.zvalues = zvalues;
+    this.ignoreListAttr = ignoreListAttr;
+
+    makeObservable(this, {
+      groups: observable,
+      zvalues: observable,
+      ignoreListAttr: observable,
+    });
+  }
+
+  static default(): AutoTableReport {
+    return new AutoTableReport([["", new RecordFilter([])]], [], true);
+  }
+
+  clone(): AutoTableReport {
+    return new AutoTableReport(
+      this.groups.map((x) => [x[0], x[1].clone()]),
+      this.zvalues.map((x) => x.clone()),
+      this.ignoreListAttr
+    );
+  }
+
+  isValid(): boolean {
+    return this.groups.length > 0 && this.zvalues.length > 0;
+  }
 }
 
 export class ReportTableArgs {
-  type: "table";
-  value: BaseReport;
+  type: "table" | "auto_table";
+  value: BaseReport | AutoTableReport;
 
-  public constructor(type: "table", value: BaseReport) {
+  public constructor(
+    type: "table" | "auto_table",
+    value: BaseReport | AutoTableReport
+  ) {
     this.type = type;
     this.value = value;
 
