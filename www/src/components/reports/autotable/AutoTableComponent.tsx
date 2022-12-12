@@ -34,7 +34,8 @@ const useStyles = makeStyles({
     padding: "4px 0px !important",
     textAlign: "center",
     fontWeight: 700,
-    color: "rgba(0, 0, 0, 0.45) !important",
+    color: "rgba(0, 0, 0, 0.55) !important",
+    backgroundColor: "#f9f0ff",
   },
   uselessHeader: {
     borderTop: "none !important",
@@ -266,9 +267,8 @@ function useTable(
       const attrHeader = attrHeaders[gi];
       for (let i = 0; i < attrHeader.length; i++) {
         for (let j = attrHeaderWidth; j < width; j++) {
-          cells[i + startrow][attrHeaderWidth].th = true;
-          cells[i + startrow][attrHeaderWidth].className =
-            classes.uselessHeader;
+          cells[i + startrow][j].th = true;
+          cells[i + startrow][j].className = classes.uselessHeader;
         }
         for (let j = 0; j < attrHeader[0].length; j++) {
           cells[i + startrow][j] = {
@@ -284,7 +284,7 @@ function useTable(
       for (let i = 0; i < groupData.length; i++) {
         const row = groupData[i][0];
         const recordIds = groupData[i].map((r) => r.recordId);
-        for (let j = 0; j < attrHeaders[0].length; j++) {
+        for (let j = 0; j < attrHeader[0].length; j++) {
           const label = row.headers[j];
           cells[i + startrow][j].label = label === null ? "<null>" : label;
         }
@@ -367,6 +367,10 @@ function buildHeader(
   // so we need to disable spanning in that case.
   if (attrs.slice(1).every((a, i) => !a.isChildOf(attrs[i]))) {
     const cmpLevel = ArrayHelper.zeros(height);
+    if (attrs[0].path.length < height) {
+      headers[attrs[0].path.length - 1][0].rowSpan =
+        height - attrs[0].path.length + 1;
+    }
     for (let j = 1; j < attrs.length; j++) {
       const attr = attrs[j];
       let hasMatched = true;

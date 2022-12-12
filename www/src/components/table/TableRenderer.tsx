@@ -66,6 +66,9 @@ export const Render = {
     if (value === undefined || value === null) {
       return EmptyToken;
     }
+    if (Number.isInteger(value)) {
+      return value.toString();
+    }
     return value.toLocaleString(undefined, { minimumFractionDigits: 3 });
   },
   datetimeFmt1: (dt: Date) => {
