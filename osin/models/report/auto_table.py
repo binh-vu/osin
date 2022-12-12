@@ -74,7 +74,7 @@ class AutoTableReport:
             diff_attrs: list[AttrGetter] = self.find_diff_attrs(matched_records)
             rows = []
             for record in matched_records:
-                row = AutoTableReportRowData([], [])
+                row = AutoTableReportRowData(record.id, [], [])
                 for attr in diff_attrs:
                     value = attr.get_value(record)
                     assert value is not MISSING
@@ -161,11 +161,13 @@ class AutoTableReportGroupData:
 
 @dataclass
 class AutoTableReportRowData:
+    record_id: int
     headers: list[AttrValue | float]
     values: list[AttrValue | float]
 
     def to_dict(self):
         return {
+            "record_id": self.record_id,
             "headers": self.headers,
             "values": self.values,
         }

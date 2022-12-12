@@ -165,13 +165,16 @@ export class ReportData {
 }
 
 export class AutoTableReportRowData {
+  recordId: number;
   headers: (string | boolean | number | null)[];
   values: (string | boolean | number | null)[];
 
   constructor(
+    recordId: number,
     headers: (string | boolean | number | null)[],
     values: (string | boolean | number | null)[]
   ) {
+    this.recordId = recordId;
     this.headers = headers;
     this.values = values;
   }
@@ -189,7 +192,9 @@ export class AutoTableReportGroupData {
   static deserialize(obj: any) {
     return new AutoTableReportGroupData(
       obj.attr_headers.map((a: any) => new Attribute(a)),
-      obj.rows.map((r: any) => new AutoTableReportRowData(r.headers, r.values))
+      obj.rows.map(
+        (r: any) => new AutoTableReportRowData(r.record_id, r.headers, r.values)
+      )
     );
   }
 }

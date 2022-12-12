@@ -41,6 +41,24 @@ export const ArrayHelper = {
     }
     return arr;
   },
+  sum: (arr: number[]) => {
+    let sum = 0;
+    for (const x of arr) {
+      sum += x;
+    }
+    return sum;
+  },
+  mean: (arr: number[]) => {
+    return ArrayHelper.sum(arr) / arr.length;
+  },
+  std: (arr: number[], mean?: number) => {
+    mean = mean || ArrayHelper.mean(arr);
+    let sum = 0;
+    for (const x of arr) {
+      sum += (x - mean) ** 2;
+    }
+    return Math.sqrt(sum / arr.length);
+  },
 };
 
 export const Filter = {

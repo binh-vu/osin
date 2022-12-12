@@ -1,5 +1,5 @@
 import _ from "lodash";
-import { ArrayHelper } from "misc";
+import { BaseCell, BaseTable } from "../basetable";
 import {
   AttrValue,
   Index,
@@ -7,7 +7,6 @@ import {
   ReportData,
   ReportDataPoint,
 } from "../ReportData";
-import { BaseCell, BaseTable } from "../basetable/BaseTableComponent";
 
 export class Table<C extends BaseCell<ReportDataPoint[]>> extends BaseTable<
   C,

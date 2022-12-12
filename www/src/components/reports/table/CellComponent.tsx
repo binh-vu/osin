@@ -1,16 +1,20 @@
 import { blue, gold, green, red } from "@ant-design/colors";
 import { faHighlighter } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { AttrValue, ReportDataPoint } from "components/reports/ReportData";
+import {
+  Attribute,
+  AttrValue,
+  ReportDataPoint,
+} from "components/reports/ReportData";
 import _ from "lodash";
 import { AttrGetter } from "models/reports";
 import { Table } from "./TableBuilder";
 import Rainbow from "rainbowvis.js";
 import { Descriptions, Typography } from "antd";
 import { useMemo } from "react";
-import { TableComponent } from "components/table";
+import { Render, TableComponent } from "components/table";
 import { HighlightMode } from "./ReportTableRenderConfig";
-import { BaseCell } from "../basetable/BaseTableComponent";
+import { BaseCell } from "../basetable";
 
 export interface Cell extends BaseCell<ReportDataPoint[]> {
   // for highlighting cell, not put in style because
@@ -35,6 +39,7 @@ export const cellFactory = (): Cell => {
     col: 0,
     highlight: {},
     data: [],
+    style: {},
   };
 };
 
@@ -77,6 +82,8 @@ export const CellComponent = ({
       }
     }
 
+    const label =
+      typeof cell.label === "object" ? cell.label : Render.auto(cell.label);
     return (
       <th
         style={cell.style}
@@ -85,7 +92,7 @@ export const CellComponent = ({
         onClick={(e) => onClick(cell)}
         className={cell.className}
       >
-        <span>{cell.label.toString()}</span>
+        <span>{label}</span>
         {extra}
       </th>
     );
@@ -148,14 +155,14 @@ export const CellStatistics = ({
 }: {
   table: Table<Cell>;
   cell: Cell;
-  zvalues: [number | null, AttrGetter[]][];
+  zvalues: [number | null, Attribute[]][];
   zstyle: "column" | "row" | "embedded";
   renderRecordId?: (recordId: number) => React.ReactNode;
 }) => {
   // TODO: this code is written in a hurry, surely will contain bugs
   const zLabels = useMemo(() => {
     return zvalues.flatMap(([_, attrs]) =>
-      attrs.map((attr) => attr.attr.asString())
+      attrs.map((attr) => attr.asString())
     );
   }, [zvalues]);
 
@@ -253,11 +260,11 @@ export const CellStatistics = ({
 
 export function imputeCellData(
   table: Table<Cell>,
-  zvalues: [number | null, AttrGetter[]][],
+  zvalues: [number | null, Attribute[]][],
   style: "column" | "row" | "embedded"
 ) {
   const zLabels = zvalues.flatMap(([_, attrs]) =>
-    attrs.map((attr) => attr.attr.getLabel())
+    attrs.map((attr) => attr.getLabel())
   );
 
   if (zLabels.length > 1) {

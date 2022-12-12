@@ -91,20 +91,34 @@ export const PreviewReportComponent = observer(
       return <LoadingComponent msg="Loading preview..." />;
     }
 
+    const reportKey = `preview-${expId}-${
+      report instanceof DraftUpdateReport ? report.id : report.draftID
+    }`;
+
     if (data instanceof ReportData && report.args.value instanceof BaseReport) {
       return (
         <TableComponent
-          recordKey={`preview-${expId}-${
-            report instanceof DraftUpdateReport ? report.id : report.draftID
-          }`}
+          reportKey={reportKey}
           reportData={data}
-          zvalues={report.args.value.zvalues}
           title={`Table. ${report.name}`}
-          editURL={{
-            path: routes.updatereport,
-            urlArgs: { expId, reportId: -1 },
-            queryArgs: {},
-          }}
+          editURL={
+            report instanceof DraftUpdateReport
+              ? {
+                  path: routes.updatereport,
+                  urlArgs: { expId, reportId: report.id },
+                  queryArgs: {},
+                }
+              : undefined
+          }
+          viewURL={
+            report instanceof DraftUpdateReport
+              ? {
+                  path: routes.viewreport,
+                  urlArgs: { expId, reportId: report.id },
+                  queryArgs: {},
+                }
+              : undefined
+          }
           renderRecordId={(recordId: number) => {
             return (
               <InternalLink
@@ -126,7 +140,29 @@ export const PreviewReportComponent = observer(
       report.args.value instanceof AutoTableReport
     ) {
       return (
-        <AutoTableComponent reportData={data} title={`Table. ${report.name}`} />
+        <AutoTableComponent
+          reportKey={reportKey}
+          reportData={data}
+          title={`Table. ${report.name}`}
+          editURL={
+            report instanceof DraftUpdateReport
+              ? {
+                  path: routes.updatereport,
+                  urlArgs: { expId, reportId: report.id },
+                  queryArgs: {},
+                }
+              : undefined
+          }
+          viewURL={
+            report instanceof DraftUpdateReport
+              ? {
+                  path: routes.viewreport,
+                  urlArgs: { expId, reportId: report.id },
+                  queryArgs: {},
+                }
+              : undefined
+          }
+        />
       );
     }
 

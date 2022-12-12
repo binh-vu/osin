@@ -7,7 +7,7 @@ import {
   TableComponent,
 } from "components/reports";
 import { AutoTableComponent } from "components/reports/autotable/AutoTableComponent";
-import { Footnote } from "components/reports/basetable/BaseTableComponent";
+import { Footnote } from "components/reports/basetable/BaseComponents";
 import { SERVER } from "env";
 import { InternalLink, LoadingComponent } from "gena-app";
 import { useStores } from "models";
@@ -100,12 +100,16 @@ export const ReportComponent = forwardRef(
       return (
         <div className={classes.root}>
           <TableComponent
-            recordKey={report.id.toString()}
+            reportKey={report.id.toString()}
             reportData={data}
-            zvalues={report.args.value.zvalues}
             title={`Table ${report.id}. ${report.name}`}
             editURL={{
               path: routes.updatereport,
+              urlArgs: { expId, reportId: report.id },
+              queryArgs: {},
+            }}
+            viewURL={{
+              path: routes.viewreport,
               urlArgs: { expId, reportId: report.id },
               queryArgs: {},
             }}
@@ -133,28 +137,19 @@ export const ReportComponent = forwardRef(
     ) {
       return (
         <AutoTableComponent
+          reportKey={report.id.toString()}
           reportData={data}
           title={`Table ${report.id}. ${report.name}`}
-          footnote={
-            <Footnote
-              actions={[
-                <InternalLink
-                  path={routes.viewreport}
-                  urlArgs={{ expId, reportId: report.id }}
-                  queryArgs={{}}
-                >
-                  view
-                </InternalLink>,
-                <InternalLink
-                  path={routes.updatereport}
-                  urlArgs={{ expId, reportId: report.id }}
-                  queryArgs={{}}
-                >
-                  edit
-                </InternalLink>,
-              ]}
-            />
-          }
+          editURL={{
+            path: routes.updatereport,
+            urlArgs: { expId, reportId: report.id },
+            queryArgs: {},
+          }}
+          viewURL={{
+            path: routes.viewreport,
+            urlArgs: { expId, reportId: report.id },
+            queryArgs: {},
+          }}
         />
       );
     }

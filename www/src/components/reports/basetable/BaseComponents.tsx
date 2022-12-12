@@ -1,6 +1,10 @@
 import { makeStyles } from "@mui/styles";
+import { Tag, Tooltip } from "antd";
 import { Render } from "components/table/TableRenderer";
-import { getClassName } from "misc";
+import { ArrayHelper, getClassName } from "misc";
+import { useMemo } from "react";
+import { BaseCell, BaseData } from "./BaseCell";
+import { BaseTable } from "./BaseTable";
 
 const useTableStyles = makeStyles({
   root: {
@@ -20,7 +24,10 @@ const useTableStyles = makeStyles({
     border: "1px solid #ddd",
     "& td,th": {
       border: "1px solid #ddd",
+    },
+    "& td": {
       textAlign: "left",
+      position: "relative",
     },
   },
   smallTable: {
@@ -65,105 +72,6 @@ const useFooterStyles = makeStyles({
   },
 });
 
-export interface BaseCell<D> {
-  // the cell value.
-  label: string | number | boolean;
-  // data associated with this cell.
-  data: D;
-  // the row and column index of this cell.
-  row: number;
-  col: number;
-  // whether this cell is a header cell.
-  th: boolean;
-  // whether this cell is a meta header cell (describing other header cell).
-  metaTh: boolean;
-  // row/column span of this cell.
-  rowSpan: number;
-  colSpan: number;
-  // the style and class attributes of this cell.
-  style?: React.CSSProperties;
-  className?: string;
-}
-
-export class BaseTable<C extends BaseCell<D>, D> {
-  data: C[][];
-  nrows: number;
-  ncols: number;
-
-  constructor(data: C[][], nrows: number, ncols: number) {
-    this.data = data;
-    this.nrows = nrows;
-    this.ncols = ncols;
-  }
-
-  clone() {
-    return new BaseTable(
-      this.data.map((row) => row.map((cell) => ({ ...cell }))),
-      this.nrows,
-      this.ncols
-    );
-  }
-
-  /** Get a cell by its position in the table. This is useful when the structure of the table has been changed */
-  getCell = (row: number, col: number): C => {
-    for (let i = 0; i < this.data.length; i++) {
-      for (let j = 0; j < this.data[i].length; j++) {
-        const cell = this.data[i][j];
-        if (cell.row === row && cell.col === col) {
-          return cell;
-        }
-      }
-    }
-    throw new Error("Cell not found");
-  };
-
-  /**
-   * For html table spanning to work correctly, if the cell is column spanned, then the cell on the right
-   * must be removed. If the cell is row spanned, then the cell below must be removed.
-   *
-   * This simple algorithm works by first creating a flag table, in which each cell is marked as false
-   * if it is supposted to be removed. Then the table is traversed from top to bottom, left to right, and
-   * remove the cell if it is marked as true.
-   *
-   * Note that this function implies when the cell is spanned, the cell on the right/below must be removed regardless
-   * of its span.
-   */
-  fixSpanning() {
-    if (this.data.length === 0) {
-      return this;
-    }
-    const flags: boolean[][] = [];
-
-    for (let i = 0; i < this.nrows; i++) {
-      flags.push([]);
-      for (let j = 0; j < this.ncols; j++) {
-        flags[i].push(true);
-      }
-    }
-
-    for (let i = this.nrows - 1; i >= 0; i--) {
-      for (let j = this.ncols - 1; j >= 0; j--) {
-        const cell = this.data[i][j];
-        if (cell.rowSpan === 1 && cell.colSpan === 1) {
-          continue;
-        }
-        for (let u = 0; u < cell.rowSpan; u++) {
-          for (let v = 0; v < cell.colSpan; v++) {
-            flags[i + u][j + v] = false;
-          }
-        }
-        flags[i][j] = true;
-      }
-    }
-
-    for (let i = 0; i < this.nrows; i++) {
-      this.data[i] = this.data[i].filter((_, j: number) => flags[i][j]);
-    }
-
-    return this;
-  }
-}
-
 /**
  * A base component to render a table-based report.
  */
@@ -181,11 +89,15 @@ export const BaseTableComponent = <
   title?: string | React.ReactNode;
   footnote?: string | React.ReactNode;
   table: T;
-  cellProps?: React.HTMLAttributes<HTMLTableCellElement>;
+  cellProps?: Omit<React.HTMLAttributes<HTMLTableCellElement>, "onClick"> & {
+    onClick?: (cell: C, table: T) => void;
+  };
   renderCell?: (
     cell: C,
     table: T,
-    cellProps?: React.HTMLAttributes<HTMLTableCellElement>
+    cellProps?: Omit<React.HTMLAttributes<HTMLTableCellElement>, "onClick"> & {
+      onClick?: (cell: C, table: T) => void;
+    }
   ) => React.ReactElement;
 }) => {
   const classes = useTableStyles();
@@ -194,6 +106,7 @@ export const BaseTableComponent = <
       <BaseCellComponent
         key={`${cell.row}-${cell.col}`}
         cell={cell}
+        table={table}
         {...cellProps}
       />
     );
@@ -225,15 +138,24 @@ export const BaseTableComponent = <
   );
 };
 
-export const BaseCellComponent = <C extends BaseCell<D>, D>({
+export const BaseCellComponent = <
+  T extends BaseTable<C, D>,
+  C extends BaseCell<D>,
+  D
+>({
   cell,
+  table,
   children,
+  onClick,
   ...cellHTMLProps
 }: {
   cell: C;
+  table: T;
   children?: React.ReactNode;
-} & React.HTMLAttributes<HTMLTableCellElement>) => {
-  const label = Render.auto(cell.label);
+  onClick?: (cell: C, table: T) => void;
+} & Omit<React.HTMLAttributes<HTMLTableCellElement>, "onClick">) => {
+  const label =
+    typeof cell.label === "object" ? cell.label : Render.auto(cell.label);
   if (cell.th) {
     return (
       <th
@@ -241,10 +163,10 @@ export const BaseCellComponent = <C extends BaseCell<D>, D>({
         style={cell.style}
         rowSpan={cell.rowSpan}
         colSpan={cell.colSpan}
+        onClick={onClick !== undefined ? () => onClick(cell, table) : undefined}
         {...cellHTMLProps}
       >
         {label}
-        {children}
       </th>
     );
   }
@@ -255,12 +177,55 @@ export const BaseCellComponent = <C extends BaseCell<D>, D>({
       style={cell.style}
       rowSpan={cell.rowSpan}
       colSpan={cell.colSpan}
+      onClick={onClick !== undefined ? () => onClick(cell, table) : undefined}
       {...cellHTMLProps}
     >
       {label}
-      {children}
     </td>
   );
+};
+
+export const BaseCellLabelComponent = ({ data }: { data: BaseData }) => {
+  const obj = data.computeData();
+  if (obj.type === "number") {
+    if (obj.size === 1 || obj.std <= 1e-9) {
+      return (
+        <Tooltip title={`Value: ${obj.mean}`}>{obj.mean.toFixed(3)}</Tooltip>
+      );
+    }
+
+    return (
+      <Tooltip
+        title={
+          <>
+            <b>Mean:</b> {obj.mean}
+            <br />
+            <b>Std:</b> {obj.std}
+            <br />
+            <b>CI:</b> {obj.ci}
+            <br />
+            <b>Size:</b> {obj.size}
+          </>
+        }
+      >
+        {obj.mean.toFixed(3)} ± {obj.ci.toFixed(3)}
+      </Tooltip>
+    );
+  }
+
+  if (obj.type === "single") {
+    return <span>{obj.value}</span>;
+  }
+
+  if (obj.type === "mixed") {
+    return (
+      <Tag color="error">
+        can't render mixed-typed or multi non-numeric values
+      </Tag>
+    );
+  }
+
+  throw new Error("Unreachable");
 };
 
 /** Footnote of a table */
@@ -272,10 +237,11 @@ export const Footnote = ({
   actions: React.ReactNode[];
 }) => {
   const classes = useFooterStyles();
+  const validActions = actions.filter((a) => a !== undefined);
   const newActions = [];
-  for (let i = 0; i < actions.length; i++) {
-    newActions.push(<span key={i}>{actions[i]}</span>);
-    if (i < actions.length - 1) {
+  for (let i = 0; i < validActions.length; i++) {
+    newActions.push(<span key={i}>{validActions[i]}</span>);
+    if (i < validActions.length - 1) {
       newActions.push(
         <span key={`${i}-sep`} className={classes.actionSep}>
           &#183;

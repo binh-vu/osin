@@ -23,7 +23,7 @@ import {
   ZValueStyle,
 } from "./ReportTableRenderConfig";
 import { toJS } from "mobx";
-import { BaseTableComponent } from "../basetable/BaseTableComponent";
+import { BaseTableComponent, Footnote } from "../basetable/BaseComponents";
 
 const useStyles = makeStyles({
   root: {},
@@ -87,19 +87,24 @@ export const TableComponent = observer(
     U extends Record<string, keyof ArgType>,
     Q extends Record<string, keyof ArgType>
   >({
-    recordKey,
+    reportKey,
     title,
     editURL,
     reportData,
     defaultZValueStyle = "column",
     defaultHighlightMode = "row-best",
-    zvalues,
     onReload,
     renderRecordId,
+    viewURL,
   }: {
-    recordKey: string;
+    reportKey: string;
     title: string | React.ReactElement;
-    editURL: {
+    viewURL?: {
+      path: PathDef<U, Q>;
+      urlArgs: ArgSchema<U>;
+      queryArgs: ArgSchema<Q>;
+    };
+    editURL?: {
       path: PathDef<U, Q>;
       urlArgs: ArgSchema<U>;
       queryArgs: ArgSchema<Q>;
@@ -107,75 +112,23 @@ export const TableComponent = observer(
     reportData: ReportData;
     defaultZValueStyle?: ZValueStyle;
     defaultHighlightMode?: HighlightMode;
-    zvalues: [number | null, AttrGetter[]][];
     onReload?: () => void;
     renderRecordId?: (recordId: number) => React.ReactNode;
   }) => {
     const classes = useStyles();
-    if (!reportTableRenderConfigStore.configs.has(recordKey)) {
+    if (!reportTableRenderConfigStore.configs.has(reportKey)) {
       reportTableRenderConfigStore.configs.set(
-        recordKey,
+        reportKey,
         new ReportTableRenderConfig(defaultZValueStyle, defaultHighlightMode)
       );
     }
     const reportTableRenderConfig =
-      reportTableRenderConfigStore.configs.get(recordKey)!;
+      reportTableRenderConfigStore.configs.get(reportKey)!;
 
     const [showCell, setShowCell] = useState<undefined | Cell>(undefined);
+    const table = useTable(reportData, reportTableRenderConfig);
 
-    const table1: Table<Cell> | string = useMemo(() => {
-      try {
-        let nExtraRowHeaderCol = 0;
-        let nExtraColHeaderRow = 0;
-        let rowHeaderScale = 1;
-        let colHeaderScale = 1;
-
-        const nZValues = _.sum(zvalues.map(([_, a]) => a.length));
-        if (nZValues > 1) {
-          if (reportTableRenderConfig.zvalueStyle === "column") {
-            nExtraColHeaderRow = 1;
-            colHeaderScale = nZValues;
-          } else if (reportTableRenderConfig.zvalueStyle === "row") {
-            nExtraRowHeaderCol = 1;
-            rowHeaderScale = nZValues;
-          } else {
-            const x = Math.ceil(Math.sqrt(nZValues));
-            colHeaderScale = x;
-            rowHeaderScale = x;
-          }
-        }
-
-        const table = new TableBuilder(reportData, cellFactory).build(
-          nExtraRowHeaderCol,
-          nExtraColHeaderRow,
-          rowHeaderScale,
-          colHeaderScale
-        );
-        imputeCellData(table, zvalues, reportTableRenderConfig.zvalueStyle);
-        return table;
-      } catch (e: any) {
-        console.error(e);
-        return e.toString();
-      }
-    }, [reportData, reportTableRenderConfig.zvalueStyle]);
-
-    const table: Table<Cell> | string = useMemo(() => {
-      if (typeof table1 === "string") {
-        return table1;
-      }
-
-      try {
-        return styleTable(
-          highlightTable(table1.clone(), reportTableRenderConfig.highlight),
-          classes
-        ).fixSpanning();
-      } catch (e: any) {
-        console.error(e);
-        return e.toString();
-      }
-    }, [table1, reportTableRenderConfig.highlight]);
-
-    if (typeof table === "string" || typeof table1 === "string") {
+    if (typeof table === "string") {
       // error while building table, put the or so that typescript knows table1 must also be a string
       return (
         <Alert
@@ -235,6 +188,14 @@ export const TableComponent = observer(
       }
     };
 
+    let footnote = "";
+    if (
+      reportData.zvalues.length === 1 &&
+      reportData.zvalues[0][1].length === 1
+    ) {
+      footnote = `*each cell shows the average of ${reportData.zvalues[0][1][0].getLabel()}`;
+    }
+
     return (
       <div className={classes.root}>
         <BaseTableComponent<Cell, Table<Cell>, ReportDataPoint[]>
@@ -251,15 +212,83 @@ export const TableComponent = observer(
           )}
           footnote={
             <Footnote
-              editURL={editURL}
-              classes={classes}
-              highlight={reportTableRenderConfig.highlight}
-              setHighlight={(highlight) => {
-                reportTableRenderConfig.highlight = highlight;
-              }}
-              zvalues={zvalues}
-              onReload={onReload}
-              renderConfig={reportTableRenderConfig}
+              note={footnote}
+              actions={[
+                viewURL !== undefined ? (
+                  <InternalLink
+                    path={viewURL.path}
+                    urlArgs={viewURL.urlArgs}
+                    queryArgs={viewURL.queryArgs}
+                  >
+                    view
+                  </InternalLink>
+                ) : undefined,
+                editURL !== undefined ? (
+                  <InternalLink
+                    path={editURL.path}
+                    urlArgs={editURL.urlArgs}
+                    queryArgs={editURL.queryArgs}
+                  >
+                    edit
+                  </InternalLink>
+                ) : undefined,
+                <Dropdown
+                  menu={{
+                    items: (highlightModes as string[]).map((mode: string) => ({
+                      label: mode,
+                      key: mode,
+                    })),
+                    selectedKeys:
+                      typeof reportTableRenderConfig.highlight === "string"
+                        ? [reportTableRenderConfig.highlight]
+                        : [],
+                    onClick: ({ key }) => {
+                      reportTableRenderConfig.highlight = key as HighlightMode;
+                    },
+                  }}
+                >
+                  <a>highlight</a>
+                </Dropdown>,
+                <Dropdown
+                  menu={{
+                    items: [
+                      {
+                        label: "reload",
+                        key: "reload",
+                        disabled: onReload === undefined,
+                      },
+                      {
+                        label: "z-value displayed style",
+                        key: "zstyle",
+                        children: [
+                          {
+                            label: "show in columns",
+                            key: "zstyle.column",
+                          },
+                          {
+                            label: "show in rows",
+                            key: "zstyle.row",
+                          },
+                        ],
+                      },
+                    ],
+                    selectedKeys: [
+                      `zstyle.${reportTableRenderConfig.zvalueStyle}`,
+                    ],
+                    onClick: ({ key, keyPath }) => {
+                      if (key.startsWith("zstyle.")) {
+                        reportTableRenderConfig.zvalueStyle = key.slice(
+                          "zstyle.".length
+                        ) as ZValueStyle;
+                      } else if (key === "reload" && onReload !== undefined) {
+                        onReload();
+                      }
+                    },
+                  }}
+                >
+                  <a>more</a>
+                </Dropdown>,
+              ]}
             />
           }
         />
@@ -274,8 +303,8 @@ export const TableComponent = observer(
           {showCell !== undefined ? (
             <CellStatistics
               cell={showCell}
-              table={table1}
-              zvalues={zvalues}
+              table={table}
+              zvalues={reportData.zvalues}
               zstyle={reportTableRenderConfig.zvalueStyle}
               renderRecordId={renderRecordId}
             />
@@ -290,6 +319,8 @@ function useTable(
   reportData: ReportData,
   renderConfig: ReportTableRenderConfig
 ) {
+  const classes = useStyles();
+
   const table1: Table<Cell> | string = useMemo(() => {
     try {
       let nExtraRowHeaderCol = 0;
@@ -318,13 +349,31 @@ function useTable(
         rowHeaderScale,
         colHeaderScale
       );
-      // imputeCellData(table, reportData.zvalues, renderConfig.zvalueStyle);
+      imputeCellData(table, reportData.zvalues, renderConfig.zvalueStyle);
       return table;
     } catch (e: any) {
       console.error(e);
       return e.toString();
     }
   }, [reportData, renderConfig.zvalueStyle]);
+
+  const table2: Table<Cell> | string = useMemo(() => {
+    if (typeof table1 === "string") {
+      return table1;
+    }
+
+    try {
+      return styleTable(
+        highlightTable(table1.clone(), renderConfig.highlight),
+        classes
+      ).fixSpanning();
+    } catch (e: any) {
+      console.error(e);
+      return e.toString();
+    }
+  }, [table1, renderConfig.highlight]);
+
+  return table2;
 }
 
 function styleTable<C extends Cell>(
@@ -357,99 +406,3 @@ function styleTable<C extends Cell>(
   }
   return table;
 }
-
-export const Footnote = observer(
-  <
-    U extends Record<string, keyof ArgType>,
-    Q extends Record<string, keyof ArgType>
-  >({
-    editURL,
-    classes,
-    highlight,
-    setHighlight,
-    zvalues,
-    onReload,
-    renderConfig,
-  }: {
-    editURL: {
-      path: PathDef<U, Q>;
-      urlArgs: ArgSchema<U>;
-      queryArgs: ArgSchema<Q>;
-    };
-    classes: ReturnType<typeof useStyles>;
-    highlight: HighlightMode;
-    setHighlight: (highlight: HighlightMode) => void;
-    zvalues: [number | null, AttrGetter[]][];
-    onReload?: () => void;
-    renderConfig: ReportTableRenderConfig;
-  }) => {
-    let desc = "";
-    if (zvalues.length === 1 && zvalues[0][1].length === 1) {
-      desc = `*each cell shows the average of ${zvalues[0][1][0].attr.getLabel()} - `;
-    }
-
-    return (
-      <>
-        {desc}
-        <InternalLink
-          path={editURL.path}
-          urlArgs={editURL.urlArgs}
-          queryArgs={editURL.queryArgs}
-        >
-          edit
-        </InternalLink>
-        <span className={classes.actionSep}>&#183;</span>
-        <Dropdown
-          menu={{
-            items: (highlightModes as string[]).map((mode: string) => ({
-              label: mode,
-              key: mode,
-            })),
-            selectedKeys: typeof highlight === "string" ? [highlight] : [],
-            onClick: ({ key }) => setHighlight(key as HighlightMode),
-          }}
-        >
-          <a>highlight</a>
-        </Dropdown>
-        <span className={classes.actionSep}>&#183;</span>
-        <Dropdown
-          menu={{
-            items: [
-              {
-                label: "reload",
-                key: "reload",
-                disabled: onReload === undefined,
-              },
-              {
-                label: "z-value displayed style",
-                key: "zstyle",
-                children: [
-                  {
-                    label: "show in columns",
-                    key: "zstyle.column",
-                  },
-                  {
-                    label: "show in rows",
-                    key: "zstyle.row",
-                  },
-                ],
-              },
-            ],
-            selectedKeys: [`zstyle.${renderConfig.zvalueStyle}`],
-            onClick: ({ key, keyPath }) => {
-              if (key.startsWith("zstyle.")) {
-                renderConfig.zvalueStyle = key.slice(
-                  "zstyle.".length
-                ) as ZValueStyle;
-              } else if (key === "reload" && onReload !== undefined) {
-                onReload();
-              }
-            },
-          }}
-        >
-          <a>more</a>
-        </Dropdown>
-      </>
-    );
-  }
-);

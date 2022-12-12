@@ -1,5 +1,6 @@
 import AsciiTable from "ascii-table";
-import { BaseCell } from "../basetable/BaseTableComponent";
+import { BaseReport } from "models/reports";
+import { BaseCell } from "../basetable";
 import { ReportData, ReportDataPoint } from "../ReportData";
 import { testcase01 } from "../resources/testcase01";
 import { testcase02 } from "../resources/testcase02";
@@ -16,17 +17,19 @@ const cellFactory = (): BaseCell<ReportDataPoint[]> => {
     row: 0,
     col: 0,
     data: [],
+    style: {},
   };
 };
 
 describe("test table builder", () => {
+  let basereport = BaseReport.default();
   let testcases = [testcase01, testcase02, testcase03];
   // testcases = [testcase01];
 
   test("construct table header", () => {
     for (const testcase of testcases) {
       const builder = new TableBuilder(
-        ReportData.deserialize(testcase.reportData.data),
+        ReportData.deserialize(testcase.reportData.data, basereport),
         cellFactory
       );
       const headers = builder.buildHeader(
@@ -50,7 +53,7 @@ describe("test table builder", () => {
   test("construct table", () => {
     for (const testcase of testcases) {
       const builder = new TableBuilder(
-        ReportData.deserialize(testcase.reportData.data),
+        ReportData.deserialize(testcase.reportData.data, basereport),
         cellFactory
       );
       const table = builder.build(
@@ -79,7 +82,7 @@ describe("test table builder", () => {
       }
 
       const builder = new TableBuilder(
-        ReportData.deserialize(testcase.reportData.data),
+        ReportData.deserialize(testcase.reportData.data, basereport),
         cellFactory
       );
       const table = builder.build(
