@@ -2,9 +2,11 @@ import { makeStyles } from "@mui/styles";
 import { Tag, Tooltip } from "antd";
 import { Render } from "components/table/TableRenderer";
 import { ArrayHelper, getClassName } from "misc";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { BaseCell, BaseData } from "./BaseCell";
 import { BaseTable } from "./BaseTable";
+import { CaretUpFilled, CaretDownFilled } from "@ant-design/icons";
+import { blue } from "@ant-design/colors";
 
 const useTableStyles = makeStyles({
   root: {
@@ -72,6 +74,44 @@ const useFooterStyles = makeStyles({
   },
 });
 
+const useSorterStyles = makeStyles({
+  sorter: {
+    display: "flex",
+    flex: "auto",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  wrapper: {
+    marginInlineStart: 4,
+    color: "rgba(0, 0, 0, 0.29)",
+    fontSize: 0,
+    transition: "color 0.3s",
+  },
+  inner: {
+    display: "inline-flex",
+    flexDirection: "column",
+    alignItems: "center",
+  },
+  sorterUp: {
+    fontSize: 12,
+    boxSizing: "border-box",
+    cursor: "pointer",
+    fontWeight: 600,
+    overflowWrap: "break-word",
+  },
+  sorterDown: {
+    fontSize: 12,
+    boxSizing: "border-box",
+    cursor: "pointer",
+    fontWeight: 600,
+    overflowWrap: "break-word",
+    marginTop: "-0.4em",
+  },
+  active: {
+    color: blue[5],
+  },
+});
+
 /**
  * A base component to render a table-based report.
  */
@@ -85,6 +125,7 @@ export const BaseTableComponent = <
   table,
   renderCell,
   cellProps,
+  rowProps,
 }: {
   title?: string | React.ReactNode;
   footnote?: string | React.ReactNode;
@@ -92,6 +133,10 @@ export const BaseTableComponent = <
   cellProps?: Omit<React.HTMLAttributes<HTMLTableCellElement>, "onClick"> & {
     onClick?: (cell: C, table: T) => void;
   };
+  rowProps?: (
+    table: T,
+    row: number
+  ) => React.HTMLAttributes<HTMLTableRowElement>;
   renderCell?: (
     cell: C,
     table: T,
@@ -101,6 +146,8 @@ export const BaseTableComponent = <
   ) => React.ReactElement;
 }) => {
   const classes = useTableStyles();
+  const rowPropsFn = rowProps ?? ((table: T, row: number) => ({}));
+
   if (renderCell === undefined) {
     renderCell = (cell, table, cellProps) => (
       <BaseCellComponent
@@ -111,6 +158,7 @@ export const BaseTableComponent = <
       />
     );
   }
+
   return (
     <div className={classes.root}>
       <div className={classes.tableContainer}>
@@ -122,7 +170,7 @@ export const BaseTableComponent = <
             <tbody>
               {table.data.map((row, ri) => {
                 return (
-                  <tr key={ri}>
+                  <tr key={ri} {...rowPropsFn(table, ri)}>
                     {row.map((cell) => renderCell!(cell, table, cellProps))}
                   </tr>
                 );
@@ -226,6 +274,41 @@ export const BaseCellLabelComponent = ({ data }: { data: BaseData }) => {
   }
 
   throw new Error("Unreachable");
+};
+
+export const BaseCellSortable = ({
+  label,
+  sortOrder,
+}: {
+  label: React.ReactNode;
+  sortOrder: "asc" | "desc" | undefined;
+}) => {
+  const classes = useSorterStyles();
+
+  return (
+    <div className={classes.sorter}>
+      {label}
+      <span className={classes.wrapper}>
+        <span
+          className={classes.inner}
+          title={`sorted order: ${sortOrder}ending`}
+        >
+          <CaretUpFilled
+            className={getClassName(
+              classes.sorterUp,
+              sortOrder === "asc" ? classes.active : undefined
+            )}
+          />
+          <CaretDownFilled
+            className={getClassName(
+              classes.sorterDown,
+              sortOrder === "desc" ? classes.active : undefined
+            )}
+          />
+        </span>
+      </span>
+    </div>
+  );
 };
 
 /** Footnote of a table */

@@ -18,7 +18,7 @@ import {
   ReportTableArgs,
 } from "models/reports";
 import React, { useEffect, useMemo, useState } from "react";
-import { Attribute, AttrValue } from "../../../components/reports/ReportData";
+import { Attribute, AttrValue } from "components/reports/ReportData";
 
 export const useStyles = makeStyles({
   attrParamStyle: {

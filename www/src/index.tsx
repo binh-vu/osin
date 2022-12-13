@@ -5,12 +5,19 @@ import reportWebVitals from "./reportWebVitals";
 import { stores, initStores, StoreContext } from "./models";
 import { routes } from "./routes";
 import enUSIntl from "antd/lib/locale/en_US";
-import { ConfigProvider } from "antd";
+import { ConfigProvider, theme } from "antd";
 
 initStores().then(() => {
   ReactDOM.render(
     <StoreContext.Provider value={stores}>
-      <ConfigProvider locale={enUSIntl}>
+      <ConfigProvider
+        locale={enUSIntl}
+        theme={{
+          token: {
+            borderRadius: 4,
+          },
+        }}
+      >
         <App enUSLocale={true} routes={routes} />
       </ConfigProvider>
     </StoreContext.Provider>,

@@ -10,19 +10,28 @@ import {
 } from "../ReportData";
 import {
   BaseCellLabelComponent,
+  BaseCellSortable,
   BaseTableComponent,
   Footnote,
 } from "../basetable/BaseComponents";
 import { BaseTable } from "../basetable/BaseTable";
-import { BaseCell, BaseData, highlight, HighlightMode } from "../basetable";
+import { highlight, HighlightMode } from "../basetable";
 import { ClassNameMap, makeStyles } from "@mui/styles";
 import { observer } from "mobx-react";
 import {
   AutoTableRenderConfig,
   AutoTableRenderConfigStore,
 } from "./AutoTableRenderConfig";
+import { AutoTable, Cell, CellData } from "./AutoTable";
+import { blue } from "@ant-design/colors";
 
 const useStyles = makeStyles({
+  glow: {
+    boxShadow: "0 0 0 4px rgb(5 145 255 / 10%)",
+    borderInlineEndWidth: 1,
+    border: `1.5px solid ${blue[5]}`,
+    outline: 0,
+  },
   header: {
     borderTop: "none !important",
     textAlign: "center",
@@ -46,51 +55,6 @@ const useStyles = makeStyles({
     textAlign: "left !important" as "left",
   },
 });
-
-export class CellData extends BaseData {
-  recordIds: number[];
-
-  constructor(
-    recordIds: number[],
-    values: (string | number | boolean | null)[]
-  ) {
-    super(values);
-    this.recordIds = recordIds;
-  }
-
-  static default() {
-    return new CellData([], []);
-  }
-}
-
-export interface Cell extends BaseCell<CellData> {}
-
-export class AutoTable extends BaseTable<Cell, CellData> {
-  attrHeaderWidth: number;
-  valueHeaderHeight: number;
-
-  constructor(
-    data: Cell[][],
-    nrows: number,
-    ncols: number,
-    attrHeaderWidth: number,
-    valueHeaderHeight: number
-  ) {
-    super(data, nrows, ncols);
-    this.attrHeaderWidth = attrHeaderWidth;
-    this.valueHeaderHeight = valueHeaderHeight;
-  }
-
-  clone() {
-    return new AutoTable(
-      this.data.map((row) => row.map((cell) => ({ ...cell }))),
-      this.nrows,
-      this.ncols,
-      this.attrHeaderWidth,
-      this.valueHeaderHeight
-    );
-  }
-}
 
 export const autoTableRenderConfigStore = new AutoTableRenderConfigStore();
 
@@ -125,17 +89,29 @@ export const AutoTableComponent = observer(
     if (!autoTableRenderConfigStore.configs.has(reportKey)) {
       autoTableRenderConfigStore.configs.set(
         reportKey,
-        new AutoTableRenderConfig(defaultHighlightMode)
+        new AutoTableRenderConfig(defaultHighlightMode, [])
       );
     }
     const autoTableRenderConfig =
       autoTableRenderConfigStore.configs.get(reportKey)!;
 
-    const table = useTable(
-      reportData,
-      autoTableRenderConfig.highlight,
-      classes
-    );
+    const table = useTable(reportData, classes, autoTableRenderConfig);
+
+    let rowProps = undefined;
+    if (
+      typeof autoTableRenderConfig.highlight === "object" &&
+      autoTableRenderConfig.highlight.type === "row"
+    ) {
+      const highlightRow = autoTableRenderConfig.highlight.value;
+      rowProps = (table: AutoTable, row: number) => {
+        if (table.ncols > 0 && table.data[row][0].row === highlightRow) {
+          return {
+            className: classes.glow,
+          };
+        }
+        return {};
+      };
+    }
 
     return (
       <BaseTableComponent<Cell, AutoTable, CellData>
@@ -144,6 +120,7 @@ export const AutoTableComponent = observer(
           onClick: (cell, table) =>
             onCellClick(cell, table, autoTableRenderConfig),
         }}
+        rowProps={rowProps}
         title={title}
         footnote={
           <Footnote
@@ -176,7 +153,7 @@ export const AutoTableComponent = observer(
 
 function onCellClick(
   cell: Cell,
-  table: BaseTable<Cell, CellData>,
+  table: AutoTable,
   autoTableRenderConfig: AutoTableRenderConfig
 ) {
   // click on a row to highlight its value
@@ -190,15 +167,20 @@ function onCellClick(
       autoTableRenderConfig.highlight = { type: "row", value: cell.row };
     }
   }
+
+  if (table.isLeafValueHeaderCell(cell)) {
+    // click on a value header to search for it.
+    autoTableRenderConfig.toggleSortColumn(cell.col);
+  }
 }
 
 function useTable(
   reportData: AutoTableReportData,
-  highlightMode: HighlightMode,
   classes: ClassNameMap<
     "metaHeader" | "header" | "lastHeader" | "uselessHeader"
-  >
-) {
+  >,
+  renderConfig: AutoTableRenderConfig
+): AutoTable {
   const table = useMemo(() => {
     const valueHeader = buildHeader(reportData.valueHeaders, classes);
     const attrHeaders = reportData.groups.map((g) =>
@@ -245,6 +227,8 @@ function useTable(
 
     // set the attribute headers & the table data
     let startrow = valueHeader.length;
+    const groupRanges = [];
+
     for (let gi = 0; gi < reportData.groups.length; gi++) {
       const groupName = reportData.groups[gi][0];
       const groupData = groupDatas[gi];
@@ -279,7 +263,6 @@ function useTable(
         }
       }
       startrow += attrHeader.length;
-
       // set the table data
       for (let i = 0; i < groupData.length; i++) {
         const row = groupData[i][0];
@@ -301,6 +284,11 @@ function useTable(
         }
       }
       startrow += groupData.length;
+      groupRanges.push({
+        start: startrow - groupData.length,
+        end: startrow,
+        name: groupName,
+      });
     }
 
     return new AutoTable(
@@ -308,18 +296,42 @@ function useTable(
       height,
       width,
       attrHeaderWidth,
-      valueHeader.length
+      valueHeader.length,
+      groupRanges
     );
   }, [reportData]);
 
   const table2 = useMemo(() => {
     const table2 = table.clone();
-    highlight(table2, highlightMode, {
+
+    // update the ui to show the sorted order
+    for (let j = table2.attrHeaderWidth; j < table2.ncols; j++) {
+      // the order of `i` is important, must be increase as the logic of `isLeafValueHeaderCell`
+      for (let i = 0; i < table2.valueHeaderHeight; i++) {
+        const cell = table2.data[i][j];
+        if (table2.isLeafValueHeaderCell(cell)) {
+          cell.label = (
+            <BaseCellSortable
+              label={cell.label}
+              sortOrder={renderConfig.getSortedOrder(cell.col)}
+            />
+          );
+          break;
+        }
+      }
+    }
+
+    // highlight the cells
+    highlight(table2, renderConfig.highlight, {
       rowstart: table2.valueHeaderHeight,
       colstart: table2.attrHeaderWidth,
     });
+
+    // then we can sort the table
+    table2.sort(renderConfig.sorts);
+
     return table2.fixSpanning();
-  }, [table, highlightMode]);
+  }, [table, renderConfig.highlight, renderConfig.sortKey]);
 
   return table2;
 }

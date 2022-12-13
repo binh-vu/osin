@@ -59,6 +59,46 @@ export const ArrayHelper = {
     }
     return Math.sqrt(sum / arr.length);
   },
+  sort: <C>(
+    arr: C[][],
+    sorts: { index: number; order: "asc" | "desc" }[],
+    start: number = 0,
+    end: number = arr.length,
+    field?: (obj: C) => string | number
+  ): number[] => {
+    if (arr.length === 0) return [];
+    const indexArr = [];
+    for (let i = start; i < end; i++) {
+      indexArr.push(i);
+    }
+    indexArr.sort((i, j) => ArrayHelper.compare(arr[i], arr[j], sorts, field));
+
+    const tmparr = indexArr.map((i) => arr[i]);
+    for (let i = start; i < end; i++) {
+      arr[i] = tmparr[i - start];
+    }
+    return indexArr;
+  },
+  compare: <C>(
+    itemA: C[],
+    itemB: C[],
+    sorts: { index: number; order: "asc" | "desc" }[],
+    field?: (obj: C) => string | number
+  ) => {
+    for (let sort of sorts) {
+      const v1 =
+        field !== undefined ? field(itemA[sort.index]) : itemA[sort.index];
+      const v2 =
+        field !== undefined ? field(itemB[sort.index]) : itemB[sort.index];
+      if (v1 < v2) {
+        return sort.order === "asc" ? -1 : 1;
+      }
+      if (v1 > v2) {
+        return sort.order === "asc" ? 1 : -1;
+      }
+    }
+    return 0;
+  },
 };
 
 export const Filter = {
