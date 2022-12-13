@@ -1,12 +1,14 @@
 import { makeStyles } from "@mui/styles";
-import { Tag, Tooltip } from "antd";
+import { Button, Descriptions, Space, Tag, Tooltip, Typography } from "antd";
 import { Render } from "components/table/TableRenderer";
 import { ArrayHelper, getClassName } from "misc";
 import React, { useMemo } from "react";
-import { BaseCell, BaseData } from "./BaseCell";
+import { BaseCell, BaseData, BaseDataWithID } from "./BaseCell";
 import { BaseTable } from "./BaseTable";
 import { CaretUpFilled, CaretDownFilled } from "@ant-design/icons";
 import { blue } from "@ant-design/colors";
+import { TableColumn, TableComponent } from "components/table";
+import { toJS } from "mobx";
 
 const useTableStyles = makeStyles({
   root: {
@@ -233,7 +235,11 @@ export const BaseCellComponent = <
   );
 };
 
-export const BaseCellLabelComponent = ({ data }: { data: BaseData }) => {
+export const BaseCellLabelComponent = <D extends BaseData>({
+  data,
+}: {
+  data: D;
+}) => {
   const obj = data.computeData();
   if (obj.type === "number") {
     if (obj.size === 1 || obj.std <= 1e-9) {
@@ -339,6 +345,110 @@ export const Footnote = ({
     <>
       {noteEl}
       {newActions}
+    </>
+  );
+};
+
+/**
+ * Displaying the details of a numeric cell.
+ *
+ * TODO: this component use various hacks to make removing records work such as setting unique cell key to
+ * (row, col, ids.length), and the use of promise to reload data, hide modal, etc. This should be refactored
+ * as we can have a cleaner way to do this.
+ *
+ * @param param0
+ * @returns
+ */
+export const NumericCellDetails = <
+  C extends BaseCell<D>,
+  D extends BaseDataWithID
+>({
+  cell,
+  renderRecordId,
+  removeRecord,
+}: {
+  cell: C;
+  renderRecordId?: (recordId: number) => React.ReactNode;
+  removeRecord?: (recordId: number) => Promise<void>;
+}) => {
+  const num = cell.data.getNumericData();
+  if (num === undefined)
+    return <p>Cannot display details of non-numeric cells</p>;
+
+  const columns: TableColumn<{
+    recordId: number;
+    recordValue: string | number | boolean | null;
+  }>[] = [
+    {
+      key: "recordId",
+      dataIndex: "recordId",
+      title: "Run",
+      width: "max-content",
+      fixed: "left",
+      render: renderRecordId,
+    },
+    {
+      key: "recordValue",
+      dataIndex: "recordValue",
+      title: "Value",
+      width: "max-content",
+      fixed: "left",
+    },
+  ];
+
+  if (removeRecord !== undefined) {
+    columns.push({
+      key: "action",
+      dataIndex: "recordId",
+      title: "Action",
+      width: "max-content",
+      render: (recordId: number) => {
+        return <a onClick={() => removeRecord(recordId)}>Remove</a>;
+      },
+    });
+  }
+
+  return (
+    <>
+      <Descriptions title="Cell Statistics">
+        <Descriptions.Item label="Mean">{num.mean}</Descriptions.Item>
+        <Descriptions.Item label="Max">{num.max}</Descriptions.Item>
+        <Descriptions.Item label="Min">{num.min}</Descriptions.Item>
+        <Descriptions.Item label="Std">{num.std}</Descriptions.Item>
+        <Descriptions.Item label="Confident interval">
+          {num.ci}
+        </Descriptions.Item>
+        <Descriptions.Item label="Size">{num.size}</Descriptions.Item>
+      </Descriptions>
+      <Typography.Title level={5} style={{ fontWeight: "bold" }}>
+        Data
+      </Typography.Title>
+      <TableComponent
+        key={`${cell.row}-${cell.col}-${cell.data.ids.length}`}
+        selectRows={false}
+        rowKey="recordId"
+        defaultPageSize={50}
+        store={{
+          query: async (limit, offset, conditions, sortedBy) => {
+            const records = [];
+            for (
+              let i = offset;
+              i < offset + limit && i < cell.data.ids.length;
+              i++
+            ) {
+              records.push({
+                recordId: cell.data.ids[i],
+                recordValue: cell.data.values[i],
+              });
+            }
+            return {
+              records,
+              total: cell.data.ids.length,
+            };
+          },
+        }}
+        columns={columns}
+      />
     </>
   );
 };

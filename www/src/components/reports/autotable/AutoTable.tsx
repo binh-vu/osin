@@ -1,17 +1,7 @@
 import { ArrayHelper } from "misc";
-import { BaseCell, BaseTable, BaseData } from "../basetable";
+import { BaseCell, BaseTable, BaseData, BaseDataWithID } from "../basetable";
 
-export class CellData extends BaseData {
-  recordIds: number[];
-
-  constructor(
-    recordIds: number[],
-    values: (string | number | boolean | null)[]
-  ) {
-    super(values);
-    this.recordIds = recordIds;
-  }
-
+export class CellData extends BaseDataWithID {
   static default() {
     return new CellData([], []);
   }

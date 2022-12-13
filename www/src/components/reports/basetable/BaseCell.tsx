@@ -26,7 +26,15 @@ export interface BaseCell<D> {
 export class BaseData {
   values: (string | number | boolean | null)[];
   private data:
-    | { type: "number"; mean: number; std: number; ci: number; size: number }
+    | {
+        type: "number";
+        mean: number;
+        std: number;
+        ci: number;
+        max: number;
+        min: number;
+        size: number;
+      }
     | { type: "single"; value: string | boolean | null }
     | { type: "mixed" }
     | undefined = undefined;
@@ -53,6 +61,8 @@ export class BaseData {
           mean,
           std,
           ci,
+          max: Math.max(...vals),
+          min: Math.min(...vals),
           size: vals.length,
         };
       } else if (this.values.length === 1) {
@@ -74,12 +84,33 @@ export class BaseData {
   }
 
   getNumericData():
-    | { type: "number"; mean: number; std: number; ci: number; size: number }
+    | {
+        type: "number";
+        mean: number;
+        std: number;
+        ci: number;
+        size: number;
+        max: number;
+        min: number;
+      }
     | undefined {
     const data = this.computeData();
     if (data.type === "number") {
       return data;
     }
     return undefined;
+  }
+}
+
+export class BaseDataWithID extends BaseData {
+  ids: number[];
+
+  constructor(ids: number[], values: (string | number | boolean | null)[]) {
+    super(values);
+    this.ids = ids;
+  }
+
+  static default() {
+    return new BaseDataWithID([], []);
   }
 }

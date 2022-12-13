@@ -30,11 +30,29 @@ export const PreviewReportComponent = observer(
     expId: number;
     report: DraftCreateReport | DraftUpdateReport;
   }) => {
-    const { reportStore } = useStores();
+    const { reportStore, expRunStore } = useStores();
     const [data, setData] = useState<
       ReportData | AutoTableReportData | undefined
     >(undefined);
     const [error, setError] = useState<string | undefined>(undefined);
+    const onReload = () => {
+      return reportStore
+        .previewReportData(report)
+        .then((data) => {
+          unstable_batchedUpdates(() => {
+            setData(data);
+            setError(undefined);
+          });
+        })
+        .catch((reason) => {
+          if (reason.response === undefined) {
+            console.error(reason);
+            setError("Encounter error during rendering the report.");
+          } else {
+            setError(reason.response.data.message);
+          }
+        });
+    };
 
     useEffect(() => {
       // console.log("PreviewReport: create autorun");
@@ -52,22 +70,7 @@ export const PreviewReportComponent = observer(
             );
             return;
           }
-          reportStore
-            .previewReportData(report)
-            .then((data) => {
-              unstable_batchedUpdates(() => {
-                setData(data);
-                setError(undefined);
-              });
-            })
-            .catch((reason) => {
-              if (reason.response === undefined) {
-                console.error(reason);
-                setError("Encounter error during rendering the report.");
-              } else {
-                setError(reason.response.data.message);
-              }
-            });
+          onReload();
         }
       });
       return () => {
@@ -162,6 +165,29 @@ export const PreviewReportComponent = observer(
                 }
               : undefined
           }
+          renderRecordId={(recordId: number) => {
+            return (
+              <InternalLink
+                path={routes.run}
+                urlArgs={{ runId: recordId }}
+                queryArgs={{}}
+                openInNewPage={true}
+              >
+                Run {recordId}{" "}
+              </InternalLink>
+            );
+          }}
+          removeRecord={(recordId: number) => {
+            return expRunStore.fetchById(recordId).then((exprun) => {
+              if (exprun !== undefined) {
+                exprun.isDeleted = true;
+                return expRunStore.update(exprun).then(() => {
+                  return onReload();
+                });
+              }
+              return Promise.resolve();
+            });
+          }}
         />
       );
     }

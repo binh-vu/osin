@@ -50,7 +50,7 @@ export const ReportComponent = forwardRef(
     },
     ref: ForwardedRef<ReportTableFunc>
   ) => {
-    const { reportStore } = useStores();
+    const { reportStore, expRunStore } = useStores();
     const classes = useStyles();
     const [data, setData] = useState<
       ReportData | AutoTableReportData | undefined
@@ -149,6 +149,29 @@ export const ReportComponent = forwardRef(
             path: routes.viewreport,
             urlArgs: { expId, reportId: report.id },
             queryArgs: {},
+          }}
+          renderRecordId={(recordId: number) => {
+            return (
+              <InternalLink
+                path={routes.run}
+                urlArgs={{ runId: recordId }}
+                queryArgs={{}}
+                openInNewPage={true}
+              >
+                Run {recordId}{" "}
+              </InternalLink>
+            );
+          }}
+          removeRecord={(recordId: number) => {
+            return expRunStore.fetchById(recordId).then((exprun) => {
+              if (exprun !== undefined) {
+                exprun.isDeleted = true;
+                return expRunStore.update(exprun).then(() => {
+                  return onReload();
+                });
+              }
+              return Promise.resolve();
+            });
           }}
         />
       );
