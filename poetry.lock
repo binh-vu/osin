@@ -383,7 +383,7 @@ unidecode = ["Unidecode (>=1.1.1)"]
 
 [[package]]
 name = "ream2"
-version = "1.5.4"
+version = "1.6.2"
 description = "An actor architecture for research software"
 category = "main"
 optional = false
@@ -393,10 +393,10 @@ python-versions = ">=3.8,<4.0"
 filelock = ">=3.8.0,<4.0.0"
 graph-wrapper = ">=1.5.0,<2.0.0"
 loguru = ">=0.6.0,<0.7.0"
-orjson = ">=3.8.0,<4.0.0"
+orjson = ">=3.8.2,<4.0.0"
 python-slugify = ">=6.1.2,<7.0.0"
-serde2 = ">=1.4.0,<2.0.0"
-t2-yada = ">=1.0.4,<2.0.0"
+serde2 = ">=1.5.0,<2.0.0"
+t2-yada = ">=1.0.5,<2.0.0"
 timer4 = ">=1.0.2,<2.0.0"
 
 [[package]]
@@ -595,7 +595,7 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "2cb494ec1c59dacdc6cd73305a42976112271c7ace9db4318f295a5f4fbd523b"
+content-hash = "7a775e6a267feb586ec316a588b1e5162a8750827f25262f3369e3c733b0ac19"
 
 [metadata.files]
 attrs = [
@@ -890,8 +890,8 @@ python-slugify = [
     {file = "python_slugify-6.1.2-py2.py3-none-any.whl", hash = "sha256:7b2c274c308b62f4269a9ba701aa69a797e9bca41aeee5b3a9e79e36b6656927"},
 ]
 ream2 = [
-    {file = "ream2-1.5.4-py3-none-any.whl", hash = "sha256:51fc4a48a4909945b82fa4fd7ba88f1d12fe733c83471e79038e58a9bea042f7"},
-    {file = "ream2-1.5.4.tar.gz", hash = "sha256:03f339f35089c7118aab1a9c66ca4c27d2f82af6c0b746e6d62f5de5ae5f7695"},
+    {file = "ream2-1.6.2-py3-none-any.whl", hash = "sha256:3b2defa292cf6c251da05081ac99ef65f1343b1fdcd816b2c19202d75734badd"},
+    {file = "ream2-1.6.2.tar.gz", hash = "sha256:cf5ef043690237955310afaec3ce9dec3e49ea5354fd6c083e5d5a0bdcec81a0"},
 ]
 requests = [
     {file = "requests-2.28.1-py3-none-any.whl", hash = "sha256:8fefa2a1a1365bf5520aac41836fbee479da67864514bdb821f31ce07ce65349"},
