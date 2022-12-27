@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Dict, Generic, Optional, List
-import time
+import time, os
 from ream.actors.base import BaseActor, E, P
 from osin.apis.remote_exp import RemoteExp
 from contextlib import contextmanager
@@ -38,6 +38,10 @@ class OsinActor(Generic[E, P], BaseActor[E, P]):
                     version=getattr(cls, "EXP_VERSION", 1),
                     description=cls.__doc__,
                     params=exp_params,
+                    update_param_schema=os.environ.get(
+                        "OSIN_UPDATE_EXP_PARAM_SCHEMA", "false"
+                    )
+                    == "true",
                 )
 
             exprun = self._exp.new_exp_run(exp_params)
