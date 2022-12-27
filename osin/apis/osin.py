@@ -115,9 +115,9 @@ class Osin(ABC):
         self, exp: RemoteExp, params: Union[DataClassInstance, List[DataClassInstance]]
     ) -> RemoteExpRun:
         """Create a new run for an experiment."""
-        output = {}
+        output = []
         for param in params if isinstance(params, list) else [params]:
-            output.update(param_as_dict(param))
+            output.append(param_as_dict(param))
         exp_run = self._create_exprun(ExpRun(exp=exp.id, params=output))
 
         rundir = self.osin_keeper.get_exp_run_dir(exp, exp_run)
