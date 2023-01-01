@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import atexit
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 import shutil
@@ -9,7 +10,12 @@ import orjson
 
 from osin.apis.remote_exp import RemoteExp, RemoteExpRun
 from osin.misc import get_caller_python_script, orjson_dumps
-from osin.models.exp import Exp, ExpRun, NestedPrimitiveOutput, RunMetadata
+from osin.models.exp import (
+    Exp,
+    ExpRun,
+    NestedPrimitiveOutput,
+    RunMetadata,
+)
 from osin.repository import OsinRepository
 from osin.types import NestedPrimitiveOutputSchema, PyObject
 
@@ -44,7 +50,7 @@ class Osin(ABC):
         version: int,
         description: Optional[str] = None,
         program: Optional[str] = None,
-        params: Optional[Union[DataClassInstance, List[DataClassInstance]]] = None,
+        params: Optional[Dict[str, DataClassInstance]] = None,
         aggregated_primitive_outputs: Optional[NestedPrimitiveOutputSchema] = None,
         update_param_schema: bool = False,
     ) -> RemoteExp:
@@ -62,6 +68,8 @@ class Osin(ABC):
             aggregated_primitive_outputs: The aggregated outputs of the experiment.
                 If not provided, it will be inferred automatically when the experiment is run.
         """
+        params = params or {}
+
         exp = self._find_latest_exp(name)
         if exp is None:
             exp = self._create_exp(
@@ -70,10 +78,7 @@ class Osin(ABC):
                     description=description,
                     version=version,
                     program=program or get_caller_python_script(),
-                    params=[
-                        ParamSchema.get_schema(p)
-                        for p in (params if isinstance(params, list) else [params])
-                    ],
+                    params={ns: ParamSchema.get_schema(p) for ns, p in params.items()},
                     aggregated_primitive_outputs=aggregated_primitive_outputs,
                 )
             )
@@ -82,10 +87,9 @@ class Osin(ABC):
                 raise ValueError("Cannot create an older version of an experiment")
             elif exp.version == version:
                 if update_param_schema:
-                    exp.params = [
-                        ParamSchema.get_schema(p)
-                        for p in (params if isinstance(params, list) else [params])
-                    ]
+                    exp.params = {
+                        ns: ParamSchema.get_schema(p) for ns, p in params.items()
+                    }
                     self._update_exp(exp.id, exp, ["params"])
             else:
                 exp = self._create_exp(
@@ -94,10 +98,9 @@ class Osin(ABC):
                         description=description,
                         version=version,
                         program=program or get_caller_python_script(),
-                        params=[
-                            ParamSchema.get_schema(p)
-                            for p in (params if isinstance(params, list) else [params])
-                        ],
+                        params={
+                            ns: ParamSchema.get_schema(p) for ns, p in params.items()
+                        },
                         aggregated_primitive_outputs=aggregated_primitive_outputs,
                     )
                 )
@@ -112,13 +115,15 @@ class Osin(ABC):
         )
 
     def new_exp_run(
-        self, exp: RemoteExp, params: Union[DataClassInstance, List[DataClassInstance]]
+        self,
+        exp: RemoteExp,
+        params: Dict[str, DataClassInstance],
     ) -> RemoteExpRun:
         """Create a new run for an experiment."""
-        output = []
-        for param in params if isinstance(params, list) else [params]:
-            output.append(param_as_dict(param))
-        exp_run = self._create_exprun(ExpRun(exp=exp.id, params=output))
+        ser_params = {}
+        for ns, param in params.items():
+            ser_params[ns] = param_as_dict(param)
+        exp_run = self._create_exprun(ExpRun(exp=exp.id, params=ser_params))
 
         rundir = self.osin_keeper.get_exp_run_dir(exp, exp_run)
         if rundir.exists():
@@ -126,7 +131,7 @@ class Osin(ABC):
         rundir.mkdir(parents=True)
 
         with open(rundir / "params.json", "wb") as f:
-            f.write(orjson_dumps(output, option=orjson.OPT_INDENT_2))
+            f.write(orjson_dumps(ser_params, option=orjson.OPT_INDENT_2))
 
         remote_exp_run = RemoteExpRun(
             id=exp_run.id,

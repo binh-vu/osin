@@ -1,12 +1,17 @@
 import { Record } from "gena-app";
 import { makeObservable, observable } from "mobx";
 import { ExperimentRunData, ExpRunDataTracker } from "./ExperimentRunData";
-import { NestedPrimitiveData } from "./NestedPrimitiveType";
+import { NestedPrimitiveData, PyObjectType } from "./NestedPrimitiveType";
 
 export interface Metadata {
   hostname: string;
   n_cpus: number;
   memory_usage: number;
+}
+
+export interface ParamNamespace {
+  namespace: string;
+  schema: PyObjectType;
 }
 
 export class ExperimentRun implements Record<number> {

@@ -1,6 +1,6 @@
 {
   "name": "osin",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "private": true,
   "dependencies": {
     "@ant-design/colors": "^6.0.0",
@@ -60,7 +60,7 @@
   },
   "scripts": {
     "start": "PORT=5525 BROWSER=none react-scripts start",
-    "start_nonroot": "CHOKIDAR_USEPOLLING=true BROWSER=none react-scripts start",
+    "start_nonroot": "PORT=5525 CHOKIDAR_USEPOLLING=true BROWSER=none DANGEROUSLY_DISABLE_HOST_CHECK=true react-scripts start",
     "build": "python ./scripts/build.py ../osin/www",
     "test": "react-scripts test",
     "eject": "react-scripts eject",

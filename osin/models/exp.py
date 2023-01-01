@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import os
 import socket
+from osin.types.pyobject_type import PyObjectType
 from peewee import (
     CharField,
     ForeignKeyField,
@@ -16,7 +17,7 @@ from playhouse.sqlite_ext import JSONField
 import psutil
 from osin.models.base import BaseModel
 from osin.misc import json_dumps
-from gena.custom_fields import DataClassField, ListDataClassField
+from gena.custom_fields import DataClassField, ListDataClassField, DictDataClassField
 from osin.types import (
     NestedPrimitiveOutput,
     NestedPrimitiveOutputSchema,
@@ -59,7 +60,7 @@ class Exp(BaseModel):
     version: int = IntegerField(null=False)  # type: ignore
     description: str = TextField()  # type: ignore
     program: str = TextField()  # type: ignore
-    params: list[ParamSchema] = ListDataClassField(ParamSchema)  # type: ignore
+    params: dict[str, ParamSchema] = DictDataClassField(ParamSchema)  # type: ignore
     aggregated_primitive_outputs: NestedPrimitiveOutputSchema = DataClassField(NestedPrimitiveOutputSchema, null=True)  # type: ignore
 
 
@@ -73,6 +74,7 @@ class ExpRun(BaseModel):
     has_invalid_agg_output_schema: bool = BooleanField(default=False, index=True)  # type: ignore
     created_time: datetime = DateTimeField(default=datetime.utcnow)  # type: ignore
     finished_time: datetime = DateTimeField(null=True)  # type: ignore
+    # parameters of the experiment run, each param is associated with a namespace (key of the top-level dict)
     params: dict = JSONField(default={}, json_dumps=json_dumps)  # type: ignore
     metadata: RunMetadata = DataClassField(RunMetadata, null=True)  # type: ignore
     aggregated_primitive_outputs: NestedPrimitiveOutput = JSONField(default={}, json_dumps=json_dumps)  # type: ignore

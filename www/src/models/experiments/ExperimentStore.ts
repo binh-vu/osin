@@ -54,7 +54,12 @@ export class ExperimentStore extends SimpleCRUDStore<number, Experiment> {
       record.version,
       record.description,
       record.program,
-      record.params.map(ParamSchema.deserialize),
+      Object.fromEntries(
+        Object.entries(record.params).map(([ns, p]) => [
+          ns,
+          ParamSchema.deserialize(p),
+        ])
+      ),
       NestedPrimitiveDataSchema.deserialize(record.aggregated_primitive_outputs)
     );
   }

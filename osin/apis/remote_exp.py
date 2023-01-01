@@ -23,12 +23,13 @@ class RemoteExp:
     id: int
     name: str
     version: int
-    params: List[ParamSchema]
+    params: Dict[str, ParamSchema]
     aggregated_primitive_outputs: Optional[NestedPrimitiveOutputSchema]
     osin: Osin
 
     def new_exp_run(
-        self, params: Union[DataClassInstance, List[DataClassInstance]]
+        self,
+        params: dict[str, DataClassInstance],
     ) -> RemoteExpRun:
         return self.osin.new_exp_run(self, params)
 

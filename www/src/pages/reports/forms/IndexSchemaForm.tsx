@@ -346,9 +346,12 @@ export const ZValueForm = observer(
     }, [exps]);
     const options = useMemo(() => {
       let expoptions: [Experiment, Attribute[]][] = exps.map((exp) => {
-        const attrs = ParamSchema.mergeSchemas(exp.params)
-          .leafAttributes()
-          .map((attr) => attr.prepend(ATTRNAME_PARAMS))
+        const attrs = Object.entries(exp.params)
+          .flatMap(([ns, schema]) => {
+            return schema
+              .leafAttributes()
+              .map((attr) => attr.prepend(ATTRNAME_PARAMS).prepend(ns));
+          })
           .concat(
             exp.aggregatedPrimitiveOutputs
               .leafAttributes()
@@ -441,9 +444,12 @@ export const useAttrOptions = (
 ) => {
   return useMemo(() => {
     let options = exps.flatMap((exp) => {
-      return ParamSchema.mergeSchemas(exp.params)
-        .leafAttributes()
-        .map((attr) => attr.prepend(ATTRNAME_PARAMS))
+      return Object.entries(exp.params)
+        .flatMap(([ns, schema]) => {
+          return schema
+            .leafAttributes()
+            .map((attr) => attr.prepend(ATTRNAME_PARAMS).prepend(ns));
+        })
         .concat(
           exp.aggregatedPrimitiveOutputs
             .leafAttributes()

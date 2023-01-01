@@ -8,7 +8,7 @@ export class Experiment implements Record<number> {
   version: number;
   description: string;
   program: string;
-  params: ParamSchema[];
+  params: { [ns: string]: ParamSchema };
   aggregatedPrimitiveOutputs: NestedPrimitiveDataSchema;
 
   public constructor(
@@ -17,7 +17,7 @@ export class Experiment implements Record<number> {
     version: number,
     description: string,
     program: string,
-    params: ParamSchema[],
+    params: { [ns: string]: ParamSchema },
     aggregatedPrimitiveOutputs: NestedPrimitiveDataSchema
   ) {
     this.id = id;

@@ -96,11 +96,7 @@ export const ExperimentRunExplorer = observer(
 
     const columns = useMemo(() => {
       return defaultColumns.concat([
-        schema2columns(
-          "Parameters",
-          ["params"],
-          ParamSchema.mergeSchemas(exp.params)
-        ),
+        schema2columns("Parameters", ["params"], exp.params),
         schema2columns(
           "Data",
           ["data", "aggregated", "primitive"],
@@ -212,9 +208,20 @@ export const ExperimentRunExplorer = observer(
 export const schema2columns = (
   title: string,
   path: string[],
-  schema: NestedPrimitiveDataSchema | ParamSchema
+  schema:
+    | NestedPrimitiveDataSchema
+    | ParamSchema
+    | { [ns: string]: ParamSchema }
 ): TableColumn<ExperimentRun> => {
-  let childit = Object.entries(schema.schema);
+  let childit;
+  if (
+    schema instanceof NestedPrimitiveDataSchema ||
+    schema instanceof ParamSchema
+  ) {
+    childit = Object.entries(schema.schema);
+  } else {
+    childit = Object.entries(schema);
+  }
 
   return {
     key: path.join("."),
