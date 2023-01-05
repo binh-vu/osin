@@ -18,3 +18,24 @@ export function getClassName(
 
   return out.join(" ");
 }
+
+export class IsMounted {
+  // whether the component is mounted
+  protected flag: boolean;
+
+  constructor(flag: boolean) {
+    this.flag = flag;
+  }
+
+  public unmount = () => {
+    this.flag = false;
+  };
+
+  public isMounted() {
+    return this.flag;
+  }
+
+  public isUnmounted() {
+    return !this.flag;
+  }
+}

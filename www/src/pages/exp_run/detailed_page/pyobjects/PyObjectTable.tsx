@@ -17,6 +17,7 @@ export const PyObjectTable = ({ object }: { object: PyObject }) => {
   return (
     <TableComponent
       rowKey="id"
+      defaultPageSize={5}
       store={{
         query: async (limit, offset) => {
           return {

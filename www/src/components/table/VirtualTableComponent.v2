@@ -1,0 +1,397 @@
+import { makeStyles } from "@mui/styles";
+import { Skeleton, Table, theme, Typography } from "antd";
+import {
+  ColumnsType,
+  ColumnType,
+  ExpandableConfig,
+  FilterValue,
+  SorterResult,
+  TablePaginationConfig,
+} from "antd/lib/table/interface";
+import { QueryConditions } from "gena-app";
+import { getClassName } from "misc";
+import { observer } from "mobx-react";
+import React, {
+  ForwardedRef,
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { unstable_batchedUpdates } from "react-dom";
+import {
+  ColumnConfig,
+  getRecordValue,
+  TableColumn,
+  TableColumnIndex,
+} from "./Columns";
+import { TableToolbar } from "./TableToolBar";
+import ResizeObserver from "rc-resize-observer";
+import { VariableSizeGrid as Grid, FixedSizeList as List } from "react-window";
+import InfiniteLoader from "react-window-infinite-loader";
+import { TableComponentProps } from "./TableComponent";
+
+export interface TablePaginationMandatoryConfig {
+  total: number;
+  offset: number;
+}
+
+export const VirtualTableComponent2 = <R extends object>(
+  props: Pick<TableComponentProps<R>, "scroll" | "columns"> & {
+    data: any;
+    pagination: TablePaginationMandatoryConfig;
+    fetchData: any;
+    internalColumns: TableColumnIndex<R>;
+    setInternalColumns: (columns: TableColumnIndex<R>) => void;
+  }
+) => {
+  const { columns, scroll } = props;
+  const [tableWidth, setTableWidth] = useState(1028);
+  const { token } = theme.useToken();
+  useEffect(() => {
+    // if (tableWidth >= 1028) {
+    const tableWidth = 2000;
+    const width = tableWidth / props.internalColumns.getNumLeafColumns();
+    // const width = 300;
+    console.log("reset internalColumns", tableWidth, width);
+    const newInternalColumns = props.internalColumns.setColumnAutoWidth(width);
+    const originLeaf = props.internalColumns.getLeafColumns();
+    const newLeaf = newInternalColumns.getLeafColumns();
+
+    if (
+      originLeaf.length !== newLeaf.length ||
+      !originLeaf.every(
+        (c, i) => c.moreWidth.auto === newLeaf[i].moreWidth.auto
+      )
+    ) {
+      props.setInternalColumns(newInternalColumns);
+    }
+    // }
+  }, [tableWidth, columns]);
+  const height = scroll!.y as number;
+
+  const gridRef = useRef<any>();
+  const [connectObject] = useState<any>(() => {
+    const obj = {};
+    Object.defineProperty(obj, "scrollLeft", {
+      get: () => {
+        if (gridRef.current) {
+          return gridRef.current?.state?.scrollLeft;
+        }
+        return null;
+      },
+      set: (scrollLeft: number) => {
+        if (gridRef.current) {
+          gridRef.current.scrollTo({ scrollLeft });
+        }
+      },
+    });
+
+    return obj;
+  });
+
+  if (!props.internalColumns.hasNumberedWidth()) {
+    return <p>Loading...</p>;
+  }
+
+  const itemCount = props.pagination.total;
+  const itemOffset = props.pagination.offset;
+  const loadMoreItems = (start: number, end: number) => {
+    console.log("loadMoreItems", { start, end, diff: end - start });
+    return props.fetchData(start, end);
+  };
+  const getItem = (index: number) => {
+    return props.data[index - itemOffset];
+  };
+  const isItemLoaded = (index: number) =>
+    index - itemOffset < props.data.length;
+
+  const renderBody = (
+    rawData: readonly R[],
+    { scrollbarSize, ref, onScroll }: any
+  ) => {
+    ref.current = connectObject;
+    return (
+      <InfiniteLoader
+        isItemLoaded={isItemLoaded}
+        itemCount={itemCount}
+        loadMoreItems={loadMoreItems}
+        threshold={5}
+      >
+        {({ onItemsRendered, ref }: any) => {
+          gridRef.current = ref.current;
+          return (
+            <Grid
+              ref={ref}
+              onItemsRendered={onItemsRendered}
+              height={height}
+              width={tableWidth}
+              columnCount={columns.length}
+              columnWidth={(colIndex: number) =>
+                columns[colIndex].width as number
+              }
+              rowHeight={(rowIndex: number) => 54}
+              rowCount={itemCount}
+              onScroll={({ scrollLeft }: { scrollLeft: number }) => {
+                onScroll({ scrollLeft });
+              }}
+            >
+              {({ columnIndex, rowIndex, style }) => {
+                if (!isItemLoaded(rowIndex)) {
+                  return (
+                    <div key={rowIndex} style={style}>
+                      Loading {rowIndex} - {columnIndex}...
+                    </div>
+                  );
+                }
+                let record = getItem(rowIndex);
+                return renderCell(
+                  record,
+                  columns[columnIndex],
+                  getClassName("virtual-table-cell", [
+                    columnIndex === columns.length - 1,
+                    "virtual-table-cell-last",
+                  ]),
+                  {
+                    ...style,
+                    boxSizing: "border-box",
+                    padding: token.padding,
+                    borderBottom: `${token.lineWidth}px ${token.lineType} ${token.colorSplit}`,
+                    background: token.colorBgContainer,
+                  },
+                  style.left as number
+                );
+              }}
+            </Grid>
+          );
+        }}
+      </InfiniteLoader>
+    );
+  };
+
+  return (
+    <ResizeObserver
+      onResize={({ width }) => {
+        setTableWidth(width);
+      }}
+    >
+      <Table
+        {...props}
+        className="virtual-table"
+        columns={columns}
+        components={{
+          body: renderBody,
+        }}
+        pagination={false}
+      />
+    </ResizeObserver>
+  );
+};
+
+// export const VirtualTableComponent1 = <R extends object>(
+//   props: Pick<TableComponentProps<R>, "scroll" | "columns"> & {
+//     total?: number;
+
+//     dataSource: any;
+//     onChange: any;
+//     internalColumns: TableColumnIndex<R>;
+//     setInternalColumns: (columns: TableColumnIndex<R>) => void;
+//   }
+// ) => {
+//   const { columns, scroll } = props;
+//   const [tableWidth, setTableWidth] = useState(0);
+//   const { token } = theme.useToken();
+
+//   useEffect(() => {
+//     if (!props.internalColumns.hasNumberedWidth()) {
+//       // const width = tableWidth / props.internalColumns.getNumLeafColumns();
+//       const width = 300;
+//       const newInternalColumns = props.internalColumns.setColumnAutoWidth(
+//         () => width
+//       );
+//       props.setInternalColumns(newInternalColumns);
+//     }
+//   }, [tableWidth, columns]);
+
+//   const height = scroll!.y as number;
+
+//   const gridRef = useRef<any>();
+//   const [connectObject] = useState<any>(() => {
+//     const obj = {};
+//     Object.defineProperty(obj, "scrollLeft", {
+//       get: () => {
+//         if (gridRef.current) {
+//           return gridRef.current?.state?.scrollLeft;
+//         }
+//         return null;
+//       },
+//       set: (scrollLeft: number) => {
+//         if (gridRef.current) {
+//           gridRef.current.scrollTo({ scrollLeft });
+//         }
+//       },
+//     });
+
+//     return obj;
+//   });
+
+//   useEffect(
+//     () => () => {
+//       gridRef.current?.resetAfterIndices({
+//         columnIndex: 0,
+//         shouldForceUpdate: true,
+//       });
+//     },
+//     [tableWidth]
+//   );
+
+//   const renderVirtualList = (
+//     rawData: readonly R[],
+//     { scrollbarSize, ref, onScroll }: any
+//   ) => {
+//     ref.current = connectObject;
+//     const totalHeight = rawData.length * 54;
+
+//     return (
+//       <Grid
+//         ref={gridRef}
+//         className="virtual-grid"
+//         columnCount={columns.length}
+//         columnWidth={(index: number) => {
+//           const { width } = columns[index];
+//           return width as number;
+//           // return totalHeight > height && index === columns.length - 1
+//           //   ? (width as number) - scrollbarSize - 1
+//           //   : (width as number);
+//         }}
+//         height={height}
+//         rowCount={rawData.length}
+//         rowHeight={() => 54}
+//         width={tableWidth}
+//         onScroll={({ scrollLeft }: { scrollLeft: number }) => {
+//           onScroll({ scrollLeft });
+//         }}
+//       >
+//         {({
+//           columnIndex,
+//           rowIndex,
+//           style,
+//         }: {
+//           columnIndex: number;
+//           rowIndex: number;
+//           style: React.CSSProperties;
+//         }) => {
+//           return renderCell(
+//             rawData[rowIndex],
+//             columns[columnIndex],
+//             getClassName("virtual-table-cell", [
+//               columnIndex === columns.length - 1,
+//               "virtual-table-cell-last",
+//             ]),
+//             {
+//               ...style,
+//               boxSizing: "border-box",
+//               padding: token.padding,
+//               borderBottom: `${token.lineWidth}px ${token.lineType} ${token.colorSplit}`,
+//               background: token.colorBgContainer,
+//             },
+//             style.left as number
+//           );
+//         }}
+//       </Grid>
+//     );
+//   };
+
+//   if (!props.internalColumns.hasNumberedWidth()) {
+//     return <p>Loading...</p>;
+//   }
+//   return (
+//     <ResizeObserver
+//       onResize={({ width }) => {
+//         setTableWidth(width);
+//       }}
+//     >
+//       <Table
+//         {...props}
+//         className="virtual-table"
+//         columns={columns}
+//         pagination={false}
+//         components={{
+//           body: renderVirtualList,
+//         }}
+//       />
+//     </ResizeObserver>
+//   );
+// };
+
+function renderCell2<R extends object>(
+  record: any,
+  column: TableColumn<R>,
+  className: string,
+  style: React.CSSProperties,
+  left: number = 0
+): React.ReactElement {
+  let elem = null;
+  let updatedStyle: any = { width: column.width as number };
+  if (column.children === undefined) {
+    elem = getRecordValue(record, column);
+    if (column.render !== undefined) {
+      elem = column.render(elem, record, 0);
+    }
+  } else {
+    elem = [];
+    for (let child of column.children) {
+      const e = renderCell(record, child, className, style, left);
+      elem.push(e);
+      left += child.width as number;
+    }
+    return <React.Fragment key={column.key}>{elem}</React.Fragment>;
+  }
+
+  return (
+    <div
+      key={column.key}
+      className={className}
+      style={{ ...style, ...updatedStyle, left: left }}
+    >
+      {elem}
+    </div>
+  );
+}
+
+function renderCell<R extends object>(
+  record: any,
+  column: TableColumn<R>,
+  className: string,
+  style: React.CSSProperties,
+  left: number = 0
+): React.ReactElement {
+  let elem = null;
+  let updatedStyle: any = { width: column.width as number };
+  if (column.children === undefined) {
+    elem = getRecordValue(record, column);
+    if (column.render !== undefined) {
+      elem = column.render(elem, record, 0);
+    }
+  } else {
+    elem = [];
+    for (let child of column.children) {
+      const e = renderCell(record, child, className, style, left);
+      elem.push(e);
+      left += child.width as number;
+    }
+    return <React.Fragment key={column.key}>{elem}</React.Fragment>;
+  }
+
+  return (
+    <div
+      key={column.key}
+      className={className}
+      style={{ ...style, ...updatedStyle, left: left }}
+    >
+      {elem}
+    </div>
+  );
+}

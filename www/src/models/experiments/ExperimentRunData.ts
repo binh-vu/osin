@@ -105,4 +105,20 @@ export class ExpRunDataTracker {
       individual: observable,
     });
   }
+
+  public getIndividualPrimitiveKeys(limit: number, offset: number): string[] {
+    if (
+      this.individual.primitive.start > offset ||
+      this.individual.primitive.end < offset + limit
+    ) {
+      throw new Error(
+        "Cannot get primitive keys from offset with limit because it is out of range"
+      );
+    }
+
+    return this.individual.primitive.keys.slice(
+      offset - this.individual.primitive.start,
+      offset + limit - this.individual.primitive.start
+    );
+  }
 }

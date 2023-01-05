@@ -26,6 +26,15 @@ export const ArrayHelper = {
     }
     return out;
   },
+  maxIndex: (arr: number[]) => {
+    let item = 0;
+    for (let i = 0; i < arr.length; i++) {
+      if (arr[i] > arr[item]) {
+        item = i;
+      }
+    }
+    return item;
+  },
   new2d: <C>(
     height: number,
     width: number,
@@ -98,6 +107,48 @@ export const ArrayHelper = {
       }
     }
     return 0;
+  },
+};
+
+export const SetHelper = {
+  delete: <T>(a: Set<T>, b: T): Set<T> => {
+    const _union = new Set(a);
+    _union.delete(b);
+    return _union;
+  },
+  add: <T>(a: Set<T>, b: T): Set<T> => {
+    const _union = new Set(a);
+    _union.add(b);
+    return _union;
+  },
+  union: <T>(a: Set<T>, b: Set<T> | T[]): Set<T> => {
+    const _union = new Set(a);
+    for (const elem of b) {
+      _union.add(elem);
+    }
+    return _union;
+  },
+  min: (a: Set<number>) => {
+    let min = Number.MAX_SAFE_INTEGER;
+    for (const elem of a) {
+      if (elem < min) {
+        min = elem;
+      }
+    }
+    return min;
+  },
+};
+
+export const MapHelper = {
+  set: <K, V>(a: Map<K, V>, key: K, value: V): Map<K, V> => {
+    const _map = new Map(a);
+    _map.set(key, value);
+    return _map;
+  },
+  delete: <K, V>(a: Map<K, V>, key: K): Map<K, V> => {
+    const _map = new Map(a);
+    _map.delete(key);
+    return _map;
   },
 };
 

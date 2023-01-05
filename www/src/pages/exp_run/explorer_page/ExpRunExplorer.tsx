@@ -145,7 +145,7 @@ export const ExperimentRunExplorer = observer(
         <TableComponent
           selectRows={true}
           rowKey="id"
-          infiniteScroll={true}
+          virtualTable={false}
           toolbar={{
             filter: true,
             filterArgs: {

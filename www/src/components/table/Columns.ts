@@ -2,16 +2,27 @@ import { ColumnType } from "antd/lib/table";
 import { arrayFindLastIndex, arrayRemove, arrayReverse } from "misc";
 import React from "react";
 
+export interface ColumnWidth {
+  // width that is tried to set automatically by algorithm in our table component, not the initial width that
+  // the component that uses this component sets
+  auto?: number;
+  // width that the users set in the UI
+  user?: number;
+}
+
 export interface TableColumn<R> extends Omit<ColumnType<R>, "key"> {
   key: React.Key;
   originalKey?: React.Key;
   visible?: boolean;
   children?: TableColumn<R>[];
   fixed?: "left" | "right";
+  moreWidth?: ColumnWidth;
 }
 
 export interface FlattenTableColumn<R>
-  extends Omit<TableColumn<R>, "children"> {}
+  extends Omit<TableColumn<R>, "children"> {
+  moreWidth: ColumnWidth;
+}
 
 export interface ColumnConfig {
   key: React.Key;
@@ -54,6 +65,7 @@ export class TableColumnIndex<R> {
   protected static ROOT_ID = "__root__";
 
   // the first item of columns is always a dummy root node so this is always a tree.
+  // the order of flattenColumns matches the order of the displaying
   protected readonly flattenColumns: FlattenTableColumn<R>[];
   protected readonly key2index: { [key: string]: number };
   // mapping from column index to its parent index
@@ -77,6 +89,7 @@ export class TableColumnIndex<R> {
     let flattenColumns: FlattenTableColumn<R>[] = [
       {
         key: root_id,
+        moreWidth: {},
       },
     ];
     let key2column: { [key: string]: number } = {
@@ -94,8 +107,12 @@ export class TableColumnIndex<R> {
         throw new Error(`Duplicate column key: ${col.key}`);
       }
       key2column[col.key] = flattenColumns.length;
+      // let flattenColumn: Omit<TableColumn<R>, "children">
       let { children: _children, ...flattenColumn } = col;
-      flattenColumns.push(flattenColumn);
+      if (flattenColumn.moreWidth === undefined) {
+        flattenColumn.moreWidth = {} as ColumnWidth;
+      }
+      flattenColumns.push(flattenColumn as FlattenTableColumn<R>);
 
       if (col.children !== undefined) {
         key2children[col.key] = col.children.map((el) => el.key);
@@ -156,6 +173,18 @@ export class TableColumnIndex<R> {
     }
   }
 
+  /** Return the level of the column tree */
+  getTreeHeight(): number {
+    const fn = (key: React.Key, depth: number): number => {
+      const children = this.key2children[key];
+      if (children.length === 0) {
+        return depth;
+      }
+      return Math.max(...children.map((child) => fn(child, depth + 1)));
+    };
+    return fn(TableColumnIndex.ROOT_ID, 0);
+  }
+
   shallowclone() {
     return new TableColumnIndex(
       Array.from(this.flattenColumns),
@@ -173,11 +202,26 @@ export class TableColumnIndex<R> {
     return this.flattenColumns[this.key2index[key]];
   }
 
+  getLeafColumns(): FlattenTableColumn<R>[] {
+    return this.flattenColumns.filter(
+      (col) => this.key2children[col.key].length === 0
+    );
+  }
+
   getChildren(key: React.Key): React.Key[] {
     return this.key2children[key];
   }
 
-  getAntdColumns(key?: React.Key): TableColumn<R>[] {
+  getNumLeafColumns(): number {
+    return this.flattenColumns
+      .map((col): number => (this.key2children[col.key].length === 0 ? 1 : 0))
+      .reduce((a, b) => a + b, 0);
+  }
+
+  getAntdColumns(
+    numericWidthOnly: boolean = false,
+    key: React.Key = TableColumnIndex.ROOT_ID
+  ): TableColumn<R>[] {
     return this.key2children[key || TableColumnIndex.ROOT_ID]
       .filter(
         (key) => this.flattenColumns[this.key2index[key]].visible !== false
@@ -185,17 +229,24 @@ export class TableColumnIndex<R> {
       .map((key) => {
         let children = undefined;
         if (this.key2children[key].length > 0) {
-          children = this.getAntdColumns(key);
+          children = this.getAntdColumns(numericWidthOnly, key);
           if (children.length === 0) {
             children = undefined;
           }
+        }
+
+        const col = this.flattenColumns[this.key2index[key]];
+        let width = col.width;
+        if (numericWidthOnly && typeof width !== "number") {
+          width = col.moreWidth.user || col.moreWidth.auto;
         }
 
         return Object.assign(
           {
             children,
           },
-          this.flattenColumns[this.key2index[key]]
+          this.flattenColumns[this.key2index[key]],
+          { width }
         );
       });
   }
@@ -209,6 +260,92 @@ export class TableColumnIndex<R> {
       this.key2parent,
       this.key2children
     );
+  }
+
+  hasNumberedWidth(): boolean {
+    return this.flattenColumns.every(
+      (col) =>
+        col.key === TableColumnIndex.ROOT_ID ||
+        typeof col.width === "number" ||
+        col.moreWidth.user !== undefined ||
+        col.moreWidth.auto !== undefined
+    );
+  }
+
+  /**
+   * Sync our column width from another TableColumnIndex.
+   *
+   * @param that the other TableColumnIndex that we want to copy width from.
+   */
+  syncColumnAutoWidth(that: TableColumnIndex<R>): TableColumnIndex<R> {
+    const columns = Array.from(this.flattenColumns);
+
+    for (let key of Object.keys(that.key2index)) {
+      if (this.key2index[key] !== undefined) {
+        const thiscol = columns[this.key2index[key]];
+        const thatcol = that.flattenColumns[that.key2index[key]];
+        columns[this.key2index[key]] = Object.assign({}, thiscol, {
+          moreWidth: {
+            auto: thatcol.moreWidth.auto,
+            user: thiscol.moreWidth.user,
+          },
+        });
+      }
+    }
+
+    return new TableColumnIndex(
+      columns,
+      this.key2index,
+      this.key2parent,
+      this.key2children
+    );
+  }
+
+  /**
+   * Set the auto width properties of columns to a fixed width
+   */
+  setColumnAutoWidth(
+    width: number | ((column: FlattenTableColumn<R>) => number)
+  ): TableColumnIndex<R> {
+    let columns = this.flattenColumns.map((col) => {
+      if (this.key2children[col.key].length === 0) {
+        // leaf node
+        return Object.assign({}, col, {
+          moreWidth: {
+            ...col.moreWidth,
+            auto: typeof width === "number" ? width : width(col),
+          },
+        });
+      }
+      return Object.assign({}, col);
+    });
+
+    const setWidth = (col: FlattenTableColumn<R>): number => {
+      if (col.moreWidth.auto !== undefined) {
+        return col.moreWidth.auto;
+      }
+      col.moreWidth.auto = this.key2children[col.key]
+        .map((key) => setWidth(columns[this.key2index[key]]))
+        .reduce((a, b) => a + b, 0);
+      return col.moreWidth.auto;
+    };
+
+    this.key2children[TableColumnIndex.ROOT_ID].forEach((key) => {
+      setWidth(columns[this.key2index[key]]);
+    });
+
+    const newindex = new TableColumnIndex(
+      columns,
+      this.key2index,
+      this.key2parent,
+      this.key2children
+    );
+
+    if (!newindex.hasNumberedWidth()) {
+      throw new Error("Failed to set missing column width");
+    }
+
+    return newindex;
   }
 
   /**
@@ -930,4 +1067,82 @@ export class TableColumnIndex<R> {
     }
     return ancestors;
   }
+}
+
+export function getRecordValue<R extends object>(
+  record: R,
+  column: TableColumn<R>
+) {
+  if (
+    Array.isArray(column.dataIndex) ||
+    (typeof column.dataIndex === "string" &&
+      column.dataIndex.indexOf(".") !== -1)
+  ) {
+    let parts: (string | number)[] = Array.isArray(column.dataIndex)
+      ? column.dataIndex
+      : column.dataIndex.split(".");
+    let value = record;
+    for (let part of parts) {
+      value = (value as any)[part];
+      if (value === undefined) {
+        return undefined;
+      }
+    }
+    return value;
+  }
+  if (
+    typeof column.dataIndex === "number" ||
+    (typeof column.dataIndex === "string" &&
+      column.dataIndex.indexOf(".") === -1)
+  ) {
+    return (record as any)[column.dataIndex];
+  }
+  return undefined;
+}
+
+export class TableColumnMeasurement {
+  protected headerMeasureCtx: CanvasRenderingContext2D;
+  protected cellMeasureCtx: CanvasRenderingContext2D;
+
+  constructor(headerFont: string, cellFont: string) {
+    const canvas = document.createElement("canvas");
+    this.headerMeasureCtx = canvas.getContext("2d")!;
+    this.headerMeasureCtx.font = headerFont;
+
+    const canvas2 = document.createElement("canvas");
+    this.cellMeasureCtx = canvas2.getContext("2d")!;
+    this.cellMeasureCtx.font = cellFont;
+  }
+
+  measureHeaderTextWidth = (text: string): number => {
+    return this.headerMeasureCtx.measureText(text).width;
+  };
+
+  measureCellTextWidth = (text: string): number => {
+    return this.cellMeasureCtx.measureText(text).width;
+  };
+
+  measureColumnWidths(headers: string[], columns: string[][]): number[] {
+    let columnWidths = headers.map(this.measureHeaderTextWidth);
+    for (let i = 0; i < columns.length; i++) {
+      columnWidths[i] = Math.max(
+        columnWidths[i],
+        ...columns[i].map(this.measureCellTextWidth)
+      );
+    }
+    return columnWidths;
+  }
+
+  /**
+   * Return the computed CSS `font` property value for an element.
+   */
+  static getCssFont = (container: Element) => {
+    const style = getComputedStyle(container);
+    const { fontStyle, fontVariant, fontWeight, fontSize, fontFamily } = style;
+    return {
+      font: `${fontStyle!} ${fontVariant!} ${fontWeight!} ${fontSize!} ${fontFamily}`,
+      fontSize: parseFloat(fontSize),
+      fontFamily,
+    };
+  };
 }

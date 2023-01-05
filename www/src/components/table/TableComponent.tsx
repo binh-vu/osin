@@ -9,7 +9,7 @@ import {
   TablePaginationConfig,
 } from "antd/lib/table/interface";
 import { QueryConditions } from "gena-app";
-import { getClassName } from "misc";
+import { getClassName, IsMounted } from "misc";
 import { observer } from "mobx-react";
 import React, {
   ForwardedRef,
@@ -22,6 +22,10 @@ import React, {
 import { unstable_batchedUpdates } from "react-dom";
 import { ColumnConfig, TableColumn, TableColumnIndex } from "./Columns";
 import { TableToolbar } from "./TableToolBar";
+import {
+  // VirtualTableComponent1,
+  VirtualTableComponent2,
+} from "./VirtualTableComponent";
 
 const useStyles = makeStyles({
   table: {
@@ -55,11 +59,13 @@ export interface TableComponentFunc<R> {
   columns: () => ColumnsType<R>;
   internalColumns: () => TableColumnIndex<R>;
   setInternalColumns: (columns: TableColumnIndex<R>) => void;
-  resetInternalColumns: (fromSaveState: boolean) => void;
+  resetInternalColumns: (fromSaveState: boolean, isMounted?: IsMounted) => void;
   saveInternalColumns: () => void;
 }
 
-interface TableComponentProps<R> {
+const DEFAULT_VIRTUAL_COLUMN_WIDTH = 128;
+
+export interface TableComponentProps<R> {
   defaultPageSize?: number;
   rowKey: keyof R;
   defaultShowPageSizeChanger?: boolean;
@@ -87,12 +93,12 @@ interface TableComponentProps<R> {
   expandable?: ExpandableConfig<any>;
   saveColumnState?: (cfgs: ColumnConfig[]) => void;
   restoreColumnState?: () => Promise<ColumnConfig[]>;
-  infiniteScroll?: boolean;
+  virtualTable?: boolean;
 }
 
 export const TableComponent_ = <R extends object>(
   {
-    defaultPageSize = 5,
+    defaultPageSize = 10,
     rowKey,
     defaultShowPageSizeChanger = true,
     defaultTableSize = "small",
@@ -106,12 +112,15 @@ export const TableComponent_ = <R extends object>(
     expandable,
     saveColumnState,
     restoreColumnState,
-    infiniteScroll,
+    virtualTable = false,
   }: TableComponentProps<R>,
   ref: ForwardedRef<TableComponentFunc<R>>
 ) => {
   const classes = useStyles();
-  const [data, setData] = useState<R[]>([]);
+  const [data, setData] = useState<{ data: R[]; offset: number }>({
+    data: [],
+    offset: 0,
+  });
   const [sorter, setSorter] = useState<SorterResult<R>[]>([]);
   const [filters, setFilters] = useState<Record<string, FilterValue | null>>(
     {}
@@ -149,14 +158,19 @@ export const TableComponent_ = <R extends object>(
     restoreRecords: store.restore,
     removeRecords: store.remove,
     isDeleted: store.isDeleted,
-    resetInternalColumns: (fromSaveState: boolean) => {
+    resetInternalColumns: (
+      fromSaveState: boolean,
+      isMounted: IsMounted = new IsMounted(true)
+    ) => {
       let item = TableColumnIndex.fromNestedColumns(columns);
       if (fromSaveState && restoreColumnState !== undefined) {
         restoreColumnState().then((cfgs) => {
           if (cfgs.length > 0) {
             item = item.restoreChanges(cfgs);
           }
-          setInternalColumns(item);
+          if (isMounted.isMounted()) {
+            setInternalColumns(item);
+          }
         });
       } else {
         setInternalColumns(item);
@@ -168,32 +182,41 @@ export const TableComponent_ = <R extends object>(
       }
     },
     getRecordsByIds: (rids: (keyof R)[]) => {
-      let id2records = Object.fromEntries(data.map((r) => [r[rowKey], r]));
+      let id2records = Object.fromEntries(data.data.map((r) => [r[rowKey], r]));
       return rids.map((rid) => id2records[rid]);
     },
   };
 
   // handling the columns here
   useEffect(() => {
-    func.resetInternalColumns(true);
+    let isMounted = new IsMounted(true);
+    func.resetInternalColumns(true, isMounted);
+    return isMounted.unmount;
   }, [columns]);
 
   const columns_ = useMemo(() => {
     return internalColumns === undefined
       ? undefined
-      : internalColumns.getAntdColumns();
+      : internalColumns.getAntdColumns(virtualTable);
   }, [internalColumns]);
 
   // handling table data fetching
   const onRequestData = (
-    paging: TablePaginationConfig,
+    paging: { limit: number; offset: number } | TablePaginationConfig,
     filters: Record<string, FilterValue | null>,
-    sorter: SorterResult<R>[]
+    sorter: SorterResult<R>[],
     // extra: TableCurrentDataSource<R>
+    isMounted: IsMounted = new IsMounted(true)
   ) => {
     // console.log("on request", { paging, filters, sorter });
-    let limit = paging.pageSize!;
-    let offset = (paging.current! - 1) * limit;
+    let limit: number, offset: number;
+    if ("limit" in paging) {
+      limit = paging.limit;
+      offset = paging.offset;
+    } else {
+      limit = paging.pageSize!;
+      offset = (paging.current! - 1) * limit;
+    }
 
     let sortedBy = [];
     for (const item of sorter) {
@@ -226,8 +249,30 @@ export const TableComponent_ = <R extends object>(
         // to prevent that data and pagination is out-of-sync.
         // react 18 will fix this issue
         unstable_batchedUpdates(() => {
-          setData(records);
-          setPagination({ ...paging, total });
+          if (isMounted.isUnmounted()) {
+            return;
+          }
+          if (!("limit" in paging)) {
+            setData({ data: records, offset });
+            setPagination({ ...paging, total });
+          } else {
+            // this is for virtual table, so instead of replace the data, we need to append it
+            if (offset === data.data.length + data.offset) {
+              // continue to append
+              setData({ data: data.data.concat(records), offset: data.offset });
+            } else if (offset === 0) {
+              // they want to query a new batch of data (usually sort or filter change)
+              setData({ data: records, offset });
+            } else {
+              console.error(
+                "unreachable",
+                offset,
+                data.offset,
+                data.data.length
+              );
+              throw new Error("Unreachable!");
+            }
+          }
         });
       });
   };
@@ -235,16 +280,24 @@ export const TableComponent_ = <R extends object>(
 
   // fetch the data for the first time
   useEffect(() => {
+    let isMounted = new IsMounted(true);
+
     // get the default sortedBy
     let sorter = getDefaultSorter(columns);
-    setSorter(sorter);
     let filters = getDefaultFilters(columns);
-    setFilters(filters);
-    onRequestData(pagination, filters, sorter);
+
+    unstable_batchedUpdates(() => {
+      if (isMounted.isUnmounted()) return;
+      setSorter(sorter);
+      setFilters(filters);
+      onRequestData(pagination, filters, sorter, isMounted);
+    });
+
+    return isMounted.unmount;
   }, []);
 
-  if (showRowIndex) {
-    columns.splice(0, 0, {
+  if (showRowIndex && columns_ !== undefined) {
+    columns_.splice(0, 0, {
       title: (
         <Typography.Text type="secondary" disabled={true}>
           #
@@ -270,6 +323,66 @@ export const TableComponent_ = <R extends object>(
 
   if (columns_ === undefined) return <Skeleton loading={true} active={true} />;
 
+  if (virtualTable && internalColumns !== undefined) {
+    if (typeof (scroll || {}).y !== "number") {
+      throw new Error("virtual table must have a fixed height");
+    }
+
+    return (
+      <VirtualTableComponent2
+        className={getClassName(classes.table, [
+          fullWidth,
+          classes.fullWidthTable,
+        ])}
+        rowKey={rowKey}
+        bordered={true}
+        size={tableSize}
+        columns={columns_}
+        expandable={expandable}
+        scroll={{ y: scroll!.y as number, x: (scroll || {}).x }}
+        data={data.data}
+        internalColumns={internalColumns}
+        pagination={{
+          total: pagination.total || 0,
+          offset: data.offset!,
+        }}
+        onChange={(
+          antd_filters: Record<string, FilterValue | null>,
+          antd_sorter: SorterResult<R> | SorterResult<R>[]
+        ) => {
+          if (!Array.isArray(antd_sorter)) {
+            antd_sorter = [antd_sorter];
+          }
+
+          // we have a small issue where if the columns containing the sorters or filters
+          // are hidden, they won't be included in the sorter or filters, so we need to
+          // add them back
+          imputeMissingSorter_(antd_sorter, sorter);
+          imputeMissingFilters_(antd_filters, filters);
+
+          unstable_batchedUpdates(() => {
+            setSorter(antd_sorter as SorterResult<R>[]);
+            setFilters(antd_filters);
+            setData({ data: [], offset: 0 });
+          });
+          return onRequestData(
+            { limit: defaultPageSize, offset: 0 },
+            antd_filters,
+            antd_sorter
+          );
+        }}
+        fetchData={(start: number, end: number) => {
+          // the formular to fetch is number of items displayed within the window + threshold (props of InfiniteLoader) * 2
+          return onRequestData(
+            { limit: end - start, offset: start },
+            filters,
+            sorter
+          );
+        }}
+      />
+    );
+  }
+
   let table = (
     <Table
       rowSelection={
@@ -284,14 +397,14 @@ export const TableComponent_ = <R extends object>(
       ])}
       size={tableSize}
       bordered={true}
-      dataSource={data}
+      dataSource={data.data}
       pagination={pagination}
       rowKey={rowKey as string}
       columns={columns_}
       expandable={expandable}
       onChange={(
-        antd_paging,
-        antd_filters,
+        antd_paging: TablePaginationConfig,
+        antd_filters: Record<string, FilterValue | null>,
         antd_sorter: SorterResult<R> | SorterResult<R>[]
       ) => {
         if (!Array.isArray(antd_sorter)) {

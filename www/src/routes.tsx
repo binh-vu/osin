@@ -75,7 +75,7 @@ export const Layout = (
         <div
           style={{
             width: "calc(100% - 75px)",
-            marginTop: 16,
+            paddingTop: 16,
             overflowY: "auto",
           }}
         >
