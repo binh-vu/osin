@@ -1,6 +1,6 @@
 {
   "name": "osin",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "private": true,
   "dependencies": {
     "@ant-design/colors": "^6.0.0",
@@ -49,7 +49,6 @@
     "tinycolor2": "^1.4.2",
     "typescript": "^4.1.2",
     "use-deep-compare": "^1.1.0",
-    "use-deep-compare-effect": "^1.8.1",
     "web-vitals": "^1.0.1"
   },
   "resolutions": {

@@ -21,12 +21,12 @@ const useStyles = makeStyles({
     marginTop: 2,
   },
   tabs: {
-    "& .ant-tabs-nav": {
+    "& > .ant-tabs-nav": {
       paddingLeft: 16,
       boxShadow: "0 0.25rem 0.375rem rgb(144 175 218 / 20%), 0 1px 0 0 #f2f5fa",
       borderTop: ".0625rem solid #f2f5fa",
     },
-    "& .ant-tabs-nav::before": {
+    "& > .ant-tabs-nav::before": {
       borderBottom: "none",
     },
   },

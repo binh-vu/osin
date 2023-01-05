@@ -55,9 +55,10 @@ const SPACE = {
 
 const useStyles = makeStyles({
   root: {
-    "& .virtual-table-small .virtual-table-cell": {
-      padding: 8,
-    },
+    "& div:not(.virtual-table-expanded-row) .virtual-table-small .virtual-table-cell":
+      {
+        padding: 8,
+      },
     "& .virtual-table-medium .virtual-table-cell": {
       padding: "12px 8px",
     },
@@ -83,9 +84,10 @@ const useStyles = makeStyles({
       borderRight: "none !important",
       textAlign: "center",
     },
-    "& .virtual-table-expandable tr:first-child th:first-child": {
-      borderRight: "none !important",
-    },
+    "& .virtual-table-expandable > div > div > div > div > div > table > thead > tr:first-child > th:first-child":
+      {
+        borderRight: "none !important",
+      },
     "& .virtual-table-bordered .virtual-table-expanded-row": {
       borderBottom: "1px solid rgba(5, 5, 5, 0.06)",
       position: "relative",
@@ -101,7 +103,7 @@ export interface VirtualTablePaginationConfig {
 
 let tableMeasurement: TableColumnMeasurement | undefined = undefined;
 
-export const VirtualTableComponent2 = <R extends object>({
+export const VirtualTableComponent = <R extends object>({
   scroll,
   columns,
   size = "small",
@@ -158,8 +160,20 @@ export const VirtualTableComponent2 = <R extends object>({
                 prevCloseExpandedIndex.current = rowIndex;
               }
               newExpandedRows = MapHelper.delete(expandedRows, rowIndex);
+              // console.log(
+              //   "remove expanded row: ",
+              //   rowIndex,
+              //   expandedRows,
+              //   newExpandedRows
+              // );
             } else {
               newExpandedRows = MapHelper.set(expandedRows, rowIndex, -1);
+              // console.log(
+              //   "add expanded row: ",
+              //   rowIndex,
+              //   expandedRows,
+              //   newExpandedRows
+              // );
             }
             setExpandedRows(newExpandedRows);
           },
@@ -179,16 +193,26 @@ export const VirtualTableComponent2 = <R extends object>({
     if (varsizeListRef.current) {
       // we need to detect if previous action is delete or set
       const minIndex = Math.min(...expandedRows.keys());
+      // console.log(">>>", minIndex, prevCloseExpandedIndex.current);
       if (minIndex < prevCloseExpandedIndex.current) {
         if (Array.from(expandedRows.values()).every((v) => v >= 0)) {
           varsizeListRef.current.resetAfterIndex(minIndex);
         }
       } else {
-        varsizeListRef.current.resetAfterIndex(prevCloseExpandedIndex.current);
+        // console.log(
+        //   "reset after index",
+        //   minIndex,
+        //   prevCloseExpandedIndex.current,
+        //   expandedRows
+        // );
+        varsizeListRef.current.resetAfterIndex(
+          prevCloseExpandedIndex.current,
+          true
+        );
         prevCloseExpandedIndex.current = Number.MAX_SAFE_INTEGER;
       }
     }
-  }, [expandedRows]);
+  }, [expandedRows, varsizeListRef.current]);
 
   // use to sync the scroll position between the header and body
   const virtualListRef = useRef<HTMLDivElement>(null);
@@ -269,12 +293,6 @@ export const VirtualTableComponent2 = <R extends object>({
                   return rowHeight + expandedLength;
                 }}
                 itemCount={pagination.total}
-                className={getClassName(
-                  CSS_VIRTUAL_TABLE,
-                  VTSIZE[size],
-                  [bordered === true, CSS_VIRTUAL_TABLE_BORDERED],
-                  [expandable !== undefined, CSS_VIRTUAL_TABLE_EXPANDABLE]
-                )}
                 innerRef={(el) => {
                   if (el !== null) {
                     // hack to set the background color of the list so that it hides the expandable button
@@ -299,6 +317,9 @@ export const VirtualTableComponent2 = <R extends object>({
                     );
                   }
                   const record = getItem(index);
+                  // if (index === 2) {
+                  //   console.log("render vt outside", index, expandedRows);
+                  // }
                   return (
                     <VirtualRow
                       columns={leafColumns}
@@ -314,9 +335,9 @@ export const VirtualTableComponent2 = <R extends object>({
                                 expandable!.expandedRowRender!(
                                   record,
                                   index,
-                                  VT_EXPANDABLE_BUTTON_WIDTH +
-                                    SPACE.paddingWidth[size] * 2 +
-                                    1,
+                                  (leafColumns[0].width as number) +
+                                    ((leafColumns[1].moreWidth.user ||
+                                      leafColumns[1].moreWidth.auto) as number),
                                   true
                                 ),
                               paddingHeight: SPACE.paddingHeight[size],
@@ -346,27 +367,32 @@ export const VirtualTableComponent2 = <R extends object>({
 
   return (
     <div className={classes.root}>
-      <ResizeObserver
-        onResize={({ width }) => {
-          setContainerWidth(width);
-        }}
-      >
-        <Table
-          className={getClassName(CSS_VIRTUAL_TABLE, className, [
-            expandable !== undefined,
-            CSS_VIRTUAL_TABLE_EXPANDABLE,
-          ])}
-          size={size}
-          bordered={true}
-          scroll={scroll}
-          columns={newColumns}
-          components={{
-            body: renderBody,
+      <div>
+        <ResizeObserver
+          onResize={({ width }) => {
+            setContainerWidth(width);
           }}
-          pagination={false}
-          onChange={onTableChange}
-        />
-      </ResizeObserver>
+        >
+          <Table
+            className={getClassName(
+              className,
+              CSS_VIRTUAL_TABLE,
+              VTSIZE[size],
+              [expandable !== undefined, CSS_VIRTUAL_TABLE_EXPANDABLE],
+              [bordered === true, CSS_VIRTUAL_TABLE_BORDERED]
+            )}
+            size={size}
+            bordered={true}
+            scroll={scroll}
+            columns={newColumns}
+            components={{
+              body: renderBody,
+            }}
+            pagination={false}
+            onChange={onTableChange}
+          />
+        </ResizeObserver>
+      </div>
     </div>
   );
 };
@@ -417,6 +443,10 @@ const VirtualRow = <R extends object>({
     );
   }
   const key = record[rowKey] as React.Key;
+
+  // if (rowIndex === 2) {
+  //   console.log("render vt", rowIndex, expanded);
+  // }
 
   if (expanded !== undefined) {
     return (

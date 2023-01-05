@@ -24,7 +24,7 @@ import { ColumnConfig, TableColumn, TableColumnIndex } from "./Columns";
 import { TableToolbar } from "./TableToolBar";
 import {
   // VirtualTableComponent1,
-  VirtualTableComponent2,
+  VirtualTableComponent,
 } from "./VirtualTableComponent";
 
 const useStyles = makeStyles({
@@ -329,7 +329,7 @@ export const TableComponent_ = <R extends object>(
     }
 
     return (
-      <VirtualTableComponent2
+      <VirtualTableComponent
         className={getClassName(classes.table, [
           fullWidth,
           classes.fullWidthTable,

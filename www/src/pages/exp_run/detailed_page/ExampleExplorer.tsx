@@ -10,6 +10,14 @@ import { PyObjectComponent } from "./pyobjects/PyObject";
 import ResizeObserver from "rc-resize-observer";
 import { useRemainingHeight } from "components/table/tableHelperHooks";
 
+// const useStyles = makeStyles({
+//   objectTabs: {
+//     "& > div.ant-tabs-nav": {
+
+//     }
+//   }
+// });
+
 const defaultColumns: TableColumn<ExampleData>[] = [
   {
     key: "id",
@@ -90,14 +98,27 @@ export const ExampleExplorer = observer(
           expandable={{
             rowExpandable: (record: ExampleData) =>
               Object.keys(record.data.complex).length > 0,
-            expandedRowRender: (record: ExampleData) => {
+            expandedRowRender: (
+              record: ExampleData,
+              recordIndex: number,
+              indent: number
+            ) => {
               return (
                 <Tabs
                   tabPosition="left"
                   items={Object.entries(record.data.complex).map(
                     ([key, value]) => {
                       return {
-                        label: key,
+                        label: (
+                          <span
+                            style={{
+                              display: "inline-block",
+                              minWidth: indent - 24 * 2, // 24 is padding of the tab
+                            }}
+                          >
+                            {key}
+                          </span>
+                        ),
                         key: key,
                         children: <PyObjectComponent object={value} />,
                       };
