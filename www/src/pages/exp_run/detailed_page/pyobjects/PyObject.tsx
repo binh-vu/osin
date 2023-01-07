@@ -1,10 +1,16 @@
-import { PyObject } from "models/experiments/ExperimentRunData";
+import { PyObject } from "models/experiments/pyobject";
+import { PyObjectHtml } from "./PyObjectHtml";
 import { PyObjectTable } from "./PyObjectTable";
 
 export const PyObjectComponent = ({ object }: { object: PyObject }) => {
-  if (object.type === "table") {
+  const type = object.type;
+  if (type === "table") {
     return <PyObjectTable object={object} />;
   }
 
-  return <div>Not implemented for type: {object.type}</div>;
+  if (type === "html") {
+    return <PyObjectHtml object={object} />;
+  }
+
+  return <div>Not implemented for type: {type}</div>;
 };

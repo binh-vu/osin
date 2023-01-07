@@ -1,7 +1,14 @@
+import { SanitizedHTML } from "components/SanitizedHTML";
 import { Render, TableComponent } from "components/table";
-import { PyObject } from "models/experiments/ExperimentRunData";
+import {
+  PyOTable,
+  PyOTableRow,
+  PyOTableCell,
+} from "models/experiments/pyobject";
 
-export const PyObjectTable = ({ object }: { object: PyObject }) => {
+type WrappedPyOTableRow = { id: number; row: PyOTableRow };
+
+export const PyObjectTable = ({ object }: { object: PyOTable }) => {
   let columns =
     object.rows.length === 0
       ? []
@@ -10,7 +17,17 @@ export const PyObjectTable = ({ object }: { object: PyObject }) => {
             title: column,
             key: `row.${column}`,
             dataIndex: ["row", column],
-            render: Render.auto as any,
+            render: (
+              value: PyOTableCell,
+              record: WrappedPyOTableRow,
+              recordIndex: number
+            ) => {
+              if (typeof value !== "object" || value === null) {
+                return Render.auto(value);
+              } else if (value.type === "html") {
+                return <SanitizedHTML html={value.value} />;
+              }
+            },
           };
         });
 

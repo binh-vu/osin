@@ -1,16 +1,12 @@
-import { makeStyles } from "@mui/styles";
-import { Col, Row, Space, Table, Typography } from "antd";
-import { dtFormatToParts, Render } from "components/table";
-import { InfoCard } from "components/cards/InfoCard";
-import { ExperimentRun, NestedPrimitiveDataSchema } from "models";
-import { useEffect, useState } from "react";
-import {
-  CalendarOutlined,
-  ClockCircleOutlined,
-  HourglassOutlined,
-} from "@ant-design/icons";
+import { CalendarOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { faHourglass } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { makeStyles } from "@mui/styles";
+import { Col, Row, Space, Table } from "antd";
+import { InfoCard } from "components/cards/InfoCard";
+import { dtFormatToParts, Render } from "components/table";
+import { ExperimentRun, NestedPrimitiveDataSchema } from "models";
+import { useEffect, useState } from "react";
 
 const useStyles = makeStyles({
   card: {

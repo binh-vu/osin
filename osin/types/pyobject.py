@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Generic, List, Type, TypeVar
+from typing import Any, Generic, List, Literal, Type, TypeVar, Union
 
 import numpy as np
 import orjson
@@ -37,20 +38,20 @@ class PyObject(ABC, Generic[T]):
 
 
 @dataclass
-class OTable(PyObject[bytes]):
-    rows: List[NestedPrimitiveOutput]
+class OHTML(PyObject[bytes]):
+    value: str
 
     def serialize_hdf5(self) -> bytes:
-        return orjson_dumps({"rows": self.rows})
+        return self.value.encode()
 
     @staticmethod
-    def from_hdf5(value: bytes) -> OTable:
-        return OTable(**orjson.loads(value))
+    def from_hdf5(value: bytes) -> OHTML:
+        return OHTML(value.decode())
 
     def to_dict(self) -> dict:
         return {
-            "type": "table",
-            "rows": self.rows,
+            "type": "html",
+            "value": self.value,
         }
 
 
@@ -82,3 +83,30 @@ class OAudio(PyObject[np.ndarray]):
 
     def to_dict(self) -> dict:
         raise NotImplementedError()
+
+
+@dataclass
+class OTableCell:
+    type: Literal["html"]
+    value: str
+
+
+OTableRow = Mapping[str, Union[str, float, int, bool, type[None], OTableCell]]
+
+
+@dataclass
+class OTable(PyObject[bytes]):
+    rows: List[OTableRow]
+
+    def serialize_hdf5(self) -> bytes:
+        return orjson_dumps({"rows": self.rows})
+
+    @staticmethod
+    def from_hdf5(value: bytes) -> OTable:
+        return OTable(**orjson.loads(value))
+
+    def to_dict(self) -> dict:
+        return {
+            "type": "table",
+            "rows": self.rows,
+        }

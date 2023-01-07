@@ -40,7 +40,7 @@ const VT_EXPANDABLE_BUTTON_WIDTH = 23; // the button size is 15px + (2px border)
 const LINE_HEIGHT = 22 / 14; // 1.5714285714285714
 const FONT_SIZE = 14;
 const SPACE = {
-  sortIconSpace: 8,
+  sortIconSpace: 12,
   paddingWidth: {
     small: 8,
     middle: 8,
@@ -679,9 +679,18 @@ function computeColumnWidths<R extends object>(
     ArrayHelper.sum(minimumWidths) + options.headerExtraWidth * headers.length;
 
   let columnWidths = tableMeasurement.measureColumnWidths(headers, cells);
-  let extraWidths = columnWidths.map((w, i) =>
-    w === minimumWidths[i] ? options.headerExtraWidth : options.cellExtraWidth
-  );
+  columnWidths = columnWidths.map((w) => w + 1);
+  let extraWidths = columnWidths.map((w, i) => {
+    if (w > minimumWidths[i]) {
+      // max width from the cell
+      return minimumWidths[i] + options.headerExtraWidth >
+        w + options.cellExtraWidth
+        ? minimumWidths[i] + options.headerExtraWidth - w
+        : options.cellExtraWidth;
+    } else {
+      return Math.max(options.headerExtraWidth, options.cellExtraWidth);
+    }
+  });
 
   if (totalMinimumWidth <= tableWidth) {
     // we can fit all columns within the table width if we use the minimum width
@@ -701,18 +710,18 @@ function computeColumnWidths<R extends object>(
         return minimumWidths[i] + columnRatio[i] * remainSpace;
       });
     }
+
+    // adjust the column widths to integer so that its total is equal to the table width
+    // even after adjusting, the width of the last element is not integer, I don't know why
+    // so I minus 1 so that the total width is always 1 less than the table width, it seems that
+    // with the border, it is not distinguishable.
+    columnWidths = columnWidths.map((w) => Math.floor(w));
+    const diff = tableWidth - ArrayHelper.sum(columnWidths);
+    columnWidths[ArrayHelper.maxIndex(columnWidths)] += diff - 1;
   } else {
     // else, cannot fit all columns, so we just use the column widths + extraWidth as users have to scroll anyway
     columnWidths = columnWidths.map((w, i) => w + extraWidths[i]);
   }
-
-  // adjust the column widths to integer so that its total is equal to the table width
-  // even after adjusting, the width of the last element is not integer, I don't know why
-  // so I minus 1 so that the total width is always 1 less than the table width, it seems that
-  // with the border, it is not distinguishable.
-  columnWidths = columnWidths.map((w) => Math.floor(w));
-  const diff = tableWidth - ArrayHelper.sum(columnWidths);
-  columnWidths[ArrayHelper.maxIndex(columnWidths)] += diff - 1;
 
   return new Map(
     leafColumns.map((c, i) => {

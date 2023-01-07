@@ -1,22 +1,14 @@
 import { Tabs } from "antd";
 import { Render, TableComponent } from "components/table";
 import { TableColumn } from "components/table/Columns";
+import { useRemainingHeight } from "components/table/tableHelperHooks";
+import { FixedSizeMap } from "misc/FixedSizeMap";
 import { observer } from "mobx-react";
 import { ExperimentRun, useStores } from "models";
 import { NestedPrimitiveData } from "models/experiments";
 import { ExampleData } from "models/experiments/ExperimentRunData";
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { PyObjectComponent } from "./pyobjects/PyObject";
-import ResizeObserver from "rc-resize-observer";
-import { useRemainingHeight } from "components/table/tableHelperHooks";
-
-// const useStyles = makeStyles({
-//   objectTabs: {
-//     "& > div.ant-tabs-nav": {
-
-//     }
-//   }
-// });
 
 const defaultColumns: TableColumn<ExampleData>[] = [
   {
@@ -42,21 +34,26 @@ export const ExampleExplorer = observer(
     const { expRunStore } = useStores();
     const ref = useRef<HTMLDivElement>(null);
     const remainHeight = useRemainingHeight(ref, 128);
+    const [selectedExampleTab, setSelectedExampleTab] = useState<
+      FixedSizeMap<string, string>
+    >(FixedSizeMap.withCapacity(24));
 
-    let extraColumns = [];
-    if (expRun.dataTracker.individual.primitive.keys.length > 0) {
-      extraColumns.push(
-        data2columns(
-          "Data",
-          ["data", "primitive"],
-          expRun.data.individual.get(
-            expRun.dataTracker.individual.primitive.keys[0]
-          )!.data.primitive
-        )
-      );
-    }
+    const columns = useMemo(() => {
+      let extraColumns = [];
+      if (expRun.dataTracker.individual.primitive.keys.length > 0) {
+        extraColumns.push(
+          data2columns(
+            "Data",
+            ["data", "primitive"],
+            expRun.data.individual.get(
+              expRun.dataTracker.individual.primitive.keys[0]
+            )!.data.primitive
+          )
+        );
+      }
 
-    let columns = defaultColumns.concat(extraColumns);
+      return defaultColumns.concat(extraColumns);
+    }, [expRun.dataTracker.individual.primitive.keys[0]]);
 
     return (
       <div ref={ref}>
@@ -106,6 +103,12 @@ export const ExampleExplorer = observer(
               return (
                 <Tabs
                   tabPosition="left"
+                  activeKey={selectedExampleTab.get(record.id)}
+                  onChange={(key) => {
+                    setSelectedExampleTab(
+                      selectedExampleTab.set(record.id, key)
+                    );
+                  }}
                   items={Object.entries(record.data.complex).map(
                     ([key, value]) => {
                       return {

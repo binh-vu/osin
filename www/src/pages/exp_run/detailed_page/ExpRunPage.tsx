@@ -123,7 +123,6 @@ export const ExpRunPage = observer(() => {
 
       <Tabs
         className={classes.tabs}
-        defaultActiveKey="Examples"
         items={[
           {
             label: "Overview",
