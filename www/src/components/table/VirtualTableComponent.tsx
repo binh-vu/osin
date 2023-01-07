@@ -692,36 +692,53 @@ function computeColumnWidths<R extends object>(
     }
   });
 
-  if (totalMinimumWidth <= tableWidth) {
-    // we can fit all columns within the table width if we use the minimum width
-    const totalExtraWidth = ArrayHelper.sum(extraWidths);
-    const totalColumnWidth = ArrayHelper.sum(columnWidths);
-    const columnRatio = columnWidths.map((w) => w / totalColumnWidth);
+  const totalExtraWidth = ArrayHelper.sum(extraWidths);
+  const totalColumnWidth = ArrayHelper.sum(columnWidths);
 
+  if (totalMinimumWidth > tableWidth) {
+    // cannot fit all columns, so we just use the column widths + extraWidth as users have to scroll anyway
+    columnWidths = columnWidths.map((w, i) => w + extraWidths[i]);
+  } else {
     if (totalExtraWidth + totalColumnWidth < tableWidth) {
       // it's even better, we have plenty of space
+      const columnRatio = columnWidths.map((w) => w / totalColumnWidth);
       let remainSpace = tableWidth - totalExtraWidth - totalColumnWidth;
       columnWidths = columnWidths.map((w, i) => {
         return columnWidths[i] + columnRatio[i] * remainSpace + extraWidths[i];
       });
-    } else {
-      let remainSpace = tableWidth - totalMinimumWidth;
-      columnWidths = columnWidths.map((w, i) => {
-        return minimumWidths[i] + columnRatio[i] * remainSpace;
-      });
-    }
 
-    // adjust the column widths to integer so that its total is equal to the table width
-    // even after adjusting, the width of the last element is not integer, I don't know why
-    // so I minus 1 so that the total width is always 1 less than the table width, it seems that
-    // with the border, it is not distinguishable.
-    columnWidths = columnWidths.map((w) => Math.floor(w));
-    const diff = tableWidth - ArrayHelper.sum(columnWidths);
-    columnWidths[ArrayHelper.maxIndex(columnWidths)] += diff - 1;
-  } else {
-    // else, cannot fit all columns, so we just use the column widths + extraWidth as users have to scroll anyway
-    columnWidths = columnWidths.map((w, i) => w + extraWidths[i]);
+      // adjust the column widths to integer so that its total is equal to the table width
+      // even after adjusting, the width of the last element is not integer, I don't know why
+      // so I minus 1 so that the total width is always 1 less than the table width, it seems that
+      // with the border, it is not distinguishable.
+      columnWidths = columnWidths.map((w) => Math.floor(w));
+      const diff = tableWidth - ArrayHelper.sum(columnWidths);
+      columnWidths[ArrayHelper.maxIndex(columnWidths)] += diff - 1;
+    } else {
+      // we can fit all columns within the table width if we use the minimum width
+      // NOTE: uncomment below to turn on that behavior
+      // const columnRatio = columnWidths.map((w) => w / totalColumnWidth);
+
+      // let remainSpace = tableWidth - totalMinimumWidth;
+      // columnWidths = columnWidths.map((w, i) => {
+      //   return (
+      //     minimumWidths[i] +
+      //     options.headerExtraWidth +
+      //     columnRatio[i] * remainSpace
+      //   );
+      // });
+
+      // columnWidths = columnWidths.map((w) => Math.floor(w));
+      // const diff = tableWidth - ArrayHelper.sum(columnWidths);
+      // columnWidths[ArrayHelper.maxIndex(columnWidths)] += diff - 1;
+
+      // however, sometimes the header is too short and its difficult to read the value of the cell
+      // so we don't try to fit to the minimum width
+      columnWidths = columnWidths.map((w, i) => w + extraWidths[i]);
+    }
   }
+
+  // console.log("width-after", { columnWidths });
 
   return new Map(
     leafColumns.map((c, i) => {
