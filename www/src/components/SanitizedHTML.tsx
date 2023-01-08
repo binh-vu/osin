@@ -13,28 +13,40 @@ const myxss = new FilterXSS({
   css: {
     whiteList: {
       position: /^fixed|relative$/,
-      top: pxRegex,
-      left: pxRegex,
-      padding: pxRegex,
-      "padding-top": pxRegex,
-      "padding-bottom": pxRegex,
-      "padding-left": pxRegex,
-      "padding-right": pxRegex,
-      margin: pxRegex,
-      "margin-top": pxRegex,
-      "margin-bottom": pxRegex,
-      "margin-left": pxRegex,
-      "margin-right": pxRegex,
+      top: true,
+      left: true,
+      padding: true,
+      "padding-top": true,
+      "padding-bottom": true,
+      "padding-left": true,
+      "padding-right": true,
+      margin: true,
+      "margin-top": true,
+      "margin-bottom": true,
+      "margin-left": true,
+      "margin-right": true,
       color: colorRegex,
       background: colorRegex,
       "text-decoration": true,
-      "border-radius": pxRegex,
+      "border-radius": true,
+      "font-weight": true,
     },
   },
 });
-export const SanitizedHTML = ({ html }: { html: string }) => {
+
+interface PopoverRequiredProps {
+  onMouseEnter?: (e: React.MouseEvent) => void;
+  onMouseLeave?: (e: React.MouseEvent) => void;
+  onFocus?: (e: React.FocusEvent) => void;
+  onClick?: (e: React.MouseEvent) => void;
+}
+
+export const SanitizedHTML = ({
+  html,
+  ...props
+}: { html: string } & PopoverRequiredProps) => {
   const sanitizedHtml = useMemo(() => {
     return myxss.process(html);
   }, [html]);
-  return <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />;
+  return <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} {...props} />;
 };

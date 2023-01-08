@@ -100,7 +100,10 @@ def fetch_exp_run_data(id: int):
             h5file, fields, limit, offset, sorted_by, sorted_order
         )
     except KeyError:
-        raise BadRequest(f"The key `{sorted_by}` does not exist to sort by")
+        if sorted_by is not None:
+            raise BadRequest(f"The key `{sorted_by}` does not exist to sort by")
+        else:
+            raise
 
     out = exp_run_data.to_dict()
     out["n_examples"] = n_examples

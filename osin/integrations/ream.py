@@ -52,7 +52,9 @@ class OsinActor(Generic[E, P], BaseActor[E, P]):
             yield exprun
             if exprun is not None:
                 self.logger.debug(
-                    "Flushing run data of the experiment {}", self._exp.name
+                    "Flushing run data of the experiment {} (run {})",
+                    self._exp.name,
+                    exprun.id,
                 )
                 start = time.time()
                 exprun.finish()

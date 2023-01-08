@@ -2,11 +2,6 @@ import { makeObservable, observable } from "mobx";
 import { NestedPrimitiveData } from "./NestedPrimitiveType";
 import { PyObject } from "./pyobject";
 
-export interface PyOTable {
-  type: "table";
-  rows: NestedPrimitiveData[];
-}
-
 export class ExperimentRunData {
   public aggregated: ExpDataRecord;
   public individual: Map<string, ExampleData>;

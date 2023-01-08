@@ -1,6 +1,6 @@
 {
   "name": "osin",
-  "version": "1.7.8",
+  "version": "1.7.10",
   "private": true,
   "dependencies": {
     "@ant-design/colors": "^6.0.0",

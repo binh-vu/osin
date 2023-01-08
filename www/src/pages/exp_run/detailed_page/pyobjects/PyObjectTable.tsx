@@ -1,10 +1,10 @@
-import { SanitizedHTML } from "components/SanitizedHTML";
 import { Render, TableComponent } from "components/table";
 import {
   PyOTable,
-  PyOTableRow,
   PyOTableCell,
+  PyOTableRow,
 } from "models/experiments/pyobject";
+import { PyObjectComponent } from "./PyObject";
 
 type WrappedPyOTableRow = { id: number; row: PyOTableRow };
 
@@ -24,8 +24,8 @@ export const PyObjectTable = ({ object }: { object: PyOTable }) => {
             ) => {
               if (typeof value !== "object" || value === null) {
                 return Render.auto(value);
-              } else if (value.type === "html") {
-                return <SanitizedHTML html={value.value} />;
+              } else {
+                return <PyObjectComponent object={value} />;
               }
             },
           };
@@ -34,7 +34,8 @@ export const PyObjectTable = ({ object }: { object: PyOTable }) => {
   return (
     <TableComponent
       rowKey="id"
-      defaultPageSize={5}
+      showRowIndex={true}
+      defaultPageSize={20}
       store={{
         query: async (limit, offset) => {
           return {
