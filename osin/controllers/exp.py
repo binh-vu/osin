@@ -97,7 +97,13 @@ def fetch_exp_run_data(id: int):
 
     try:
         exp_run_data, n_examples = format.load_exp_run_data(
-            h5file, fields, limit, offset, sorted_by, sorted_order
+            h5file,
+            fields,
+            limit,
+            offset,
+            sorted_by,
+            sorted_order,
+            with_complex_size=True,
         )
     except KeyError:
         if sorted_by is not None:
@@ -108,6 +114,36 @@ def fetch_exp_run_data(id: int):
     out = exp_run_data.to_dict()
     out["n_examples"] = n_examples
     return jsonify(out)
+
+
+@exprun_bp.route(
+    f"/{exprun_bp.name}/<id>/data/individual/<example_id>", methods=["GET"]
+)
+def get_individual_exp_run_data(id: int, example_id: str):
+    try:
+        exp_run: ExpRun = ExpRun.get_by_id(id)
+    except DoesNotExist:
+        raise NotFound(f"ExpRun with id {id} does not exist")
+
+    osin = OsinRepository.get_instance()
+    format = osin.get_exp_run_data_format(exp_run.exp, exp_run)
+    h5file = osin.get_exp_run_data_file(exp_run.exp, exp_run)
+
+    if "fields" in request.args:
+        fields = request.args["fields"].split(",")
+        primitive = "primitive" in fields
+        complex = "complex" in fields
+    else:
+        primitive = True
+        complex = True
+
+    try:
+        exdata = format.get_example_data(
+            h5file, example_id, primitive, complex, with_complex_size=True
+        )
+    except KeyError as e:
+        raise BadRequest(str(e))
+    return jsonify(exdata.to_dict())
 
 
 @exprun_bp.route(f"/{exprun_bp.name}/<id>/upload", methods=["POST"])

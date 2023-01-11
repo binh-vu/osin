@@ -16,6 +16,7 @@ from typing import (
 
 from numpy import sort
 from osin.models import ExpRunData, ExampleData, Record
+from osin.models.exp_data import RecordWithComplexSize
 from osin.types import NestedPrimitiveOutput, PyObject
 from h5py import Group, File, Empty
 
@@ -66,6 +67,7 @@ class Hdf5Format:
         offset: int = 0,
         sorted_by: Optional[str] = None,
         sorted_order: Literal["ascending", "descending"] = "ascending",
+        with_complex_size: bool = False,
     ) -> Tuple[ExpRunData, int]:
         """Load experiment run data from a file.
 
@@ -76,6 +78,7 @@ class Hdf5Format:
             offset: The offset to start loading from. Only apply to `individual` property
             sorted_by: The field to sort by. Only apply to `individual` property. Support either: id, name, or `data.<nested_field>` where `nested_field` is a field in the primitive or complex object
             sorted_order: The order to sort by. Only apply to `individual` property
+            with_complex_size: return the number of complex objects for each individual example
         """
         if fields is None:
             fields = {
@@ -145,44 +148,66 @@ class Hdf5Format:
                     selected_examples = selected_examples[offset : offset + limit]
 
                 for example_id, ex_group in selected_examples:
-                    if example_id not in expdata.individual:
-                        example = ExampleData(
-                            id=ex_group.attrs["id"],
-                            name=ex_group.attrs["name"],
-                        )
-
-                        if "primitive" in fields["individual"]:
-                            example.data.primitive = self._load_nested_primitive_object(
-                                ex_group["primitive"]
-                            )
-                        if "complex" in fields["individual"]:
-                            for key, value in ex_group["complex"].items():
-                                pyobject_class = PyObject.from_classpath(
-                                    ex_group["complex"].attrs[key]
-                                )
-                                example.data.complex[key] = pyobject_class.from_hdf5(
-                                    value[()]
-                                )
-                        expdata.individual[example_id] = example
+                    assert example_id not in expdata.individual
+                    if with_complex_size:
+                        data = RecordWithComplexSize(n_complex=len(ex_group["complex"]))
                     else:
-                        if "primitive" in fields["individual"]:
-                            expdata.individual[
-                                example_id
-                            ].data.primitive = self._load_nested_primitive_object(
-                                ex_group["primitive"]
-                            )
+                        data = Record()
+                    example = ExampleData(
+                        id=ex_group.attrs["id"],
+                        name=ex_group.attrs["name"],
+                        data=data,
+                    )
 
-                        if "complex" in fields["individual"]:
-                            for key, value in ex_group["complex"].items():
-                                pyobject_class = PyObject.from_classpath(
-                                    ex_group.attrs[key]
-                                )
-                                expdata.individual[example_id].data.complex[
-                                    key
-                                ] = pyobject_class.from_hdf5(value[()])
+                    if "primitive" in fields["individual"]:
+                        example.data.primitive = self._load_nested_primitive_object(
+                            ex_group["primitive"]
+                        )
+                    if "complex" in fields["individual"]:
+                        for key, value in ex_group["complex"].items():
+                            pyobject_class = PyObject.from_classpath(
+                                ex_group["complex"].attrs[key]
+                            )
+                            example.data.complex[key] = pyobject_class.from_hdf5(
+                                value[()]
+                            )
+                    expdata.individual[example_id] = example
 
             n_examples = len(f["individual"])
         return expdata, n_examples
+
+    def get_example_data(
+        self,
+        infile: Union[Path, str],
+        example_id: str,
+        primitive: bool,
+        complex: bool,
+        with_complex_size: bool = False,
+    ) -> ExampleData:
+        with File(infile, "r") as f:
+            if example_id not in f["individual"]:
+                raise KeyError(f"example id `{example_id}` not found")
+
+            ex_group = f["individual"][example_id]
+            if with_complex_size:
+                data = RecordWithComplexSize(n_complex=len(ex_group["complex"]))
+            else:
+                data = Record()
+
+            example = ExampleData(
+                id=ex_group.attrs["id"], name=ex_group.attrs["name"], data=data
+            )
+            if primitive:
+                example.data.primitive = self._load_nested_primitive_object(
+                    ex_group["primitive"]
+                )
+            if complex:
+                for key, value in ex_group["complex"].items():
+                    pyobject_class = PyObject.from_classpath(
+                        ex_group["complex"].attrs[key]
+                    )
+                    example.data.complex[key] = pyobject_class.from_hdf5(value[()])
+            return example
 
     def _update_nested_primitive_object(
         self, group: Group, primitive_object: NestedPrimitiveOutput

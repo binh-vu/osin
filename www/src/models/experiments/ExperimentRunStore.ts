@@ -1,4 +1,5 @@
 import axios from "axios";
+import { SERVER } from "env";
 import {
   FetchResult,
   QueryConditions,
@@ -7,7 +8,6 @@ import {
 } from "gena-app";
 import { action, flow, makeObservable, observable } from "mobx";
 import { CancellablePromise } from "mobx/dist/api/flow";
-import { SERVER } from "env";
 import { Experiment } from "./Experiment";
 import { ExperimentRun } from "./ExperimentRun";
 import {
@@ -15,7 +15,6 @@ import {
   ExperimentRunData,
   ExpRunDataTracker,
 } from "./ExperimentRunData";
-import { PyObjectType } from "./NestedPrimitiveType";
 
 export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
   public noRunsOfExperiment: { [expId: number]: number } = {};
@@ -40,6 +39,7 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
       fetchByExp: action,
       fetchExpRunData: action,
       fetchActivity: action,
+      fetchExampleData: action,
     });
   }
 
@@ -47,6 +47,7 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
     return this.indices[0] as SingleKeyIndex<number, number, ExperimentRun>;
   }
 
+  // fetch activity don't update the store, so we do not need to modify the store's state property
   async fetchActivity(since: Date): Promise<{ date: string; count: number }[]> {
     let resp: any;
     try {
@@ -60,6 +61,41 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
     }
     return resp.data;
   }
+
+  fetchExampleData: (
+    exprun: ExperimentRun,
+    exampleId: string
+  ) => CancellablePromise<ExampleData> = flow(function* (
+    this: ExperimentRunStore,
+    exprun: ExperimentRun,
+    exampleId: string
+  ) {
+    let resp: any;
+    try {
+      this.state.value = "updating";
+      resp = yield axios.get(
+        `${this.remoteURL}/${exprun.id}/data/individual/${exampleId}`,
+        {
+          params: {
+            fields: "complex",
+          },
+        }
+      );
+    } catch (error: any) {
+      this.state.value = "error";
+      throw error;
+    }
+
+    const exData: ExampleData = resp.data;
+    if (exprun.data.individual.has(exampleId)) {
+      const prevExData = exprun.data.individual.get(exampleId)!.data;
+      prevExData.complex = exData.data.complex;
+    } else {
+      exprun.data.individual.set(exampleId, exData);
+    }
+    this.state.value = "updated";
+    return exData;
+  });
 
   fetchByExp: (
     exp: Experiment,

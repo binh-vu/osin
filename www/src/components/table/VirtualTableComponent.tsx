@@ -5,7 +5,7 @@ import {
   FilterValue,
   SorterResult,
 } from "antd/lib/table/interface";
-import { ArrayHelper, getClassName, MapHelper, SetHelper } from "misc";
+import { ArrayHelper, getClassName, MapHelper } from "misc";
 import ResizeObserver from "rc-resize-observer";
 import React, { useEffect, useRef, useState } from "react";
 import { VariableSizeList as List } from "react-window";
@@ -19,8 +19,6 @@ import {
   TableColumnMeasurement,
 } from "./Columns";
 import { TableComponentProps } from "./TableComponent";
-import { PlusSquareOutlined, PlusOutlined } from "@ant-design/icons";
-import { LoadingComponent } from "gena-app";
 
 const CSS_VIRTUAL_TABLE = "virtual-table";
 const CSS_VIRTUAL_TABLE_SMALL = "virtual-table-small";

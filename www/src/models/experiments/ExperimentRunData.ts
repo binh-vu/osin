@@ -20,15 +20,19 @@ export class ExperimentRunData {
   }
 }
 
-export interface ExampleData {
-  id: string;
-  name: string;
-  data: ExpDataRecord;
-}
-
 export interface ExpDataRecord {
   primitive: NestedPrimitiveData;
   complex: { [key: string]: PyObject };
+}
+
+export interface ExampleData {
+  id: string;
+  name: string;
+  data: ExpDataRecordWithComplexSize;
+}
+
+export interface ExpDataRecordWithComplexSize extends ExpDataRecord {
+  n_complex: number;
 }
 
 export class ExpRunDataTracker {

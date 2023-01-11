@@ -42,3 +42,13 @@ class ExpRunData:
             "aggregated": self.aggregated.to_dict(),
             "individual": [v.to_dict() for k, v in self.individual.items()],
         }
+
+
+@dataclass
+class RecordWithComplexSize(Record):
+    n_complex: int = field(default=0)
+
+    def to_dict(self):
+        o = super().to_dict()
+        o["n_complex"] = self.n_complex
+        return o

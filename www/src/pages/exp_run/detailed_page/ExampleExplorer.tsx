@@ -1,4 +1,4 @@
-import { Tabs } from "antd";
+import { Spin, Tabs } from "antd";
 import { Render, TableComponent } from "components/table";
 import { TableColumn } from "components/table/Columns";
 import { useRemainingHeight } from "components/table/tableHelperHooks";
@@ -7,7 +7,7 @@ import { observer } from "mobx-react";
 import { ExperimentRun, useStores } from "models";
 import { NestedPrimitiveData } from "models/experiments";
 import { ExampleData } from "models/experiments/ExperimentRunData";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PyObjectComponent } from "./pyobjects/PyObject";
 
 const defaultColumns: TableColumn<ExampleData>[] = [
@@ -70,7 +70,6 @@ export const ExampleExplorer = observer(
                   aggregated: {},
                   individual: {
                     primitive: true,
-                    complex: true,
                   },
                 },
                 limit,
@@ -93,40 +92,19 @@ export const ExampleExplorer = observer(
           }}
           columns={columns}
           expandable={{
-            rowExpandable: (record: ExampleData) =>
-              Object.keys(record.data.complex).length > 0,
+            rowExpandable: (record: ExampleData) => record.data.n_complex > 0,
             expandedRowRender: (
               record: ExampleData,
               recordIndex: number,
               indent: number
             ) => {
               return (
-                <Tabs
-                  tabPosition="left"
-                  activeKey={selectedExampleTab.get(record.id)}
-                  onChange={(key) => {
-                    setSelectedExampleTab(
-                      selectedExampleTab.set(record.id, key)
-                    );
-                  }}
-                  items={Object.entries(record.data.complex).map(
-                    ([key, value]) => {
-                      return {
-                        label: (
-                          <span
-                            style={{
-                              display: "inline-block",
-                              minWidth: indent - 24 * 2, // 24 is padding of the tab
-                            }}
-                          >
-                            {key}
-                          </span>
-                        ),
-                        key: key,
-                        children: <PyObjectComponent object={value} />,
-                      };
-                    }
-                  )}
+                <ExpandableCell
+                  exprun={expRun}
+                  record={record}
+                  indent={indent}
+                  selectedExampleTab={selectedExampleTab}
+                  setSelectedExampleTab={setSelectedExampleTab}
                 />
               );
             },
@@ -165,3 +143,64 @@ export const data2columns = (
     }),
   };
 };
+
+export const ExpandableCell = observer(
+  ({
+    exprun,
+    record,
+    indent,
+    selectedExampleTab,
+    setSelectedExampleTab,
+  }: {
+    exprun: ExperimentRun;
+    record: ExampleData;
+    indent: number;
+    selectedExampleTab: FixedSizeMap<string, string>;
+    setSelectedExampleTab: (map: FixedSizeMap<string, string>) => void;
+  }) => {
+    const { expRunStore } = useStores();
+    const complexObjects = Object.entries(record.data.complex);
+
+    useEffect(() => {
+      if (complexObjects.length === 0) {
+        expRunStore.fetchExampleData(exprun, record.id);
+      }
+    }, [complexObjects.length === 0]);
+
+    if (complexObjects.length === 0) {
+      // need to load this object
+      return (
+        <div style={{ textAlign: "center" }}>
+          <Spin size={"small"} />
+          <a style={{ paddingLeft: 8 }}>Loading...</a>
+        </div>
+      );
+    }
+
+    return (
+      <Tabs
+        tabPosition="left"
+        activeKey={selectedExampleTab.get(record.id)}
+        onChange={(key) => {
+          setSelectedExampleTab(selectedExampleTab.set(record.id, key));
+        }}
+        items={complexObjects.map(([key, value]) => {
+          return {
+            label: (
+              <span
+                style={{
+                  display: "inline-block",
+                  minWidth: indent - 24 * 2, // 24 is padding of the tab
+                }}
+              >
+                {key}
+              </span>
+            ),
+            key: key,
+            children: <PyObjectComponent object={value} />,
+          };
+        })}
+      />
+    );
+  }
+);
