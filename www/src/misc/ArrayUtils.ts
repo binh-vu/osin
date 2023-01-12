@@ -68,7 +68,7 @@ export const ArrayHelper = {
     }
     return Math.sqrt(sum / arr.length);
   },
-  sort: <C>(
+  sortNestedArray: <C>(
     arr: C[][],
     sorts: { index: number; order: "asc" | "desc" }[],
     start: number = 0,
@@ -80,7 +80,9 @@ export const ArrayHelper = {
     for (let i = start; i < end; i++) {
       indexArr.push(i);
     }
-    indexArr.sort((i, j) => ArrayHelper.compare(arr[i], arr[j], sorts, field));
+    indexArr.sort((i, j) =>
+      ArrayHelper.compareArray(arr[i], arr[j], sorts, field)
+    );
 
     const tmparr = indexArr.map((i) => arr[i]);
     for (let i = start; i < end; i++) {
@@ -88,7 +90,7 @@ export const ArrayHelper = {
     }
     return indexArr;
   },
-  compare: <C>(
+  compareArray: <C>(
     itemA: C[],
     itemB: C[],
     sorts: { index: number; order: "asc" | "desc" }[],

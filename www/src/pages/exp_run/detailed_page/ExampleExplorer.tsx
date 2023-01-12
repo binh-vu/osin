@@ -7,7 +7,7 @@ import { observer } from "mobx-react";
 import { ExperimentRun, useStores } from "models";
 import { NestedPrimitiveData } from "models/experiments";
 import { ExampleData } from "models/experiments/ExperimentRunData";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useEffect, useMemo, useRef, useState } from "react";
 import { PyObjectComponent } from "./pyobjects/PyObject";
 
 const defaultColumns: TableColumn<ExampleData>[] = [
@@ -15,23 +15,22 @@ const defaultColumns: TableColumn<ExampleData>[] = [
     key: "id",
     dataIndex: "id",
     title: "ID",
-    // width: "max-content",
-    // fixed: "left",
     sorter: true,
   },
   {
     key: "name",
     dataIndex: "name",
     title: "Name",
-    // width: "max-content",
-    // fixed: "left",
     sorter: true,
   },
 ];
 
+export const OpenStateStore = createContext({});
+
 export const ExampleExplorer = observer(
   ({ expRun }: { expRun: ExperimentRun }) => {
     const { expRunStore } = useStores();
+    const [openStateStore, setOpenStateStore] = useState({});
     const ref = useRef<HTMLDivElement>(null);
     const remainHeight = useRemainingHeight(ref, 128);
     const [selectedExampleTab, setSelectedExampleTab] = useState<
@@ -56,61 +55,64 @@ export const ExampleExplorer = observer(
     }, [expRun.dataTracker.individual.primitive.keys[0]]);
 
     return (
-      <div ref={ref}>
-        <TableComponent
-          selectRows={false}
-          rowKey="id"
-          scroll={{ x: "max-content", y: remainHeight }}
-          virtualTable={true}
-          store={{
-            query: async (limit, offset, conditions, sortedBy) => {
-              await expRunStore.fetchExpRunData(
-                expRun,
-                {
-                  aggregated: {},
-                  individual: {
-                    primitive: true,
+      <OpenStateStore.Provider value={openStateStore}>
+        <div ref={ref}>
+          <TableComponent
+            selectRows={false}
+            rowKey="id"
+            scroll={{ x: "max-content", y: remainHeight }}
+            virtualTable={true}
+            store={{
+              query: async (limit, offset, conditions, sortedBy) => {
+                await expRunStore.fetchExpRunData(
+                  expRun,
+                  {
+                    aggregated: {},
+                    individual: {
+                      primitive: true,
+                    },
                   },
-                },
-                limit,
-                offset,
-                sortedBy.length > 0 ? sortedBy[0] : undefined
-              );
+                  limit,
+                  offset,
+                  sortedBy.length > 0 ? sortedBy[0] : undefined
+                );
 
-              let records: ExampleData[] = [];
-              expRun.dataTracker
-                .getIndividualPrimitiveKeys(limit, offset)
-                .forEach((exampleId) => {
-                  records.push(expRun.data.individual.get(exampleId)!);
-                });
+                let records: ExampleData[] = [];
+                expRun.dataTracker
+                  .getIndividualPrimitiveKeys(limit, offset)
+                  .forEach((exampleId) => {
+                    records.push(expRun.data.individual.get(exampleId)!);
+                  });
 
-              return {
-                records,
-                total: expRun.dataTracker.individual.primitive.total,
-              };
-            },
-          }}
-          columns={columns}
-          expandable={{
-            rowExpandable: (record: ExampleData) => record.data.n_complex > 0,
-            expandedRowRender: (
-              record: ExampleData,
-              recordIndex: number,
-              indent: number
-            ) => {
-              return (
-                <ExpandableCell
-                  exprun={expRun}
-                  record={record}
-                  indent={indent}
-                  selectedExampleTab={selectedExampleTab}
-                  setSelectedExampleTab={setSelectedExampleTab}
-                />
-              );
-            },
-          }}
-        />
-      </div>
+                return {
+                  records,
+                  total: expRun.dataTracker.individual.primitive.total,
+                };
+              },
+            }}
+            columns={columns}
+            expandable={{
+              rowExpandable: (record: ExampleData) => record.data.n_complex > 0,
+              expandedRowRender: (
+                record: ExampleData,
+                recordIndex: number,
+                indent: number
+              ) => {
+                return (
+                  <ExpandableCell
+                    key={record.id}
+                    exprun={expRun}
+                    record={record}
+                    indent={indent}
+                    selectedExampleTab={selectedExampleTab}
+                    setSelectedExampleTab={setSelectedExampleTab}
+                  />
+                );
+              },
+            }}
+          />
+        </div>
+      </OpenStateStore.Provider>
     );
   }
 );
@@ -179,6 +181,7 @@ export const ExpandableCell = observer(
 
     return (
       <Tabs
+        key={exprun.id}
         tabPosition="left"
         activeKey={selectedExampleTab.get(record.id)}
         onChange={(key) => {
@@ -197,7 +200,9 @@ export const ExpandableCell = observer(
               </span>
             ),
             key: key,
-            children: <PyObjectComponent object={value} />,
+            children: (
+              <PyObjectComponent id={`${record.id}-${key}`} object={value} />
+            ),
           };
         })}
       />

@@ -194,7 +194,7 @@ export const TableComponent_ = <R extends object>(
     return isMounted.unmount;
   }, [columns]);
 
-  const columns_ = useMemo(() => {
+  let columns_ = useMemo(() => {
     return internalColumns === undefined
       ? undefined
       : internalColumns.getAntdColumns(virtualTable);
@@ -297,6 +297,7 @@ export const TableComponent_ = <R extends object>(
   }, []);
 
   if (showRowIndex && columns_ !== undefined) {
+    columns_ = columns_.slice();
     columns_.splice(0, 0, {
       title: (
         <Typography.Text type="secondary" disabled={true}>

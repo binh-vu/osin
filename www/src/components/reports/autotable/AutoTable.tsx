@@ -61,7 +61,7 @@ export class AutoTable extends BaseTable<Cell, CellData> {
       order: s.order,
     }));
     for (const groupRange of this.groupRanges) {
-      ArrayHelper.sort(
+      ArrayHelper.sortNestedArray(
         this.data,
         newsorts,
         groupRange.start,

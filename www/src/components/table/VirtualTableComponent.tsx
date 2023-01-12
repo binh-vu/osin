@@ -276,6 +276,7 @@ export const VirtualTableComponent = <R extends object>({
           {({ onItemsRendered, ref }: any) => {
             return (
               <List
+                key="list"
                 ref={(el) => {
                   ref(el);
                   varsizeListRef.current = el;
@@ -320,6 +321,7 @@ export const VirtualTableComponent = <R extends object>({
                   // }
                   return (
                     <VirtualRow
+                      key={index}
                       columns={leafColumns}
                       rowKey={rowKey}
                       rowIndex={index}
