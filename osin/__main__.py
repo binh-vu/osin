@@ -3,11 +3,14 @@ from pathlib import Path
 
 import click
 from loguru import logger
+import orjson
+from osin.misc import orjson_dumps
+from osin.params_helper import ParamComparison
 from peewee import fn
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 from tornado.wsgi import WSGIContainer
-from osin.models import db as dbconn, init_db, all_tables
+from osin.models import db as dbconn, init_db, all_tables, ExpRun
 from osin.repository import OsinRepository
 
 
@@ -53,6 +56,29 @@ def start(
         IOLoop.instance().start()
 
 
+@click.command(name="run-compare")
+@click.option("-d", "--data", required=True, help="data directory of osin")
+@click.argument("runs", nargs=2, type=int)
+def compare_run_parameters(data: str, runs: list[int]):
+    init_db(OsinRepository.get_instance(data).get_db_file())
+    expruns: list[ExpRun] = list(ExpRun.select().where(ExpRun.id.in_(runs)))
+
+    cmp_res = ParamComparison.compare_params(
+        expruns[0].id, expruns[0].params, expruns[1].id, expruns[1].params
+    )
+    if cmp_res is None:
+        print("No difference between parameters of the two runs")
+    else:
+        print(
+            orjson_dumps(
+                cmp_res,
+                option=orjson.OPT_INDENT_2
+                | orjson.OPT_SORT_KEYS
+                | orjson.OPT_NON_STR_KEYS,
+            ).decode()
+        )
+
+
 @click.group()
 def cli():
     pass
@@ -60,6 +86,7 @@ def cli():
 
 cli.add_command(init)
 cli.add_command(start)
+cli.add_command(compare_run_parameters)
 
 
 if __name__ == "__main__":
