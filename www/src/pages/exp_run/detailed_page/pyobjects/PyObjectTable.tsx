@@ -105,7 +105,7 @@ export const PyObjectTable = observer(
       pyObjectTableStore = (openStateStore as any).pyobjecttables.get(id);
     }
 
-    const tableRef = useRef<TableComponentFunc<PyOTableRow>>(null);
+    const tableRef = useRef<TableComponentFunc<WrappedPyOTableRow>>(null);
 
     useEffect(() => {
       if (pyObjectTableStore.filteredRows === null || tableRef.current === null)
@@ -116,7 +116,7 @@ export const PyObjectTable = observer(
     let columns =
       object.rows.length === 0
         ? []
-        : Object.keys(object.rows[0]).map((column, columnIndex) => {
+        : object.header.map((column, columnIndex) => {
             const filterProps = getTextSearchFilterProps(
               pyObjectTableStore.queries[columnIndex],
               (query) => {

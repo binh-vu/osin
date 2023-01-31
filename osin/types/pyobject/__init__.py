@@ -61,7 +61,7 @@ class OTable(PyObject[bytes]):
                         for k, c in row.items()
                     }
                     for row in self.rows
-                ]
+                ],
             }
         )
 
@@ -80,8 +80,14 @@ class OTable(PyObject[bytes]):
         )
 
     def to_dict(self) -> dict:
+        if len(self.rows) == 0:
+            header = []
+        else:
+            header = list(self.rows[0].keys())
+
         return {
             "type": "table",
+            "header": header,
             "rows": [
                 {
                     k: c.to_dict() if isinstance(c, PyObject) else c

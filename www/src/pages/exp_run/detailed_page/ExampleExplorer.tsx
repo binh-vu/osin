@@ -161,7 +161,7 @@ export const ExpandableCell = observer(
     setSelectedExampleTab: (map: FixedSizeMap<string, string>) => void;
   }) => {
     const { expRunStore } = useStores();
-    const complexObjects = Object.entries(record.data.complex);
+    const complexObjects = record.data.complex;
 
     useEffect(() => {
       if (complexObjects.length === 0) {

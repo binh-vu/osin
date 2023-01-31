@@ -14,7 +14,7 @@ class Record:
     def to_dict(self):
         return {
             "primitive": self.primitive,
-            "complex": {k: v.to_dict() for k, v in self.complex.items()},
+            "complex": [(k, v.to_dict()) for k, v in self.complex.items()],
         }
 
 

@@ -22,7 +22,7 @@ export class ExperimentRunData {
 
 export interface ExpDataRecord {
   primitive: NestedPrimitiveData;
-  complex: { [key: string]: PyObject };
+  complex: [string, PyObject][]; // key, value
 }
 
 export interface ExampleData {

@@ -354,7 +354,7 @@ export class ExperimentRunStore extends SimpleCRUDStore<number, ExperimentRun> {
   });
 
   public deserialize(record: any): ExperimentRun {
-    let data = new ExperimentRunData({ primitive: {}, complex: {} }, new Map());
+    let data = new ExperimentRunData({ primitive: {}, complex: [] }, new Map());
     let dataTracker = new ExpRunDataTracker(
       { primitive: false, complex: false },
       {

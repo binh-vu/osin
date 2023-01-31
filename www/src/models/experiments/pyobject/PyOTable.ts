@@ -2,6 +2,7 @@ import { PyOHtml, PyOListHtml } from "./PyOHtml";
 
 export interface PyOTable {
   type: "table";
+  header: string[];
   rows: PyOTableRow[];
 }
 
