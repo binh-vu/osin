@@ -38,7 +38,7 @@ class OsinActor(Generic[E, P], BaseActor[E, P]):
                 cls = self.__class__
                 assert cls.__doc__ is not None, "Please add docstring to the class"
                 self._exp = self._osin.init_exp(
-                    name=getattr(cls, "NAME", cls.__name__),  # type: ignore
+                    name=getattr(cls, "EXP_NAME", cls.__name__),  # type: ignore
                     version=getattr(cls, "EXP_VERSION", 1),
                     description=cls.__doc__,
                     params=exp_params,
