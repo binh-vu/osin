@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "osin"
-version = "1.11.1"
+version = "1.11.2"
 description = "Research and Experiments"
 authors = ["Binh Vu <binh@toan2.com>"]
 license = "MIT"
@@ -18,7 +18,7 @@ h5py = "^3.7.0"
 psutil = "^5.9.2"
 python-slugify = "^6.1.2"
 t2-yada = "^1.0.5"
-ream2 = "^1.6.2"
+ream2 = "^2.1.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.10.0"
