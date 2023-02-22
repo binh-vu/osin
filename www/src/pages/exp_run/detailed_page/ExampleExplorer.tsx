@@ -201,7 +201,11 @@ export const ExpandableCell = observer(
             ),
             key: key,
             children: (
-              <PyObjectComponent id={`${record.id}-${key}`} object={value} />
+              <PyObjectComponent
+                key={`${record.id}-${key}`}
+                id={`${record.id}-${key}`}
+                object={value}
+              />
             ),
           };
         })}

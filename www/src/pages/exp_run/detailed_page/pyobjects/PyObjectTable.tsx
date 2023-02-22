@@ -107,12 +107,6 @@ export const PyObjectTable = observer(
 
     const tableRef = useRef<TableComponentFunc<WrappedPyOTableRow>>(null);
 
-    useEffect(() => {
-      if (pyObjectTableStore.filteredRows === null || tableRef.current === null)
-        return;
-      tableRef.current.reload();
-    }, [pyObjectTableStore.filteredRows]);
-
     let columns =
       object.rows.length === 0
         ? []
@@ -122,7 +116,14 @@ export const PyObjectTable = observer(
               (query) => {
                 pyObjectTableStore.queries[columnIndex] = query;
               },
-              pyObjectTableStore.exactsearch
+              () => {
+                pyObjectTableStore.exactsearch();
+                // doing reload here as useEffect is triggered multiple times at the beginning
+                // regardless of the dependency array in VirtualTable.
+                if (tableRef.current !== null) {
+                  tableRef.current.reload();
+                }
+              }
             );
             return {
               title: column,

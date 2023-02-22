@@ -239,6 +239,7 @@ export const VirtualTableComponent = <R extends object>({
     ref.current = connectObject;
     return (
       <div
+        key="body"
         ref={virtualListRef}
         style={{ width: "100%", overflow: "auto" }}
         onScroll={() => {
@@ -428,6 +429,7 @@ const VirtualRow = <R extends object>({
       <div key={key} className={className} style={style}>
         <div style={{ height: rowHeight }}>{cells}</div>
         <ResizeObserver
+          key="resize-observer"
           onResize={({ height }) => {
             // plus 1 for the border, but we only update when the height is greater than 0 (1)
             // as the event is triggered again when this component is removed
@@ -438,7 +440,7 @@ const VirtualRow = <R extends object>({
           }}
         >
           <div
-            key={"expanded"}
+            key="expanded"
             className={CSS_VIRTUAL_TABLE_EXPANDED_ROW}
             ref={ref}
             style={{
@@ -448,6 +450,7 @@ const VirtualRow = <R extends object>({
             }}
           >
             <div
+              key="expanded-content"
               style={{
                 maxHeight: expanded.maxHeight - expanded.paddingHeight * 2,
                 marginTop: expanded.paddingHeight,
