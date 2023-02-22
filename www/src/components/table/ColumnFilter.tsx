@@ -54,6 +54,7 @@ const SearchFilterDropdownComponent = ({
       <Input
         placeholder={`Enter keywords...`}
         value={query}
+        allowClear={true}
         onChange={(e) => setQuery(e.target.value)}
         onPressEnter={() => onSearch(query)}
       />

@@ -126,7 +126,7 @@ export const PyObjectTable = observer(
               title: column,
               key: `row.${column}`,
               dataIndex: ["row", column],
-              sorter: true,
+              sorter: { multiple: 1 },
               render: (
                 value: PyOTableCell,
                 record: WrappedPyOTableRow,
