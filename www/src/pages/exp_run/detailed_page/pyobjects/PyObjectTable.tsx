@@ -6,7 +6,7 @@ import {
 import Fuse from "fuse.js";
 import _ from "lodash";
 import memoizeOne from "memoize-one";
-import { action, makeObservable, observable } from "mobx";
+import { action, makeObservable, observable, toJS } from "mobx";
 import { observer } from "mobx-react";
 import {
   PyOTable,
@@ -34,11 +34,8 @@ class PyObjectTableStore {
   queries: string[];
   fuses: Fuse<any>[];
 
-  constructor(rows: PyOTableRow[]) {
-    this.columns =
-      rows.length === 0
-        ? []
-        : Object.keys(rows[0]).map((column, i) => [column, i]);
+  constructor(rows: PyOTableRow[], header: string[]) {
+    this.columns = header.map((column, i) => [column, i]);
 
     this.rows = rows;
     this.filteredRows = rows;
@@ -100,7 +97,7 @@ export const PyObjectTable = observer(
     } else {
       (openStateStore as any).pyobjecttables.set(
         id,
-        new PyObjectTableStore(object.rows)
+        new PyObjectTableStore(object.rows, object.header)
       );
       pyObjectTableStore = (openStateStore as any).pyobjecttables.get(id);
     }
