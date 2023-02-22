@@ -158,20 +158,8 @@ export const VirtualTableComponent = <R extends object>({
                 prevCloseExpandedIndex.current = rowIndex;
               }
               newExpandedRows = MapHelper.delete(expandedRows, rowIndex);
-              // console.log(
-              //   "remove expanded row: ",
-              //   rowIndex,
-              //   expandedRows,
-              //   newExpandedRows
-              // );
             } else {
               newExpandedRows = MapHelper.set(expandedRows, rowIndex, -1);
-              // console.log(
-              //   "add expanded row: ",
-              //   rowIndex,
-              //   expandedRows,
-              //   newExpandedRows
-              // );
             }
             setExpandedRows(newExpandedRows);
           },
@@ -190,19 +178,13 @@ export const VirtualTableComponent = <R extends object>({
   useEffect(() => {
     if (varsizeListRef.current) {
       // we need to detect if previous action is delete or set
-      const minIndex = Math.min(...expandedRows.keys());
-      // console.log(">>>", minIndex, prevCloseExpandedIndex.current);
+      const minIndex =
+        expandedRows.size > 0 ? Math.min(...expandedRows.keys()) : 0;
       if (minIndex < prevCloseExpandedIndex.current) {
         if (Array.from(expandedRows.values()).every((v) => v >= 0)) {
           varsizeListRef.current.resetAfterIndex(minIndex);
         }
       } else {
-        // console.log(
-        //   "reset after index",
-        //   minIndex,
-        //   prevCloseExpandedIndex.current,
-        //   expandedRows
-        // );
         varsizeListRef.current.resetAfterIndex(
           prevCloseExpandedIndex.current,
           true
@@ -316,9 +298,6 @@ export const VirtualTableComponent = <R extends object>({
                     );
                   }
                   const record = getItem(index);
-                  // if (index === 2) {
-                  //   console.log("render vt outside", index, expandedRows);
-                  // }
                   return (
                     <VirtualRow
                       key={index}
@@ -444,19 +423,16 @@ const VirtualRow = <R extends object>({
   }
   const key = record[rowKey] as React.Key;
 
-  // if (rowIndex === 2) {
-  //   console.log("render vt", rowIndex, expanded);
-  // }
-
   if (expanded !== undefined) {
     return (
       <div key={key} className={className} style={style}>
         <div style={{ height: rowHeight }}>{cells}</div>
         <ResizeObserver
           onResize={({ height }) => {
-            // plus 1 for the border
+            // plus 1 for the border, but we only update when the height is greater than 0 (1)
+            // as the event is triggered again when this component is removed
             height = height + 1;
-            if (height !== expanded.prevHeight) {
+            if (height > 1 && height !== expanded.prevHeight) {
               expanded.setHeight(height);
             }
           }}
@@ -737,8 +713,6 @@ function computeColumnWidths<R extends object>(
       columnWidths = columnWidths.map((w, i) => w + extraWidths[i]);
     }
   }
-
-  // console.log("width-after", { columnWidths });
 
   return new Map(
     leafColumns.map((c, i) => {
