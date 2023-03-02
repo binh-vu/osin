@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, List, Union
+from typing import Any, Union, Sequence, Optional
 
 import numpy as np
 import orjson
@@ -41,7 +41,7 @@ class OAudio(PyObject[np.ndarray]):
         raise NotImplementedError()
 
 
-OTableRow = Mapping[str, Union[str, float, int, bool, type[None], OHTML, OListHTML]]
+OTableRow = Mapping[str, Optional[Union[str, float, int, bool, OHTML, OListHTML]]]
 OTableCellTypeToClass: dict[str, type[OHTML] | type[OListHTML]] = {
     "html": OHTML,
     "html-list": OListHTML,
@@ -50,7 +50,7 @@ OTableCellTypeToClass: dict[str, type[OHTML] | type[OListHTML]] = {
 
 @dataclass
 class OTable(PyObject[bytes]):
-    rows: List[OTableRow]
+    rows: Sequence[OTableRow]
 
     def serialize_hdf5(self) -> bytes:
         return orjson_dumps(

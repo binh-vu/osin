@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "osin"
-version = "1.11.3"
+version = "1.11.4"
 description = "Research and Experiments"
 authors = ["Binh Vu <binh@toan2.com>"]
 license = "MIT"
