@@ -4,10 +4,8 @@ from pathlib import Path
 import orjson
 from typing import List, Union, Dict, get_type_hints, Type, Any
 from dataclasses import is_dataclass, asdict, dataclass, fields, Field, replace
-
+from ream.params_helper import DataClassInstance
 from osin.types.pyobject_type import PyObjectType
-
-DataClassInstance = Any
 
 
 def are_valid_parameters(
@@ -25,16 +23,6 @@ def are_valid_parameters(
         )
     else:
         assert is_dataclass(params), "Parameters must be an instance of a dataclass"
-
-
-def param_as_dict(param: DataClassInstance) -> dict:
-    """Convert a dataclass to a dictionary"""
-    if not is_dataclass(param):
-        raise TypeError("Parameter must be an instance of a dataclass")
-
-    if hasattr(param, "to_dict"):
-        return param.to_dict()
-    return asdict(param)
 
 
 class ParamComparison:

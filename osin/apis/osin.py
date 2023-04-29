@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import atexit
-from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 import shutil
@@ -19,7 +18,7 @@ from osin.models.exp import (
 from osin.repository import OsinRepository
 from osin.types import NestedPrimitiveOutputSchema, PyObject
 
-from osin.params_helper import DataClassInstance, param_as_dict
+from ream.params_helper import DataClassInstance, param_as_dict
 from osin.types.param_schema import ParamSchema
 from osin.types.primitive_type import validate_primitive_data
 from osin.models.exp_data import ExampleData, Record
