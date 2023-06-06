@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Dict, Generic, Optional, List
 import time, os, re
 from osin.types.pyobject_type import PyObjectType
-from ream.actors.base import BaseActor, E, P
+from ream.actors.base import BaseActor, P
 from osin.apis.remote_exp import RemoteExp
 from contextlib import contextmanager
 from dataclasses import make_dataclass
@@ -10,7 +10,7 @@ from osin.apis.osin import Osin
 from ream.params_helper import DataClassInstance, NoParams
 
 
-class OsinActor(Generic[E, P], BaseActor[E, P]):
+class OsinActor(BaseActor[P]):
     _osin: Optional[Osin] = None
 
     def __init__(self, params: P, dep_actors: Optional[List[BaseActor]] = None):
