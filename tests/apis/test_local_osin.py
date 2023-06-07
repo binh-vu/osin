@@ -15,9 +15,11 @@ class Args:
 
 
 def test_smoke(clean_db: SqliteDatabase, tmp_path: Path):
-    params = yada.Parser1(Args).parse_args(
-        ["--dataset", "iris", "--method", "Nearest Neighbors"]
-    )
+    params = {
+        "": yada.Parser1(Args).parse_args(
+            ["--dataset", "iris", "--method", "Nearest Neighbors"]
+        )
+    }
 
     osin = Osin.local(osin_dir=tmp_path)
     exp = osin.init_exp(
@@ -57,8 +59,10 @@ def test_smoke(clean_db: SqliteDatabase, tmp_path: Path):
             created_time=exp_run1.created_time,
             finished_time=exp_run1.finished_time,
             params={
-                "dataset": "iris",
-                "method": "Nearest Neighbors",
+                "": {
+                    "dataset": "iris",
+                    "method": "Nearest Neighbors",
+                }
             },
             metadata=exp_run_dbs[0]["metadata"],
             aggregated_primitive_outputs={
@@ -77,8 +81,10 @@ def test_smoke(clean_db: SqliteDatabase, tmp_path: Path):
             created_time=exp_run2.created_time,
             finished_time=exp_run2.finished_time,
             params={
-                "dataset": "iris",
-                "method": "Nearest Neighbors",
+                "": {
+                    "dataset": "iris",
+                    "method": "Nearest Neighbors",
+                }
             },
             metadata=exp_run_dbs[1]["metadata"],
             aggregated_primitive_outputs={

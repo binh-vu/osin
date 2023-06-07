@@ -16,9 +16,11 @@ def test_db(clean_db: SqliteDatabase, tmp_path: Path) -> List[RemoteExpRun]:
         dataset: str
         method: str
 
-    params = yada.Parser1(Args).parse_args(
-        ["--dataset", "iris", "--method", "Nearest Neighbors"]
-    )
+    params = {
+        "": yada.Parser1(Args).parse_args(
+            ["--dataset", "iris", "--method", "Nearest Neighbors"]
+        )
+    }
 
     osin = Osin.local(osin_dir=tmp_path)
     exp = osin.init_exp(
