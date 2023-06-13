@@ -1,24 +1,39 @@
 from __future__ import annotations
-from typing import Dict, Generic, Optional, List
-import time, os, re
-from osin.types.pyobject_type import PyObjectType
-from ream.actors.base import BaseActor, P
-from osin.apis.remote_exp import RemoteExp
+
+import os
+import re
+import time
 from contextlib import contextmanager
 from dataclasses import make_dataclass
+from typing import Generic, List, Optional, Protocol
+
 from osin.apis.osin import Osin
+from osin.apis.remote_exp import RemoteExp
+from ream.actors.base import BaseActorProtocol, P
+from ream.cache_helper import Cache
 from ream.params_helper import DataClassInstance, NoParams
 
 
-class OsinActor(BaseActor[P]):
+class OsinActorProtocol(BaseActorProtocol[P], Protocol[P]):
+    @property
+    def _osin(self) -> Optional[Osin]:
+        ...
+
+    def get_exp_run_params(self) -> dict[str, DataClassInstance]:
+        ...
+
+    def gen_param_namespace(self, classname: str) -> str:
+        ...
+
+    def get_exp(self, exp_params: dict[str, DataClassInstance]) -> RemoteExp:
+        ...
+
+
+class OsinActorMixin(Generic[P]):
     _osin: Optional[Osin] = None
 
-    def __init__(self, params: P, dep_actors: Optional[List[BaseActor]] = None):
-        super().__init__(params, dep_actors)
-        self._exp: Optional[RemoteExp] = None
-
     @contextmanager
-    def new_exp_run(self, **kwargs):
+    def new_exp_run(self: OsinActorProtocol[P], **kwargs):
         """Start a new experiment run"""
         if self._osin is None:
             yield None
@@ -33,41 +48,25 @@ class OsinActor(BaseActor[P]):
                     ns not in exp_params
                 ), "OsinParams is a reserved classname for OsinActor generates dynamic parameters, please choose another name for your parameter classes"
                 exp_params[ns] = C(**kwargs)
-            if self._exp is None:
-                self.logger.debug("Setup experiments...")
-                cls = self.__class__
-                assert cls.__doc__ is not None, "Please add docstring to the class"
-                self._exp = self._osin.init_exp(
-                    name=getattr(cls, "EXP_NAME", cls.__name__),  # type: ignore
-                    version=getattr(cls, "EXP_VERSION", 1),
-                    description=cls.__doc__,
-                    params=exp_params,
-                    update_param_schema=os.environ.get(
-                        "OSIN_UPDATE_EXP_PARAM_SCHEMA", "false"
-                    )
-                    == "true",
-                )
 
-            exprun = self._exp.new_exp_run(exp_params)
+            exp = self.get_exp(exp_params)
+            exprun = exp.new_exp_run(exp_params)
             yield exprun
-            if exprun is not None:
-                self.logger.debug(
-                    "Flushing run data of the experiment {} (run {})",
-                    self._exp.name,
-                    exprun.id,
-                )
-                start = time.time()
-                exprun.finish()
-                end = time.time()
-                self.logger.debug(
-                    "\tFlushing run data took {:.3f} seconds", end - start
-                )
+            self.logger.debug(
+                "Flushing run data of the experiment {} (run {})",
+                exp.name,
+                exprun.id,
+            )
+            start = time.time()
+            exprun.finish()
+            end = time.time()
+            self.logger.debug("\tFlushing run data took {:.3f} seconds", end - start)
 
     def get_exp_run_params(
-        self,
+        self: OsinActorProtocol[P],
     ) -> dict[str, DataClassInstance]:
         """Get the parameters of the experiment run"""
-        stack: List[BaseActor] = [self]
+        stack: List[BaseActorProtocol] = [self]
         params = {}
 
         # mapping from actor's class to its instance id
@@ -115,3 +114,21 @@ class OsinActor(BaseActor[P]):
         classname = re.sub(r"([a-z\d])([A-Z])", r"\1_\2", classname)
         classname = classname.replace("-", "_")
         return classname.lower()
+
+    # cache_args so this function only runs once.
+    @Cache.mem(cache_args=[])
+    def get_exp(
+        self: OsinActorProtocol[P], exp_params: dict[str, DataClassInstance]
+    ) -> RemoteExp:
+        assert self._osin is not None
+        self.logger.debug("Setup experiments...")
+        cls = self.__class__
+        assert cls.__doc__ is not None, "Please add docstring to the class"
+        return self._osin.init_exp(
+            name=getattr(cls, "EXP_NAME", cls.__name__),  # type: ignore
+            version=getattr(cls, "EXP_VERSION", 1),
+            description=cls.__doc__,
+            params=exp_params,
+            update_param_schema=os.environ.get("OSIN_UPDATE_EXP_PARAM_SCHEMA", "false")
+            == "true",
+        )
