@@ -136,3 +136,4 @@ data
 
 scripts/tmp
 osin/www
+poetry.lock
