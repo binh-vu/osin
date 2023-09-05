@@ -18,7 +18,7 @@ h5py = "^3.8.0"
 psutil = "^5.9.2"
 python-slugify = "^6.1.2"
 t2-yada = "^1.2.0"
-ream2 = "^2.11.1"
+ream2 = "^3.0.1"
 
 [tool.poetry.dev-dependencies]
 black = "^22.10.0"

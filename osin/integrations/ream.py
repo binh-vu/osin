@@ -10,7 +10,7 @@ from typing import Generic, List, Optional, Protocol
 from osin.apis.osin import Osin
 from osin.apis.remote_exp import RemoteExp
 from ream.actors.base import BaseActorProtocol, P
-from ream.cache_helper import Cache
+from ream.cache_helper import Cache, MemBackend
 from ream.params_helper import DataClassInstance, NoParams
 
 
@@ -116,7 +116,7 @@ class OsinActorMixin(Generic[P]):
         return classname.lower()
 
     # cache_args so this function only runs once.
-    @Cache.mem(cache_args=[])
+    @Cache.cache(backend=MemBackend(), cache_args=[])
     def get_exp(
         self: OsinActorProtocol[P], exp_params: dict[str, DataClassInstance]
     ) -> RemoteExp:
