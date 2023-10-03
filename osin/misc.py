@@ -1,6 +1,6 @@
-from pathlib import Path
 import sqlite3
 import sys
+from pathlib import Path
 from typing import Optional
 
 import orjson
@@ -16,10 +16,16 @@ def get_caller_python_script():
 
 
 def json_dumps(obj):
-    return orjson.dumps(obj, default=_orjson_default).decode()
+    return orjson.dumps(
+        obj, default=_orjson_default, option=orjson.OPT_SERIALIZE_NUMPY
+    ).decode()
 
 
 def orjson_dumps(obj, **kwargs):
+    if "option" in kwargs:
+        kwargs["option"] = kwargs["option"] | orjson.OPT_SERIALIZE_NUMPY
+    else:
+        kwargs["option"] = orjson.OPT_SERIALIZE_NUMPY
     return orjson.dumps(obj, default=_orjson_default, **kwargs)
 
 
@@ -34,6 +40,7 @@ def _orjson_default(obj):
         return str(obj)
     if isinstance(obj, set):
         return list(obj)
+
     raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
 
 
