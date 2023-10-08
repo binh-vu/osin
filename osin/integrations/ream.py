@@ -33,6 +33,14 @@ class OsinActorMixin(Generic[P]):
     _osin: Optional[Osin] = None
 
     @contextmanager
+    def no_osin(self):
+        """Temporarily disable Osin integration"""
+        osin = self._osin
+        self._osin = None
+        yield
+        self._osin = osin
+
+    @contextmanager
     def new_exp_run(self: OsinActorProtocol[P], **kwargs):
         """Start a new experiment run"""
         if self._osin is None:
