@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Union, Sequence, Optional
+from typing import Any, Optional, Sequence, Union
 
 import numpy as np
 import orjson
+from htbuilder import li, table, tbody, td, th, thead, tr, ul
 from osin.misc import orjson_dumps
 from osin.types.pyobject.base import PyObject
 from osin.types.pyobject.html import OHTML, OListHTML
@@ -96,6 +97,26 @@ class OTable(PyObject[bytes]):
                 for row in self.rows
             ],
         }
+
+    def _repr_html_(self):
+        if len(self.rows) == 0:
+            return "<i>&lt;empty table&gt;</i>"
+
+        headers = list(self.rows[0].keys())
+        rows = []
+        for row in self.rows:
+            cells = []
+            for i, key in enumerate(row.keys()):
+                assert key == headers[i]
+                value = row[key]
+                if isinstance(value, OHTML):
+                    value = value.value
+                elif isinstance(value, OListHTML):
+                    value = ul(*(li(item.value) for item in value.items))
+
+                cells.append(td(value))
+            rows.append(tr(*cells))
+        return str(table(thead(tr(*(th(header) for header in headers))), tbody(*rows)))
 
 
 def from_classpath(classpath: str) -> type[PyObject]:

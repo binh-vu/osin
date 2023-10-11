@@ -5,7 +5,6 @@ from typing import Optional
 
 import orjson
 from osin.misc import orjson_dumps
-
 from osin.types.pyobject.base import PyObject
 
 
