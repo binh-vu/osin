@@ -16,6 +16,7 @@ import { ExpRunExplorerPage } from "pages/exp_run/explorer_page/ExpRunExplorerPa
 import { ReportPage } from "pages/reports/ReportPage";
 import { UpsertReportPage } from "pages/reports/UpsertReportPage";
 import { SingleReportPage } from "pages/reports/SingleReportPage";
+import { ExpRunExamplePage } from "pages/exp_run/detailed_page/ExpRunExamplePage";
 
 /*************************************************************************************
  * Layouts of the application
@@ -132,6 +133,12 @@ export const routes = {
     component: ExpRunPage,
     urlSchema: { expId: "number", runId: "number" },
     pathDef: "/exps/:expId/runs/:runId",
+    exact: true,
+  }),
+  runWithExpIdWithExampleId: new NoQueryArgsPathDef({
+    component: ExpRunExamplePage,
+    urlSchema: { expId: "number", runId: "number", exampleId: "number" },
+    pathDef: "/exps/:expId/runs/:runId/examples/:exampleId",
     exact: true,
   }),
   run: new NoQueryArgsPathDef({

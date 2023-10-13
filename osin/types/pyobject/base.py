@@ -20,6 +20,12 @@ class PyObject(ABC, Generic[T]):
             "Unreachable! This function must be overrided in the module init"
         )
 
+    @staticmethod
+    def from_dict(obj: dict) -> PyObject:
+        raise Exception(
+            "Unreachable! This function must be overrided in the module init"
+        )
+
     @abstractmethod
     def serialize_hdf5(self) -> T:
         """Convert the object to a format that can be stored in HDF5."""

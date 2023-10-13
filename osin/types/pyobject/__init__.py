@@ -109,10 +109,8 @@ class OTable(PyObject[bytes]):
             for i, key in enumerate(row.keys()):
                 assert key == headers[i]
                 value = row[key]
-                if isinstance(value, OHTML):
-                    value = value.value
-                elif isinstance(value, OListHTML):
-                    value = ul(*(li(item.value) for item in value.items))
+                if isinstance(value, (OHTML, OListHTML)):
+                    value = value._repr_html_()
 
                 cells.append(td(value))
             rows.append(tr(*cells))
@@ -124,4 +122,27 @@ def from_classpath(classpath: str) -> type[PyObject]:
     return globals()[classpath.split(".")[-1]]
 
 
+def from_dict(obj: dict):
+    if obj["type"] == "table":
+        return OTable(
+            [
+                {k: from_dict(c) if isinstance(c, dict) else c for k, c in row.items()}
+                for row in obj["rows"]
+            ]
+        )
+    elif obj["type"] == "html":
+        return OHTML(obj["value"], obj["popover"])
+    elif obj["type"] == "html-list":
+        return OListHTML(
+            [
+                OHTML(item, popover)
+                for item, popover in zip(obj["items"], obj["popovers"])
+            ],
+            obj["space"],
+        )
+    else:
+        raise NotImplementedError(obj["type"])
+
+
 PyObject.from_classpath = from_classpath
+PyObject.from_dict = from_dict

@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import orjson
+from htbuilder import li, ul
 from osin.misc import orjson_dumps
 from osin.types.pyobject.base import PyObject
 
@@ -35,6 +36,9 @@ class OHTML(PyObject[bytes]):
     @staticmethod
     def from_dict(obj: dict):
         return OHTML(obj["value"], obj["popover"])
+
+    def _repr_html_(self):
+        return self.value
 
 
 @dataclass
@@ -80,3 +84,6 @@ class OListHTML(PyObject[bytes]):
             ],
             obj["space"],
         )
+
+    def _repr_html_(self):
+        return ul(*(li(item.value) for item in self.items))
