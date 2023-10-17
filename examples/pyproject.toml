@@ -5,7 +5,7 @@ description = "Examples on how to use osin"
 authors = ["Binh Vu <binh@toan2.com>"]
 license = "MIT"
 readme = "README.md"
-packages = [{include = "osin_examples"}]
+packages = [{ include = "classification" }]
 
 [tool.poetry.dependencies]
 python = "^3.9"
