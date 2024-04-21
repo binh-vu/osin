@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import types
 from dataclasses import dataclass
-from typing import Any, List, Union, get_args
+from typing import Any, List, Union, get_args, get_origin
 
 Number = Union[int, float]
 NoneType = type(None)
@@ -41,7 +42,11 @@ class PyObjectType:
                 # found one case which is typing.Union
                 path = hint.__module__ + "." + hint.__origin__._name
             else:
-                raise NotImplementedError(hint)
+                origin = get_origin(hint)
+                if origin is types.UnionType:
+                    path = "typing.Union"
+                else:
+                    raise NotImplementedError(hint)
 
         if path in TYPE_ALIASES:
             # do it here because in python 3.10 typing.Dict has __qualname__
