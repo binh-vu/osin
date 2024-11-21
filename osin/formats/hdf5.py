@@ -1,5 +1,5 @@
+import math
 from dataclasses import dataclass
-import math, numpy as np
 from pathlib import Path
 from typing import (
     Any,
@@ -14,11 +14,12 @@ from typing import (
     Union,
 )
 
+import numpy as np
+from h5py import Empty, File, Group
 from numpy import sort
-from osin.models import ExpRunData, ExampleData, Record
+from osin.models import ExampleData, ExpRunData, Record
 from osin.models.exp_data import RecordWithComplexSize
 from osin.types import NestedPrimitiveOutput, PyObject
-from h5py import Group, File, Empty
 
 
 class Hdf5Format:
